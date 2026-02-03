@@ -1,0 +1,279 @@
+# 단풍바람 (MapleWind) Backend - Cursor Rules
+
+You are an expert Python backend developer working on the MapleWind project, a FastAPI-based MapleStory character settlement/achievement tracking API.
+
+## Project Context
+
+- **Framework:** FastAPI with async/await throughout
+- **Python:** 3.12 (use modern syntax: `str | None`, built-in `list[]`)
+- **Database:** SQLite via aiosqlite (async)
+- **ORM:** SQLAlchemy 2.0 with `Mapped[]` typed columns
+- **Package Manager:** uv
+- **Architecture:** 3-Layer (Controller → Service → Repository)
+- **API Prefix:** All endpoints under `/api/v1`
+
+## Architecture Rules (STRICT)
+
+This project follows a strict 3-Layer Architecture. NEVER violate these boundaries:
+
+```
+Controller (controller/v1/)  →  calls Service only
+Service (services/)          →  calls Repository only
+Repository (repositories/)   →  calls DB only
+```
+
+### Layer Responsibilities
+
+1. **Controller (Router):**
+   - HTTP routing, `response_model` declaration, dependency injection via `Depends(get_db)`
+   - NEVER contains business logic or direct DB queries
+   - NEVER imports from `repositories/` or `models/` for DB operations
+
+2. **Service:**
+   - Business logic, validation, raises `HTTPException` for errors
+   - NEVER writes raw SQLAlchemy queries (`select()`, `db.execute()`)
+   - ALWAYS delegates DB operations to Repository
+
+3. **Repository:**
+   - Pure DB CRUD operations using SQLAlchemy async API
+   - NEVER raises `HTTPException`
+   - NEVER contains business logic
+   - Returns ORM models or `None`
+
+## File Naming Convention
+
+When creating new features, follow this exact pattern:
+
+| Layer | File Pattern | Location |
+|-------|-------------|----------|
+| Model | `models/<domain>.py` (singular) | `models/` |
+| Schema | `schemas/<domain>_dto.py` | `schemas/` |
+| Repository | `repositories/<domain>_repo.py` | `repositories/` |
+| Service | `services/<domain>_service.py` | `services/` |
+| Controller | `controller/v1/<domains>.py` (plural) | `controller/v1/` |
+
+## Code Patterns
+
+### Model (SQLAlchemy 2.0 Mapped Style)
+
+```python
+import datetime
+
+from sqlalchemy import Integer, String, Text, ForeignKey, func
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+
+from database import Base
+
+
+class ModelName(Base):
+    __tablename__ = "table_names"  # plural, snake_case
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    name: Mapped[str] = mapped_column(String, nullable=False)
+    optional_field: Mapped[str | None] = mapped_column(String, nullable=True)
+```
+
+### Schema (Pydantic DTO)
+
+```python
+from pydantic import BaseModel
+
+
+class DomainBase(BaseModel):
+    name: str
+    optional_field: str | None = None
+
+
+class DomainCreate(BaseModel):
+    """Request body - only user-provided fields"""
+    name: str
+
+
+class DomainResponse(DomainBase):
+    id: int
+    model_config = {"from_attributes": True}
+
+
+class DomainDetailResponse(DomainResponse):
+    """Extended response - add extra fields here"""
+    pass
+```
+
+- Response DTOs MUST exclude sensitive fields (e.g., password)
+- Use `model_config = {"from_attributes": True}` for ORM conversion
+- Use `DomainBase` for shared fields, inherit into Response/Create
+
+### Repository
+
+```python
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from models.domain import Domain
+
+
+async def get_all(db: AsyncSession, skip: int = 0, limit: int = 100) -> list[Domain]:
+    result = await db.execute(select(Domain).offset(skip).limit(limit))
+    return list(result.scalars().all())
+
+
+async def get_by_id(db: AsyncSession, domain_id: int) -> Domain | None:
+    result = await db.execute(select(Domain).where(Domain.id == domain_id))
+    return result.scalar_one_or_none()
+
+
+async def create(db: AsyncSession, item: Domain) -> Domain:
+    db.add(item)
+    await db.commit()
+    await db.refresh(item)
+    return item
+```
+
+- First parameter is ALWAYS `db: AsyncSession`
+- Use `scalar_one_or_none()` for single results
+- Use `list(result.scalars().all())` for list results
+- Return type is ALWAYS the ORM model or `None`
+
+### Service
+
+```python
+from fastapi import HTTPException
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from repositories import domain_repo
+from models.domain import Domain
+
+
+async def get_item(db: AsyncSession, item_id: int) -> Domain:
+    item = await domain_repo.get_by_id(db, item_id)
+    if not item:
+        raise HTTPException(status_code=404, detail="Domain not found")
+    return item
+```
+
+- First parameter is ALWAYS `db: AsyncSession`
+- Raise `HTTPException` for not-found and validation errors
+- Convert DTO → ORM model for create operations
+
+### Controller (Router)
+
+```python
+from fastapi import APIRouter, Depends
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from controller.dependencies import get_db
+from schemas.domain_dto import DomainResponse, DomainCreate
+from services import domain_service
+
+router = APIRouter(prefix="/domains", tags=["domains"])
+
+
+@router.get("", response_model=list[DomainResponse])
+async def get_domains(db: AsyncSession = Depends(get_db)):
+    return await domain_service.get_all(db)
+
+
+@router.get("/{domain_id}", response_model=DomainDetailResponse)
+async def get_domain(domain_id: int, db: AsyncSession = Depends(get_db)):
+    return await domain_service.get_item(db, domain_id)
+
+
+@router.post("", response_model=DomainResponse, status_code=201)
+async def create_domain(data: DomainCreate, db: AsyncSession = Depends(get_db)):
+    return await domain_service.create_item(db, data)
+```
+
+- Use `APIRouter(prefix="/...", tags=["..."])`
+- ALWAYS use `Depends(get_db)` for DB session
+- ALWAYS specify `response_model`
+- POST endpoints use `status_code=201`
+- Pagination via query params: `page: int = 1, limit: int = 20`
+
+## Import Order
+
+Always group imports in this order with blank lines between groups:
+
+```python
+# 1. Standard library
+import datetime
+from contextlib import asynccontextmanager
+
+# 2. Third-party packages
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+# 3. Local modules
+from database import Base
+from models.character import Character
+from repositories import character_repo
+```
+
+## Type Annotations
+
+- ALWAYS use Python 3.12 syntax: `str | None` (not `Optional[str]`)
+- ALWAYS use built-in `list[]` (not `typing.List[]`)
+- ALWAYS annotate function return types
+- ALWAYS annotate function parameters
+
+## Async Rules
+
+- ALL controller handlers: `async def`
+- ALL service functions: `async def`
+- ALL repository functions: `async def`
+- ALWAYS `await` database operations
+- NEVER create DB sessions manually (use `Depends(get_db)`)
+
+## Naming Conventions
+
+| Element | Convention | Example |
+|---------|-----------|---------|
+| Class | PascalCase, singular | `Character`, `Settlement` |
+| Table name | snake_case, plural | `characters`, `settlements` |
+| Function | snake_case | `get_all_characters` |
+| Variable | snake_case | `char_id`, `settlement_id` |
+| Constant | UPPER_SNAKE_CASE | `DATABASE_URL` |
+| DTO class | PascalCase + suffix | `CharacterResponse`, `CommentCreate` |
+| File | snake_case | `character_service.py` |
+
+## Error Handling
+
+- Repository: return `None` for not found
+- Service: raise `HTTPException(status_code=404, detail="... not found")`
+- Controller: no error handling (delegated to Service)
+- Error detail messages in English
+
+## What NOT To Do
+
+- Do NOT use `typing.Optional` or `typing.List` - use `str | None` and `list[]`
+- Do NOT use sync SQLAlchemy API - everything is async
+- Do NOT put business logic in Controllers
+- Do NOT put DB queries in Services
+- Do NOT raise HTTPException in Repositories
+- Do NOT use `orm_mode = True` - use `model_config = {"from_attributes": True}`
+- Do NOT hardcode data in controllers (except `system.py` notices)
+- Do NOT add try/except blocks unless handling a specific recoverable error
+- Do NOT add comments/docstrings for self-explanatory code
+- Do NOT use `typing.Annotated` dependency injection style - use `Depends()` in parameters
+
+## Router Registration
+
+After creating a new router, register it in `main.py`:
+
+```python
+from controller.v1.new_domain import router as new_domain_router
+
+app.include_router(new_domain_router, prefix="/api/v1")
+```
+
+## Date Handling
+
+- Store dates as ISO 8601 in DB (`Date`, `DateTime` columns)
+- Return ISO 8601 in API responses
+- Frontend handles locale formatting (Korean: "2026년 8월 30일")
+
+## Dependencies
+
+- Use `uv add <package>` to add dependencies
+- Use `uv add --dev <package>` for dev-only dependencies
+- Never manually edit `uv.lock`
