@@ -119,11 +119,17 @@ jobs:
           ssh -i ~/.ssh/deploy_key "${SERVER_USER}@${SERVER_HOST}" << ENDSSH
             set -e
             
-            cd ${DEPLOY_PATH:-~/dpbr_backend}
+            # 디렉토리가 없으면 클론, 있으면 이동
+            if [ ! -d "${DEPLOY_PATH:-~/MSGS_13_B}" ]; then
+              echo "📁 Directory not found. Cloning repository..."
+              git clone https://github.com/GC-MapleWind/MSGS_13_B.git ${DEPLOY_PATH:-~/MSGS_13_B}
+            fi
+            
+            cd ${DEPLOY_PATH:-~/MSGS_13_B}
             
             # 현재 실행 중인 컨테이너 백업 (롤백용)
             echo "💾 Backing up current state..."
-            docker compose ps > .deployment_backup
+            docker compose ps > .deployment_backup || true
             
             # Pull latest changes
             echo "📦 Pulling latest code..."
