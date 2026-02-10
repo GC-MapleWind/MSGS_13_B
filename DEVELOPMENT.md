@@ -46,67 +46,143 @@ uv run uvicorn main:app --reload
 
 ### 초기 데이터
 
+
+
 서버 첫 실행 시 DB가 비어 있으면 자동으로 시드 데이터가 삽입됩니다.
+
+- **테스트 유저**: `test` / `password123`
+
 - 캐릭터 3건 (강민아, 하늘빛, 바람의검)
+
 - 결산 4건
-- 댓글 3건
+
+- 댓글 3건 (테스트 유저 작성)
+
+
 
 DB 초기화가 필요하면 `maplewind.db` 파일을 삭제하고 서버를 재시작하세요.
 
+
+
 ---
+
+
 
 ## 3. 디렉토리 구조
 
+
+
 ```
+
 .
+
 ├── main.py                     # 앱 진입점 (FastAPI 인스턴스, 미들웨어, 라우터 등록, 시드)
+
 ├── database.py                 # DB 엔진, 세션, Base 클래스, init_db
+
 ├── pyproject.toml              # 의존성 정의
+
 ├── uv.lock                     # 의존성 잠금 파일
+
 ├── plan.md                     # 원본 기획서
+
 ├── CONVENTIONS.md              # 코딩 컨벤션
+
 ├── DEVELOPMENT.md              # 이 문서
+
 │
+
 ├── models/                     # SQLAlchemy ORM 모델
+
 │   ├── __init__.py             # 모델 클래스 export
+
 │   ├── character.py
+
 │   ├── settlement.py
-│   └── comment.py
+
+│   ├── comment.py
+
+│   └── user.py                 # 사용자 모델
+
 │
+
 ├── schemas/                    # Pydantic DTO (Request/Response)
+
 │   ├── __init__.py
+
 │   ├── character_dto.py
+
 │   ├── settlement_dto.py
-│   └── comment_dto.py
+
+│   ├── comment_dto.py
+
+│   └── user_dto.py             # 사용자/인증 관련 DTO
+
 │
+
 ├── repositories/               # 데이터 접근 계층 (DB 쿼리)
+
 │   ├── __init__.py
+
 │   ├── character_repo.py
+
 │   ├── settlement_repo.py
-│   └── comment_repo.py
+
+│   ├── comment_repo.py
+
+│   └── user_repo.py            # 사용자 DB 접근
+
 │
+
 ├── services/                   # 비즈니스 로직 계층
+
 │   ├── __init__.py
+
 │   ├── character_service.py
+
 │   ├── settlement_service.py
-│   └── comment_service.py
+
+│   ├── comment_service.py
+
+│   └── user_service.py         # 인증 및 회원 관리 로직
+
 │
+
 └── controller/                 # API 라우터 계층
+
     ├── __init__.py
+
     ├── dependencies.py         # get_db 의존성 주입
+
     └── v1/
+
         ├── __init__.py
+
         ├── characters.py       # GET /characters, /{id}, /{id}/settlements
+
         ├── settlements.py      # GET /settlements/{id}
+
         ├── comments.py         # GET /comments, POST /comments
-        └── system.py           # GET /system/notices
+
+        ├── system.py           # GET /system/notices
+
+        └── users.py            # POST /users/signup, /login, /refresh, /auth/kakao...
+
 ```
+
+
 
 ---
 
+
+
 ## 4. 데이터 흐름
 
+
+
 ### 읽기 (GET) 요청
+
+
 
 ```
 HTTP Request
@@ -335,6 +411,17 @@ app.include_router(notifications_router, prefix="/api/v1")
 |--------|------|------|
 | GET | `/system/notices` | 소식 및 운영팀 메시지 |
 
+### 사용자 및 인증
+
+| Method | 경로 | 설명 |
+|--------|------|------|
+| POST | `/users/signup` | 회원가입 |
+| POST | `/users/login` | 로그인 (AT 발급, RT 쿠키 설정) |
+| POST | `/users/auth/kakao/login` | 카카오 로그인 (인가 코드) |
+| POST | `/users/auth/kakao/register` | 카카오 회원가입 (추가 정보) |
+| POST | `/users/refresh` | 토큰 갱신 (RT Rotation) |
+| DELETE | `/users/me` | 회원 탈퇴 |
+
 ---
 
 ## 7. 의존성 관리
@@ -358,6 +445,10 @@ uv sync
 | `uvicorn[standard]` | ASGI 서버 |
 | `sqlalchemy` | ORM |
 | `aiosqlite` | SQLite 비동기 드라이버 |
+| `python-jose` | JWT 생성 및 검증 |
+| `passlib[bcrypt]` | 비밀번호 해싱 |
+| `python-dotenv` | 환경 변수 관리 |
+| `httpx` | 비동기 HTTP 요청 (카카오 API) |
 
 ---
 
@@ -365,11 +456,8 @@ uv sync
 
 ### 미구현 사항
 
-- **인증/인가**: 현재 모든 엔드포인트가 공개 상태
 - **테스트**: 테스트 프레임워크 및 테스트 코드 없음
 - **로깅**: 구조화된 로깅 미적용
-- **환경 변수**: `DATABASE_URL` 등이 하드코딩 상태
-- **댓글 비밀번호**: 평문 저장 (해싱 필요)
 - **캐릭터 목록 페이지네이션**: 현재 전체 반환
 
 ### 프론트엔드 연동

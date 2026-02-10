@@ -113,82 +113,82 @@ async def process_kakao_login(db: AsyncSession, code: str) -> dict:
         kakao_account = kakao_data.get("kakao_account", {})
         profile = kakao_account.get("profile", {})
         
-                # 카카오에서 제공하는 추가 정보 추출 및 한국식 번호 변환 (+82 10-XXXX-XXXX -> 010-XXXX-XXXX)
-                raw_phone = kakao_account.get("phone_number")
-                phone_number = raw_phone.replace("+82 ", "0").replace("+82", "0").replace(" ", "") if raw_phone else None
-                
-                birthyear = kakao_account.get("birthyear")
-                birthday = kakao_account.get("birthday")
-                birthdate = f"{birthyear}-{birthday[:2]}-{birthday[2:]}" if birthyear and birthday else None
-                gender = kakao_account.get("gender") # male / female
+        # 카카오에서 제공하는 추가 정보 추출 및 한국식 번호 변환 (+82 10-XXXX-XXXX -> 010-XXXX-XXXX)
+        raw_phone = kakao_account.get("phone_number")
+        phone_number = raw_phone.replace("+82 ", "0").replace("+82", "0").replace(" ", "") if raw_phone else None
         
-                # 3. 기존 회원 여부 확인 (1순위: kakao_id, 2순위: phone_number 연동)
-                user = await user_repo.get_by_kakao_id(db, kakao_id)
-                
-                if not user and phone_number:
-                    # 카카오 ID는 없지만 동일한 전화번호의 기존 계정이 있는지 확인
-                    existing_user = await user_repo.get_by_phone_number(db, phone_number)
-                    if existing_user:
-                        # 계정 자동 연동: 기존 계정에 kakao_id 부여
-                        existing_user.kakao_id = kakao_id
-                        await db.commit()
-                        user = existing_user
+        birthyear = kakao_account.get("birthyear")
+        birthday = kakao_account.get("birthday")
+        birthdate = f"{birthyear}-{birthday[:2]}-{birthday[2:]}" if birthyear and birthday else None
+        gender = kakao_account.get("gender") # male / female
+
+        # 3. 기존 회원 여부 확인 (1순위: kakao_id, 2순위: phone_number 연동)
+        user = await user_repo.get_by_kakao_id(db, kakao_id)
         
-                if user:
-                    # CASE A: 기존 유저 또는 연동된 유저 -> 즉시 로그인
-                    tokens, rt = await _issue_service_tokens(db, user)
-                    return {
-                        "is_new_user": False,
-                        "access_token": tokens.access_token,
-                        "refresh_token": rt
-                    }
-                else:
-                    # CASE B: 완전히 새로운 유저 -> Register Token 발급
-                    # 실명(name)을 최우선으로, 없으면 닉네임을 사용
-                    real_name = kakao_account.get("name") or profile.get("nickname") or "카카오사용자"
-                    reg_token = create_register_token({
-                        "kakao_id": kakao_id,
-                        "phone_number": phone_number,
-                        "birthdate": birthdate,
-                        "gender": gender,
-                        "temp_name": real_name
-                    })
-                    return {
-                        "is_new_user": True,
-                        "register_token": reg_token
-                    }
+        if not user and phone_number:
+            # 카카오 ID는 없지만 동일한 전화번호의 기존 계정이 있는지 확인
+            existing_user = await user_repo.get_by_phone_number(db, phone_number)
+            if existing_user:
+                # 계정 자동 연동: 기존 계정에 kakao_id 부여
+                existing_user.kakao_id = kakao_id
+                await db.commit()
+                user = existing_user
+
+        if user:
+            # CASE A: 기존 유저 또는 연동된 유저 -> 즉시 로그인
+            tokens, rt = await _issue_service_tokens(db, user)
+            return {
+                "is_new_user": False,
+                "access_token": tokens.access_token,
+                "refresh_token": rt
+            }
+        else:
+            # CASE B: 완전히 새로운 유저 -> Register Token 발급
+            # 실명(name)을 최우선으로, 없으면 닉네임을 사용
+            real_name = kakao_account.get("name") or profile.get("nickname") or "카카오사용자"
+            reg_token = create_register_token({
+                "kakao_id": kakao_id,
+                "phone_number": phone_number,
+                "birthdate": birthdate,
+                "gender": gender,
+                "temp_name": real_name
+            })
+            return {
+                "is_new_user": True,
+                "register_token": reg_token
+            }
+
+async def finalize_kakao_registration(
+    db: AsyncSession, 
+    register_token: str,
+    student_id: str,
+    nickname: str
+) -> tuple[Token, str]:
+    """Phase 2: 추가 정보(학번, 닉네임) 입력 및 최종 회원가입"""
+    try:
+        payload = jwt.decode(register_token, JWT_SECRET_KEY, algorithms=[ALGORITHM])
+        if not payload.get("is_register"):
+            raise HTTPException(status_code=401, detail="Invalid register token")
         
-        async def finalize_kakao_registration(
-            db: AsyncSession, 
-            register_token: str,
-            student_id: str,
-            nickname: str
-        ) -> tuple[Token, str]:
-            """Phase 2: 추가 정보(학번, 닉네임) 입력 및 최종 회원가입"""
-            try:
-                payload = jwt.decode(register_token, JWT_SECRET_KEY, algorithms=[ALGORITHM])
-                if not payload.get("is_register"):
-                    raise HTTPException(status_code=401, detail="Invalid register token")
-                
-                kakao_id = payload.get("kakao_id")
-                phone_number = payload.get("phone_number")
-                birthdate = payload.get("birthdate")
-                gender = payload.get("gender")
-                temp_name = payload.get("temp_name")
-            except JWTError:
-                raise HTTPException(status_code=401, detail="Register token expired or invalid")
-        
-            # 1. 신규 유저 생성
-            new_user = User(
-                username=str(kakao_id), # 카카오 고유 ID를 username으로 사용
-                name=temp_name,
-                kakao_id=kakao_id,
-                student_id=student_id,
-                nickname=nickname, # 사용자가 직접 입력한 닉네임
-                phone_number=phone_number,
-                birthdate=birthdate,
-                gender=gender
-            )    
+        kakao_id = payload.get("kakao_id")
+        phone_number = payload.get("phone_number")
+        birthdate = payload.get("birthdate")
+        gender = payload.get("gender")
+        temp_name = payload.get("temp_name")
+    except JWTError:
+        raise HTTPException(status_code=401, detail="Register token expired or invalid")
+
+    # 1. 신규 유저 생성
+    new_user = User(
+        username=str(kakao_id), # 카카오 고유 ID를 username으로 사용
+        name=temp_name,
+        kakao_id=kakao_id,
+        student_id=student_id,
+        nickname=nickname, # 사용자가 직접 입력한 닉네임
+        phone_number=phone_number,
+        birthdate=birthdate,
+        gender=gender
+    )
     user = await user_repo.create(db, new_user)
     return await _issue_service_tokens(db, user)
 

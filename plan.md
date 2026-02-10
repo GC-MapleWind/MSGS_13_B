@@ -28,29 +28,34 @@ backend/
 │   ├── __init__.py
 │   ├── character.py
 │   ├── settlement.py
-│   └── comment.py
+│   ├── comment.py
+│   └── user.py
 ├── schemas/                 # Pydantic DTO (Request/Response 모델)
 │   ├── __init__.py
 │   ├── character_dto.py
 │   ├── settlement_dto.py
-│   └── comment_dto.py
+│   ├── comment_dto.py
+│   └── user_dto.py
 ├── repositories/            # DB 접근 계층
 │   ├── __init__.py
 │   ├── character_repo.py
 │   ├── settlement_repo.py
-│   └── comment_repo.py
+│   ├── comment_repo.py
+│   └── user_repo.py
 ├── services/                # 비즈니스 로직 계층
 │   ├── __init__.py
 │   ├── character_service.py
 │   ├── settlement_service.py
-│   └── comment_service.py
+│   ├── comment_service.py
+│   └── user_service.py
 └── controller/                     # Controller 계층 (Routers)
     ├── __init__.py
     ├── dependencies.py      # 의존성 주입 (get_db 등)
     └── v1/
         ├── characters.py    # 캐릭터 관련 엔드포인트
         ├── comments.py      # 톡(댓글) 관련 엔드포인트
-        └── system.py        # 소식, 운영팀 한마디 등
+        ├── system.py        # 소식, 운영팀 한마디 등
+        └── users.py         # 사용자/인증 관련 엔드포인트
 ```
 
 ---
@@ -85,16 +90,30 @@ backend/
 | `acquired_at` | Date | Not Null | 획득 일자 (예: 2026-08-29) |
 
 ### 3.3. Comment (메생결산 톡)
-전체 유저가 남기는 방명록/댓글입니다. (로그인 없이 익명/닉네임 기반 가정)
+전체 유저가 남기는 방명록/댓글입니다. (로그인 필수)
 *   **Table Name:** `comments`
 
 | 필드명 | 타입 | 제약조건 | 설명 |
 | :--- | :--- | :--- | :--- |
 | `id` | Integer | PK, Auto Increment | 댓글 ID |
-| `author` | String | Not Null | 작성자 닉네임 |
-| `password` | String | Nullable | (선택) 삭제/수정용 비밀번호 |
+| `user_id` | Integer | FK(`users.id`) | 작성자 User ID |
+| `author` | String | Not Null | 작성자 닉네임 (Snapshot) |
 | `content` | Text | Not Null | 댓글 내용 |
 | `created_at` | DateTime | Default: Now | 작성 일시 |
+
+### 3.4. User (사용자)
+서비스 이용자 및 관리자 계정입니다. 로컬 로그인과 카카오 소셜 로그인을 모두 지원합니다.
+*   **Table Name:** `users`
+
+| 필드명 | 타입 | 제약조건 | 설명 |
+| :--- | :--- | :--- | :--- |
+| `id` | Integer | PK, Auto Increment | 유저 ID |
+| `username` | String | Unique, Not Null | 로그인 ID (카카오는 ID값 사용) |
+| `hashed_password` | String | Nullable | 비밀번호 (로컬 로그인용) |
+| `name` | String | Not Null | 실명 |
+| `kakao_id` | Integer | Unique, Nullable | 카카오 고유 ID |
+| `nickname` | String | Nullable | 닉네임 |
+| `refresh_token_hash`| String | Nullable | Refresh Token 해시값 |
 
 ---
 
@@ -141,9 +160,7 @@ backend/
     *   **Request Body:**
         ```json
         {
-          "author": "랜덤 닉네임",
-          "content": "안녕하세요!",
-          "password": "1234"(옵션)
+          "content": "안녕하세요!"
         }
         ```
     *   **Response:** `CommentResponse` (생성된 객체)
@@ -156,6 +173,34 @@ backend/
     *   `GET /system/notices`
     *   **Response:** `{ "news": [], "team_msg": [] }`
     *   **Logic:** 공지사항 테이블(Notices)이 있다면 조회, 없다면 하드코딩된 데이터 혹은 설정 파일 반환.
+
+### 4.4. 사용자 및 인증 (Users Domain)
+
+**Controller:** `api/v1/users.py`
+
+1.  **회원가입 (로컬)**
+    *   `POST /users/signup`
+    *   **Logic:** ID 중복 검사 후 유저 생성.
+
+2.  **로그인 (로컬)**
+    *   `POST /users/login`
+    *   **Response:** Access Token (Body), Refresh Token (HttpOnly Cookie)
+
+3.  **카카오 로그인 (Phase 1)**
+    *   `POST /users/auth/kakao/login`
+    *   **Logic:** 인가 코드로 카카오 토큰 발급 → 기존 회원이면 로그인, 신규 회원이면 `register_token` 반환.
+
+4.  **카카오 회원가입 (Phase 2)**
+    *   `POST /users/auth/kakao/register`
+    *   **Logic:** `register_token` 검증 후 추가 정보(학번 등) 받아 가입 완료.
+
+5.  **토큰 갱신 (Silent Refresh)**
+    *   `POST /users/refresh`
+    *   **Logic:** 쿠키의 Refresh Token 검증 후 Access Token 재발급 및 RT Rotation.
+
+6.  **회원 탈퇴**
+    *   `DELETE /users/me`
+    *   **Logic:** 카카오 연결 해제(필요 시) 후 DB 데이터 삭제.
 
 ---
 
