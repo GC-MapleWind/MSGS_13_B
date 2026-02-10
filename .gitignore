@@ -8,3 +8,20 @@ wheels/
 
 # Virtual environments
 .venv
+
+# SSH Keys (보안)
+*.key
+*.pem
+*.ppk
+id_rsa
+id_rsa.pub
+ssh-key-*
+
+# Environment variables
+.env
+.env.local
+
+# Database
+*.db
+*.sqlite
+*.sqlite3

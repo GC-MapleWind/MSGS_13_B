@@ -1,0 +1,53 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+
+# Virtual environments
+.venv
+venv/
+ENV/
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Environment
+.env
+.env.local
+
+# Git
+.git/
+.gitignore
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# SSH Keys
+*.key
+*.pem
+*.ppk
+
+# Documentation
+*.md
+!README.md
+
+# Test
+.pytest_cache/
+.coverage
+
+# Deploy
+deploy/
+
+# OS
+.DS_Store
+Thumbs.db
