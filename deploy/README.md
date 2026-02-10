@@ -42,8 +42,8 @@ exit
 
 ```bash
 # 저장소 클론
-git clone <YOUR_REPO_URL> ~/dpbr_backend
-cd ~/dpbr_backend
+git clone <YOUR_REPO_URL> ~/MSGS_13_B
+cd ~/MSGS_13_B
 ```
 
 ---
@@ -59,7 +59,7 @@ GitHub 저장소 → Settings → Secrets and variables → Actions → New repo
 | `SSH_PRIVATE_KEY` | SSH 개인 키 전체 내용 | `~/.ssh/<your_key_file>` 파일 내용 |
 | `SERVER_HOST` | `<SERVER_IP>` | 배포 서버 IP |
 | `SERVER_USER` | `<USERNAME>` | 서버 사용자명 |
-| `BACKEND_DEPLOY_PATH` | `/home/<USERNAME>/dpbr_backend` | 백엔드 프로젝트 경로 |
+| `BACKEND_DEPLOY_PATH` | `/home/<USERNAME>/MSGS_13_B` | 백엔드 프로젝트 경로 |
 
 ### 2.1 SSH 키 복사 방법
 
@@ -124,7 +124,7 @@ cat ~/.ssh/authorized_keys
 ssh <USERNAME>@<SERVER_IP>
 
 # 프로젝트 디렉토리로 이동
-cd ~/dpbr_backend
+cd ~/MSGS_13_B
 
 # 최신 코드 받기
 git pull origin main
@@ -184,7 +184,7 @@ docker pull ghcr.io/<YOUR_ORG>/<YOUR_REPO>-backend:latest
 ### 5.4 데이터베이스 초기화
 
 ```bash
-cd ~/dpbr_backend
+cd ~/MSGS_13_B
 
 # 볼륨 데이터 백업 (선택사항)
 docker run --rm -v dpbr_backend-data:/data -v $(pwd):/backup alpine tar czf /backup/db_backup.tar.gz -C /data .

@@ -8,7 +8,7 @@ echo "🚀 단풍바람 백엔드 서버 초기 설정"
 
 # 변수 설정
 DEPLOY_USER=${DEPLOY_USER:-"ark1st"}
-DEPLOY_PATH=${DEPLOY_PATH:-"/home/$DEPLOY_USER/dpbr_backend"}
+DEPLOY_PATH=${DEPLOY_PATH:-"/home/$DEPLOY_USER/MSGS_13_B"}
 SERVICE_NAME="dpbr-backend"
 REPO_URL=${REPO_URL:-"https://github.com/GC-MapleWind/MSGS_13_B.git"}
 
