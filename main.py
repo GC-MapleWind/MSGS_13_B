@@ -114,3 +114,9 @@ app.include_router(characters_router, prefix="/api/v1")
 app.include_router(settlements_router, prefix="/api/v1")
 app.include_router(comments_router, prefix="/api/v1")
 app.include_router(system_router, prefix="/api/v1")
+
+
+@app.get("/health")
+async def health_check():
+    """Health check endpoint for container orchestration."""
+    return {"status": "healthy"}
