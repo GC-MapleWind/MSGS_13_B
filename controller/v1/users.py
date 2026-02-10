@@ -15,7 +15,14 @@ COOKIE_SECURE = os.getenv("COOKIE_SECURE", "True").lower() == "true"
 REFRESH_TOKEN_EXPIRE_DAYS = int(os.getenv("REFRESH_TOKEN_EXPIRE_DAYS", 14))
 
 def _set_refresh_cookie(response: Response, rt: str):
-    """Refresh Token을 쿠키에 설정하는 공통 유틸리티"""
+    """
+    응답에 HttpOnly 'refresh_token' 쿠키를 설정한다.
+    
+    쿠키는 Secure/SameSite 속성이 적용되고 만료 시간은 REFRESH_TOKEN_EXPIRE_DAYS 환경값을 기준으로 설정된다.
+    
+    Parameters:
+    	rt (str): 설정할 리프레시 토큰 문자열.
+    """
     response.set_cookie(
         key="refresh_token",
         value=rt,
@@ -29,7 +36,13 @@ def _set_refresh_cookie(response: Response, rt: str):
 @router.post("/signup", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
 async def signup(user_data: UserCreate, db: AsyncSession = Depends(get_db)):
     """
-    회원가입 (일반)
+    새 사용자를 생성합니다.
+    
+    Parameters:
+        user_data (UserCreate): 회원 가입에 필요한 입력 데이터.
+    
+    Returns:
+        생성된 사용자의 응답 데이터 (UserResponse).
     """
     return await user_service.signup(db, user_data)
 
@@ -40,7 +53,10 @@ async def login(
     db: AsyncSession = Depends(get_db)
 ):
     """
-    로그인: AT는 JSON으로, RT는 HttpOnly 쿠키로 발급
+    사용자 자격증명을 검증하여 액세스 토큰을 발급하고 리프레시 토큰을 HttpOnly 쿠키에 저장한다.
+    
+    Returns:
+        Token: 발급된 액세스 토큰과 관련 메타데이터(예: 토큰 타입, 만료 시간).
     """
     token_data, rt = await user_service.login(db, form_data.username, form_data.password)
     _set_refresh_cookie(response, rt)
@@ -53,8 +69,13 @@ async def kakao_login(
     db: AsyncSession = Depends(get_db)
 ):
     """
-    Phase 1: 카카오 인가 코드로 로그인 시도
-    기존 회원이면 AT/RT 발급, 신규 회원이면 Register Token 발급
+    카카오 인가 코드로 로그인 흐름을 처리하여 기존 사용자는 액세스 토큰과 리프레시 토큰 쿠키를 설정하고, 신규 사용자는 등록 토큰을 반환한다.
+    
+    Parameters:
+        code (str): 카카오에서 발급된 인가 코드.
+    
+    Returns:
+        KakaoLoginResponse: 기존 회원인 경우 `is_new_user=False`와 `access_token`을 포함; 신규 회원인 경우 `is_new_user=True`와 `register_token`을 포함.
     """
     result = await user_service.process_kakao_login(db, code)
     
@@ -79,8 +100,15 @@ async def kakao_register(
     db: AsyncSession = Depends(get_db)
 ):
     """
-    Phase 2: 학번과 닉네임을 입력하여 최종 회원가입 완료
-    나머지 정보(전화번호, 생일, 성명)는 카카오 인증 정보를 활용함
+    카카오로 시작된 가입을 최종 완료하고 인증 토큰을 발급한다.
+    
+    Parameters:
+        response (Response): 응답 객체 — 호출 후 HttpOnly `refresh_token` 쿠키가 설정된다.
+        data (KakaoRegisterRequest): 카카오 가입 마무리에 필요한 데이터 (`register_token`, `student_id`, `nickname`).
+        db (AsyncSession): 데이터베이스 세션 (의존성 주입).
+    
+    Returns:
+        Token: 발급된 액세스 토큰과 관련 토큰 정보를 담은 스키마.
     """
     token_data, rt = await user_service.finalize_kakao_registration(
         db, 
@@ -98,7 +126,13 @@ async def refresh_token(
     db: AsyncSession = Depends(get_db)
 ):
     """
-    Silent Refresh: 쿠키의 RT를 사용하여 새로운 AT/RT 발급 (Rotation)
+    Refresh token 쿠키를 사용해 새로운 액세스 토큰과 리프레시 토큰을 발급하고 리프레시 쿠키를 갱신(토큰 회전)한다.
+    
+    Raises:
+        HTTPException: `refresh_token` 쿠키가 없으면 상태 코드 401(Unauthorized)을 발생시킨다.
+    
+    Returns:
+        dict: 새 액세스 토큰과 관련 메타정보를 포함한 토큰 데이터.
     """
     rt = request.cookies.get("refresh_token")
     if not rt:
@@ -126,7 +160,12 @@ async def logout(
     db: AsyncSession = Depends(get_db)
 ):
     """
-    로그아웃: DB의 RT 삭제 및 쿠키 만료 처리
+    사용자 로그아웃을 수행하고 서버·클라이언트 측에서 인증 정보를 제거한다.
+    
+    로그아웃 시 데이터베이스에서 사용자의 리프레시 토큰을 삭제하고, 클라이언트의 `refresh_token` 쿠키를 만료(삭제)한다.
+    
+    Returns:
+        dict: 키 `"detail"`에 로그아웃 성공 메시지를 담은 사전, 예: `{"detail": "Successfully logged out"}`
     """
     await user_service.logout(db, current_user)
     
@@ -149,7 +188,12 @@ async def withdraw(
     db: AsyncSession = Depends(get_db)
 ):
     """
-    회원 탈퇴: 카카오 연결 끊기(카카오 유저인 경우) 및 로컬 DB 삭제
+    현재 사용자를 탈퇴 처리하고, 카카오 연동이 있으면 해당 연결을 끊은 뒤 리프레시 토큰 쿠키를 삭제한다.
+    
+    요청 헤더에 `X-Kakao-Access-Token`이 포함되어 있으면 해당 액세스 토큰으로 카카오 연결 해제를 시도하고, 이후 데이터베이스에서 사용자를 삭제한 뒤 `refresh_token` 쿠키를 제거한다.
+    
+    Returns:
+    	HTTP 204 No Content 응답
     """
     # 헤더에서 카카오 액세스 토큰 추출 (있을 경우)
     kakao_at = request.headers.get("X-Kakao-Access-Token")
@@ -166,4 +210,3 @@ async def withdraw(
     )
     
     return Response(status_code=status.HTTP_204_NO_CONTENT)
-

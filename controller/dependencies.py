@@ -23,6 +23,17 @@ async def get_current_user(
     token: str = Depends(oauth2_scheme),
     db: AsyncSession = Depends(get_db)
 ) -> User:
+    """
+    현재 요청의 JWT 액세스 토큰을 검증하고 토큰에 명시된 사용자명에 대응하는 User 객체를 반환합니다.
+    
+    검증 실패나 토큰 만료 시 401 Unauthorized HTTPException을 발생시킵니다. 토큰 만료인 경우 detail은 "Token has expired"이고, 그 외 인증 실패(토큰 무효, 페이로드에 사용자명 없음, 데이터베이스에 사용자 미발견 포함)인 경우 detail은 "Could not validate credentials"입니다.
+    
+    Returns:
+        User: 토큰의 "sub" 클레임에 대응하는 사용자 엔터티
+    
+    Raises:
+        HTTPException: 인증 실패 또는 토큰 만료로 인해 401 상태 코드를 가진 예외가 발생합니다.
+    """
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
