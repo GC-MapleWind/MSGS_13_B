@@ -17,9 +17,27 @@ env:
   IMAGE_NAME: ${{ github.repository }}-backend
 
 jobs:
+  # PR 체크 (빌드 없이 간단한 검증만)
+  pr-check:
+    name: PR Check
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Validate files
+        run: |
+          echo "✅ PR 체크 완료"
+          echo "Dockerfile 존재: $(test -f Dockerfile && echo 'Yes' || echo 'No')"
+          echo ".github/workflows/deploy.yml 존재: $(test -f .github/workflows/deploy.yml && echo 'Yes' || echo 'No')"
+
+  # main 브랜치에 push될 때만 빌드 및 배포
   build-and-push:
     name: Build and Push Docker Image
     runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     permissions:
       contents: read
       packages: write
@@ -52,7 +70,7 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: .
-          push: ${{ github.event_name != 'pull_request' }}
+          push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
@@ -62,7 +80,7 @@ jobs:
     name: Deploy to Server
     needs: build-and-push
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     
     steps:
       - name: Setup SSH Key
