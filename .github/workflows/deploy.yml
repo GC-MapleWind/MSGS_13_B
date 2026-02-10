@@ -112,14 +112,14 @@ jobs:
         env:
           SERVER_HOST: ${{ secrets.SERVER_HOST }}
           SERVER_USER: ${{ secrets.SERVER_USER }}
-          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+          DEPLOY_PATH: ${{ secrets.BACKEND_DEPLOY_PATH }}
           REGISTRY: ${{ env.REGISTRY }}
           IMAGE_NAME: ${{ env.IMAGE_NAME }}
         run: |
-          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no ${SERVER_USER}@${SERVER_HOST} << 'ENDSSH'
+          ssh -i ~/.ssh/deploy_key "${SERVER_USER}@${SERVER_HOST}" << ENDSSH
             set -e
             
-            cd ${DEPLOY_PATH:-~/dpbr}
+            cd ${DEPLOY_PATH:-~/dpbr_backend}
             
             # 현재 실행 중인 컨테이너 백업 (롤백용)
             echo "💾 Backing up current state..."
@@ -131,7 +131,7 @@ jobs:
             
             # Login to GitHub Container Registry
             echo "🔐 Logging in to registry..."
-            echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+            echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
             
             # Pull latest images
             echo "📥 Pulling latest images..."
@@ -160,16 +160,23 @@ jobs:
         env:
           SERVER_HOST: ${{ secrets.SERVER_HOST }}
         run: |
+          set -e
           echo "🏥 Waiting for services to start..."
           sleep 10
           
-          echo "Checking API health..."
-          if curl -f http://${SERVER_HOST}/api/v1/characters; then
-            echo "✅ API is healthy"
-          else
+          echo "Checking health endpoint..."
+          curl -f "http://${SERVER_HOST}/health" || {
+            echo "❌ Health check failed"
+            exit 1
+          }
+          
+          echo "Checking API endpoint..."
+          curl -f "http://${SERVER_HOST}/api/v1/characters" || {
             echo "❌ API health check failed"
             exit 1
-          fi
+          }
+          
+          echo "✅ All health checks passed"
 
       - name: Notify Success
         if: success()
@@ -183,11 +190,11 @@ jobs:
         env:
           SERVER_HOST: ${{ secrets.SERVER_HOST }}
           SERVER_USER: ${{ secrets.SERVER_USER }}
-          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+          DEPLOY_PATH: ${{ secrets.BACKEND_DEPLOY_PATH }}
         run: |
           echo "❌ 배포 실패 - 롤백 시도 중..."
-          ssh -i ~/.ssh/deploy_key ${SERVER_USER}@${SERVER_HOST} << 'ENDSSH'
-            cd ${DEPLOY_PATH:-~/dpbr}
+          ssh -i ~/.ssh/deploy_key "${SERVER_USER}@${SERVER_HOST}" << ENDSSH
+            cd ${DEPLOY_PATH:-~/dpbr_backend}
             echo "🔄 Rolling back to previous version..."
             docker compose down
             docker compose up -d

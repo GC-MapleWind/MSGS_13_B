@@ -2,7 +2,7 @@
 # 서버 초기 설정 스크립트
 # 이 스크립트는 서버에서 한 번만 실행하면 됩니다.
 
-set -e
+set -euo pipefail
 
 echo "🚀 단풍바람 백엔드 서버 초기 설정"
 
@@ -10,7 +10,7 @@ echo "🚀 단풍바람 백엔드 서버 초기 설정"
 DEPLOY_USER=${DEPLOY_USER:-"ark1st"}
 DEPLOY_PATH=${DEPLOY_PATH:-"/home/$DEPLOY_USER/dpbr_backend"}
 SERVICE_NAME="dpbr-backend"
-REPO_URL=${REPO_URL:-"https://github.com/YOUR_USERNAME/dpbr_13_B.git"}
+REPO_URL=${REPO_URL:-"https://github.com/GC-MapleWind/MSGS_13_B.git"}
 
 # 1. 필수 패키지 설치
 echo "📦 필수 패키지 설치 중..."
@@ -29,12 +29,12 @@ fi
 echo "📁 프로젝트 디렉토리 설정 중..."
 if [ ! -d "$DEPLOY_PATH" ]; then
     echo "저장소 클론 중..."
-    git clone $REPO_URL $DEPLOY_PATH
+    git clone "$REPO_URL" "$DEPLOY_PATH"
 else
     echo "프로젝트 디렉토리가 이미 존재합니다."
 fi
 
-cd $DEPLOY_PATH
+cd "$DEPLOY_PATH"
 
 # 4. 의존성 설치
 echo "📚 의존성 설치 중..."
@@ -68,8 +68,8 @@ After=network.target
 Type=simple
 User=$DEPLOY_USER
 WorkingDirectory=$DEPLOY_PATH
-Environment="PATH=$HOME/.cargo/bin:/usr/local/bin:/usr/bin:/bin"
-ExecStart=$HOME/.cargo/bin/uv run uvicorn main:app --host 0.0.0.0 --port 8000
+Environment="PATH=/home/${DEPLOY_USER}/.cargo/bin:/usr/local/bin:/usr/bin:/bin"
+ExecStart=/home/${DEPLOY_USER}/.cargo/bin/uv run uvicorn main:app --host 0.0.0.0 --port 8000
 Restart=always
 RestartSec=10
 
