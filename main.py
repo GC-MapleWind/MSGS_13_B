@@ -1,15 +1,19 @@
 import datetime
+import os
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import select
+from dotenv import load_dotenv
 
 from database import async_session, init_db
 from models.character import Character
 from models.settlement import Settlement
 from models.comment import Comment
 
+# 환경 변수 로드
+load_dotenv()
 
 async def seed_data():
     """Insert dummy data if the database is empty."""
@@ -117,9 +121,14 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="단풍바람 (MapleWind) API", version="1.0.0", lifespan=lifespan)
 
+# CORS 설정: 보안을 위해 허용할 도메인을 명시합니다.
+# .env 파일에 ALLOWED_ORIGINS=http://localhost:3000,http://127.0.0.1:3000 와 같이 설정하세요.
+allowed_origins_str = os.getenv("ALLOWED_ORIGINS", "http://localhost:8000")
+ALLOWED_ORIGINS = [origin.strip() for origin in allowed_origins_str.split(",")]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
