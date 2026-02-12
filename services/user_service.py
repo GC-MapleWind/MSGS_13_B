@@ -93,7 +93,6 @@ def create_access_token(data: dict) -> str:
     return encoded_jwt
 
 def create_register_token(data: dict) -> str:
-    """회원가입 전용 임시 토큰 (5분 만료)"""
     """
     회원 가입 절차에서 사용되는 만료 5분의 임시 등록 JWT 토큰을 생성한다.
     
@@ -379,9 +378,6 @@ async def withdraw_user(db: AsyncSession, user: User) -> None:
     사용자 계정을 삭제하고 필요 시 카카오 연결을 Admin Key로 해제합니다.
 
     카카오 연동 계정(user.kakao_id 존재)이면 환경변수 KAKAO_ADMIN_KEY를 사용해 카카오 Unlink API를 호출하여 연결을 해제하고, 호출이 실패하면 400 에러를 발생시킵니다. KAKAO_ADMIN_KEY가 설정되지 않았으면 500 에러를 발생시킵니다. 그런 다음 DB에서 사용자를 삭제합니다.
-
-    Parameters:
-        kakao_access_token (str | None): 사용되지 않음; 현재 구현에서는 무시됩니다.
     """
     # 1. 카카오 연동 유저인 경우 처리
     if user.kakao_id:
