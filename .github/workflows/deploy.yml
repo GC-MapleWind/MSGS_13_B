@@ -1,0 +1,209 @@
+name: Backend CI/CD (Docker)
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - '**'
+      - '!**.md'
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}-backend
+
+jobs:
+  # PR: 빌드 검증 (push 안 함)
+  test-build:
+    name: Test Build (PR)
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      
+      - name: Build Docker image (no push)
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: false
+          tags: test-image:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      
+      - name: Validate build success
+        run: |
+          echo "✅ Docker 이미지 빌드 성공 - Merge 가능"
+
+  # Main: 빌드 + Push
+  build-and-push:
+    name: Build and Push Docker Image
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    permissions:
+      contents: read
+      packages: write
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=ref,event=branch
+            type=sha,prefix={{branch}}-
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+        
+      - name: Notify build failure
+        if: failure()
+        run: |
+          echo "❌ Docker 이미지 빌드 실패!"
+          echo "배포가 중단됩니다. 이전 버전이 유지됩니다."
+          exit 1
+
+  deploy:
+    name: Deploy to Server
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    
+    steps:
+      - name: Setup SSH Key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H ${{ secrets.SERVER_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Deploy with Docker Compose
+        id: deploy
+        env:
+          SERVER_HOST: ${{ secrets.SERVER_HOST }}
+          SERVER_USER: ${{ secrets.SERVER_USER }}
+          DEPLOY_PATH: ${{ secrets.BACKEND_DEPLOY_PATH }}
+          REGISTRY: ${{ env.REGISTRY }}
+          IMAGE_NAME: ${{ env.IMAGE_NAME }}
+        run: |
+          ssh -i ~/.ssh/deploy_key "${SERVER_USER}@${SERVER_HOST}" << ENDSSH
+            set -e
+            
+            # 디렉토리가 없으면 클론, 있으면 이동
+            if [ ! -d "${DEPLOY_PATH:-~/MSGS_13_B}" ]; then
+              echo "📁 Directory not found. Cloning repository..."
+              git clone https://github.com/GC-MapleWind/MSGS_13_B.git ${DEPLOY_PATH:-~/MSGS_13_B}
+            fi
+            
+            cd ${DEPLOY_PATH:-~/MSGS_13_B}
+            
+            # 현재 실행 중인 컨테이너 백업 (롤백용)
+            echo "💾 Backing up current state..."
+            docker compose ps > .deployment_backup || true
+            
+            # Pull latest changes
+            echo "📦 Pulling latest code..."
+            git pull origin main
+            
+            # Login to GitHub Container Registry
+            echo "🔐 Logging in to registry..."
+            echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+            
+            # Pull latest images
+            echo "📥 Pulling latest images..."
+            docker compose pull || {
+              echo "❌ Image pull failed"
+              exit 1
+            }
+            
+            # Restart services
+            echo "🔄 Restarting services..."
+            docker compose up -d --remove-orphans || {
+              echo "❌ Service restart failed - attempting rollback"
+              docker compose down
+              docker compose up -d
+              exit 1
+            }
+            
+            # Cleanup old images
+            echo "🧹 Cleaning up old images..."
+            docker image prune -af --filter "until=24h"
+            
+            echo "✅ Deployment completed!"
+          ENDSSH
+
+      - name: Health Check
+        env:
+          SERVER_HOST: ${{ secrets.SERVER_HOST }}
+        run: |
+          set -e
+          echo "🏥 Waiting for services to start..."
+          sleep 10
+          
+          echo "Checking health endpoint..."
+          curl -f "http://${SERVER_HOST}/health" || {
+            echo "❌ Health check failed"
+            exit 1
+          }
+          
+          echo "Checking API endpoint..."
+          curl -f "http://${SERVER_HOST}/api/v1/characters" || {
+            echo "❌ API health check failed"
+            exit 1
+          }
+          
+          echo "✅ All health checks passed"
+
+      - name: Notify Success
+        if: success()
+        run: |
+          echo "🎉 배포 성공!"
+          echo "- Docker 이미지: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest"
+          echo "- 배포 시각: $(date)"
+
+      - name: Rollback on Failure
+        if: failure()
+        env:
+          SERVER_HOST: ${{ secrets.SERVER_HOST }}
+          SERVER_USER: ${{ secrets.SERVER_USER }}
+          DEPLOY_PATH: ${{ secrets.BACKEND_DEPLOY_PATH }}
+        run: |
+          echo "❌ 배포 실패 - 롤백 시도 중..."
+          ssh -i ~/.ssh/deploy_key "${SERVER_USER}@${SERVER_HOST}" << ENDSSH
+            cd ${DEPLOY_PATH:-~/dpbr_backend}
+            echo "🔄 Rolling back to previous version..."
+            docker compose down
+            docker compose up -d
+            echo "⚠️ Rollback completed - please check manually"
+          ENDSSH
+          exit 1
