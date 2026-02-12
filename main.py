@@ -16,7 +16,11 @@ from models.comment import Comment
 load_dotenv()
 
 async def seed_data():
-    """Insert dummy data if the database is empty."""
+    """
+    데이터베이스에 테스트용 기본 데이터를 필요할 경우 생성한다.
+    
+    데이터베이스의 각 테이블(User, Character, Settlement, Comment)에 레코드가 없을 때에 한해 테스트 사용자, 예제 캐릭터들, 해당 캐릭터에 연관된 결산 항목들 및 댓글들을 생성하여 영속화하고 커밋한다.
+    """
     async with async_session() as db:
         from models.user import User
         from services.user_service import get_password_hash

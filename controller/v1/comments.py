@@ -25,6 +25,13 @@ async def create_comment(
     current_user: User = Depends(get_current_user),
 ):
     """
-    댓글 작성 (로그인 필수)
+    새 댓글을 생성하고 생성된 댓글을 반환합니다.
+    
+    Parameters:
+        data (CommentCreate): 생성할 댓글의 내용과 관련 메타데이터.
+        current_user (User): 댓글 작성자(현재 인증된 사용자).
+    
+    Returns:
+        CommentResponse: 생성된 댓글 객체.
     """
     return await comment_service.create_comment(db, data, current_user)
