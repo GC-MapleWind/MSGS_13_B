@@ -127,7 +127,7 @@ app = FastAPI(title="단풍바람 (MapleWind) API", version="1.0.0", lifespan=li
 
 # CORS 설정: 보안을 위해 허용할 도메인을 명시합니다.
 # .env 파일에 ALLOWED_ORIGINS=http://localhost:3000,http://127.0.0.1:3000 와 같이 설정하세요.
-allowed_origins_str = os.getenv("ALLOWED_ORIGINS", "http://localhost:8000")
+allowed_origins_str = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000,http://localhost:5173")
 ALLOWED_ORIGINS = [origin.strip() for origin in allowed_origins_str.split(",")]
 
 app.add_middleware(

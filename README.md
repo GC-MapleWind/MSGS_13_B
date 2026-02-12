@@ -231,6 +231,10 @@ dpbr_13_B/
 | `POST` | `/users/signup` | 회원가입 | `UserResponse` |
 | `POST` | `/users/login` | 로그인 (JWT 발급) | `Token` |
 | `POST` | `/users/auth/kakao/login` | 카카오 로그인 | `KakaoLoginResponse` |
+| `POST` | `/users/auth/kakao/register` | 카카오 회원가입 완료 | `Token` |
+| `POST` | `/users/refresh` | 토큰 갱신 (Silent Refresh) | `Token` |
+| `POST` | `/users/logout` | 로그아웃 | `dict` |
+| `DELETE` | `/users/me` | 회원 탈퇴 | - |
 
 ### 시스템 (System)
 

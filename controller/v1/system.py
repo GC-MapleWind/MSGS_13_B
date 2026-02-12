@@ -3,7 +3,7 @@ from fastapi import APIRouter
 router = APIRouter(prefix="/system", tags=["system"])
 
 
-@router.get("/notices")
+@router.get("/notices", response_model=dict)
 async def get_notices():
     return {
         "news": [
