@@ -25,7 +25,8 @@
 
 - **캐릭터 관리**: 메이플스토리 캐릭터 정보 조회
 - **결산 추적**: 캐릭터별 업적 및 기록 관리
-- **커뮤니티 댓글**: 방명록 형태의 댓글 시스템 (비밀번호 보호 가능)
+- **커뮤니티 댓글**: 방명록 형태의 댓글 시스템
+- **사용자 시스템**: 로컬 회원가입/로그인 및 카카오 소셜 로그인 (JWT + Refresh Token)
 - **시스템 소식**: 운영팀 메시지 및 공지사항
 - **자동 시드 데이터**: 첫 실행 시 테스트 데이터 자동 생성
 - **API 문서 자동 생성**: Swagger UI & ReDoc 지원
@@ -40,6 +41,7 @@
 | 언어 | Python | 3.12+ |
 | 데이터베이스 | SQLite | (aiosqlite) |
 | ORM | SQLAlchemy | 2.0+ (Async) |
+| 인증 | JWT, OAuth2 | (python-jose) |
 | 패키지 매니저 | uv | - |
 | 아키텍처 패턴 | 3-Layer Architecture | - |
 | API 서버 | Uvicorn | 0.40+ |
@@ -52,6 +54,7 @@
 
 - Python 3.12 이상
 - [uv](https://docs.astral.sh/uv/) 패키지 매니저
+- 카카오 개발자 센터 앱 키 (소셜 로그인 사용 시)
 
 ### 설치 및 실행
 
@@ -60,10 +63,14 @@
 git clone <repository-url>
 cd dpbr_13_B
 
-# 2. 의존성 설치
+# 2. 환경 변수 설정 (.env)
+cp .env.example .env
+# .env 파일에 JWT_SECRET_KEY, KAKAO_CLIENT_ID 등을 설정하세요.
+
+# 3. 의존성 설치
 uv sync
 
-# 3. 개발 서버 실행
+# 4. 개발 서버 실행
 uv run uvicorn main:app --reload
 ```
 
@@ -80,6 +87,7 @@ uv run uvicorn main:app --reload
 ### 초기 데이터
 
 첫 실행 시 다음 시드 데이터가 자동으로 삽입됩니다:
+- 테스트 유저 (`test` / `password123`)
 - 캐릭터 3건 (강민아, 하늘빛, 바람의검)
 - 결산 4건
 - 댓글 3건
@@ -149,35 +157,40 @@ dpbr_13_B/
 │   ├── __init__.py                 #    - 모델 클래스 export
 │   ├── character.py                #    - characters 테이블
 │   ├── settlement.py               #    - settlements 테이블
-│   └── comment.py                  #    - comments 테이블
+│   ├── comment.py                  #    - comments 테이블
+│   └── user.py                     #    - users 테이블
 │
 ├── schemas/                        # 📋 Pydantic DTO (Request/Response)
 │   ├── __init__.py
-│   ├── character_dto.py            #    - CharacterResponse, CharacterDetailResponse
-│   ├── settlement_dto.py           #    - SettlementResponse, SettlementDetailResponse
-│   └── comment_dto.py              #    - CommentCreate, CommentResponse
+│   ├── character_dto.py            #    - CharacterResponse
+│   ├── settlement_dto.py           #    - SettlementResponse
+│   ├── comment_dto.py              #    - CommentCreate, CommentResponse
+│   └── user_dto.py                 #    - UserCreate, Token, KakaoLoginResponse
 │
 ├── repositories/                   # 🔍 데이터 접근 계층 (DB 쿼리)
 │   ├── __init__.py
 │   ├── character_repo.py           #    - get_all(), get_by_id()
 │   ├── settlement_repo.py          #    - get_by_id(), get_by_character_id()
-│   └── comment_repo.py             #    - get_all(), create()
+│   ├── comment_repo.py             #    - get_all(), create()
+│   └── user_repo.py                #    - get_by_username(), create()
 │
 ├── services/                       # ⚙️ 비즈니스 로직 계층
 │   ├── __init__.py
-│   ├── character_service.py        #    - get_all_characters(), get_character_info()
-│   ├── settlement_service.py       #    - get_settlement_info(), get_settlements_by_character()
-│   └── comment_service.py          #    - get_comments(), create_comment()
+│   ├── character_service.py        #    - get_all_characters()
+│   ├── settlement_service.py       #    - get_settlement_info()
+│   ├── comment_service.py          #    - get_comments()
+│   └── user_service.py             #    - signup(), login(), process_kakao_login()
 │
 ├── controller/                     # 🌐 API 라우터 계층
 │   ├── __init__.py
 │   ├── dependencies.py             #    - get_db() 의존성 주입
 │   └── v1/                         #    - API v1 엔드포인트
 │       ├── __init__.py
-│       ├── characters.py           #       GET /characters, /{id}, /{id}/settlements
-│       ├── settlements.py          #       GET /settlements/{id}
+│       ├── characters.py           #       GET /characters
+│       ├── settlements.py          #       GET /settlements
 │       ├── comments.py             #       GET /comments, POST /comments
-│       └── system.py               #       GET /system/notices
+│       ├── system.py               #       GET /system/notices
+│       └── users.py                #       POST /users/signup, /login, /auth/kakao...
 │
 └── 📄 문서들
     ├── README.md                   # 📖 프로젝트 소개 (이 문서)
@@ -209,16 +222,19 @@ dpbr_13_B/
 | Method | 경로 | 설명 | Request | Response |
 |--------|------|------|---------|----------|
 | `GET` | `/comments?page=1&limit=20` | 댓글 목록 (페이지네이션) | - | `List[CommentResponse]` |
-| `POST` | `/comments` | 댓글 작성 | `CommentCreate` | `CommentResponse` |
+| `POST` | `/comments` | 댓글 작성 (로그인 필요) | `CommentCreate` | `CommentResponse` |
 
-**댓글 작성 요청 예시:**
-```json
-{
-  "author": "메생러",
-  "content": "올해도 수고했어요!",
-  "password": "1234"
-}
-```
+### 사용자 (Users)
+
+| Method | 경로 | 설명 | Response |
+|--------|------|------|----------|
+| `POST` | `/users/signup` | 회원가입 | `UserResponse` |
+| `POST` | `/users/login` | 로그인 (JWT 발급) | `Token` |
+| `POST` | `/users/auth/kakao/login` | 카카오 로그인 | `KakaoLoginResponse` |
+| `POST` | `/users/auth/kakao/register` | 카카오 회원가입 완료 | `Token` |
+| `POST` | `/users/refresh` | 토큰 갱신 (Silent Refresh) | `Token` |
+| `POST` | `/users/logout` | 로그아웃 | `dict` |
+| `DELETE` | `/users/me` | 회원 탈퇴 | - |
 
 ### 시스템 (System)
 
@@ -353,15 +369,18 @@ uv run uvicorn main:app --reload
 
 ### 미구현 기능
 
-- [ ] **인증/인가**: JWT 기반 사용자 인증
 - [ ] **테스트**: pytest 기반 테스트 코드
 - [ ] **로깅**: 구조화된 로깅 시스템
-- [ ] **환경 변수**: `.env` 파일 지원
-- [ ] **댓글 보안**: 비밀번호 해싱 (bcrypt)
 - [ ] **페이지네이션**: 캐릭터 목록 페이지네이션
 - [ ] **DB 마이그레이션**: Alembic 도입
 - [ ] **에러 핸들링**: 전역 예외 핸들러
 - [ ] **API 버전 관리**: v2 엔드포인트 준비
+
+### 완료된 기능 ✅
+
+- [x] **인증/인가**: JWT 기반 사용자 인증 (로컬 + 카카오)
+- [x] **환경 변수**: `.env` 파일 지원
+- [x] **댓글 보안**: 로그인 기반 작성으로 변경
 
 ### 개선 사항
 
