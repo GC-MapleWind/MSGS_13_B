@@ -8,7 +8,8 @@ echo "🚀 단풍바람 백엔드 서버 초기 설정"
 
 # 변수 설정
 DEPLOY_USER=${DEPLOY_USER:-"ark1st"}
-DEPLOY_PATH=${DEPLOY_PATH:-"/home/$DEPLOY_USER/dpbr_backend"}
+DEPLOY_ROOT=${DEPLOY_ROOT:-"/home/$DEPLOY_USER/dpbr_deploy"}
+BACKEND_PATH="${DEPLOY_ROOT}/dpbr_backend"
 SERVICE_NAME="dpbr-backend"
 REPO_URL=${REPO_URL:-"https://github.com/GC-MapleWind/MSGS_13_B.git"}
 
@@ -25,16 +26,21 @@ if ! command -v uv &> /dev/null; then
     echo 'export PATH="$HOME/.cargo/bin:$PATH"' >> ~/.bashrc
 fi
 
-# 3. 프로젝트 디렉토리 생성 및 클론
-echo "📁 프로젝트 디렉토리 설정 중..."
-if [ ! -d "$DEPLOY_PATH" ]; then
-    echo "저장소 클론 중..."
-    git clone "$REPO_URL" "$DEPLOY_PATH"
+# 3. 배포 루트 디렉토리 및 백엔드 디렉토리 생성
+echo "📁 배포 디렉토리 구조 설정 중..."
+echo "   - 배포 루트: ${DEPLOY_ROOT}"
+echo "   - 백엔드: ${BACKEND_PATH}"
+
+mkdir -p "$DEPLOY_ROOT"
+
+if [ ! -d "$BACKEND_PATH" ]; then
+    echo "📦 백엔드 저장소 클론 중..."
+    git clone "$REPO_URL" "$BACKEND_PATH"
 else
-    echo "프로젝트 디렉토리가 이미 존재합니다."
+    echo "✅ 백엔드 디렉토리가 이미 존재합니다."
 fi
 
-cd "$DEPLOY_PATH"
+cd "$BACKEND_PATH"
 
 # 4. 의존성 설치
 echo "📚 의존성 설치 중..."
@@ -67,7 +73,7 @@ After=network.target
 [Service]
 Type=simple
 User=$DEPLOY_USER
-WorkingDirectory=$DEPLOY_PATH
+WorkingDirectory=$BACKEND_PATH
 Environment="PATH=/home/${DEPLOY_USER}/.cargo/bin:/usr/local/bin:/usr/bin:/bin"
 ExecStart=/home/${DEPLOY_USER}/.cargo/bin/uv run uvicorn main:app --host 0.0.0.0 --port 8000
 Restart=always

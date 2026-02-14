@@ -112,20 +112,25 @@ jobs:
         env:
           SERVER_HOST: ${{ secrets.SERVER_HOST }}
           SERVER_USER: ${{ secrets.SERVER_USER }}
-          DEPLOY_PATH: ${{ secrets.BACKEND_DEPLOY_PATH }}
+          DEPLOY_ROOT: ~/dpbr_deploy
+          BACKEND_PATH: ~/dpbr_deploy/dpbr_backend
           REGISTRY: ${{ env.REGISTRY }}
           IMAGE_NAME: ${{ env.IMAGE_NAME }}
         run: |
           ssh -i ~/.ssh/deploy_key "${SERVER_USER}@${SERVER_HOST}" << ENDSSH
             set -e
             
-            # 디렉토리가 없으면 클론, 있으면 이동
-            if [ ! -d "${DEPLOY_PATH:-~/MSGS_13_B}" ]; then
-              echo "📁 Directory not found. Cloning repository..."
-              git clone https://github.com/GC-MapleWind/MSGS_13_B.git ${DEPLOY_PATH:-~/MSGS_13_B}
+            # 배포 루트 디렉토리 생성
+            echo "📁 Setting up deployment directory structure..."
+            mkdir -p ${DEPLOY_ROOT}
+            
+            # 백엔드 디렉토리가 없으면 클론, 있으면 이동
+            if [ ! -d "${BACKEND_PATH}" ]; then
+              echo "📁 Backend directory not found. Cloning repository..."
+              git clone https://github.com/GC-MapleWind/MSGS_13_B.git ${BACKEND_PATH}
             fi
             
-            cd ${DEPLOY_PATH:-~/MSGS_13_B}
+            cd ${BACKEND_PATH}
             
             # 현재 실행 중인 컨테이너 백업 (롤백용)
             echo "💾 Backing up current state..."
@@ -160,6 +165,7 @@ jobs:
             docker image prune -af --filter "until=24h"
             
             echo "✅ Deployment completed!"
+            echo "📂 Backend deployed to: ${BACKEND_PATH}"
           ENDSSH
 
       - name: Health Check
@@ -196,11 +202,11 @@ jobs:
         env:
           SERVER_HOST: ${{ secrets.SERVER_HOST }}
           SERVER_USER: ${{ secrets.SERVER_USER }}
-          DEPLOY_PATH: ${{ secrets.BACKEND_DEPLOY_PATH }}
+          BACKEND_PATH: ~/dpbr_deploy/dpbr_backend
         run: |
           echo "❌ 배포 실패 - 롤백 시도 중..."
           ssh -i ~/.ssh/deploy_key "${SERVER_USER}@${SERVER_HOST}" << ENDSSH
-            cd ${DEPLOY_PATH:-~/dpbr_backend}
+            cd ${BACKEND_PATH}
             echo "🔄 Rolling back to previous version..."
             docker compose down
             docker compose up -d
