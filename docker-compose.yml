@@ -2,7 +2,10 @@ version: '3.8'
 
 services:
   backend:
-    image: ghcr.io/gc-maplewind/msgs_13_b-backend:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: dpbr-backend:latest
     container_name: dpbr-backend
     restart: unless-stopped
     ports:

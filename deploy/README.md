@@ -1,238 +1,165 @@
 # 배포 가이드
 
-이 문서는 단풍바람 백엔드 서버를 Docker를 사용하여 배포하는 방법을 설명합니다.
+이 폴더에는 서버 배포를 위한 설정 파일과 가이드가 포함되어 있습니다.
 
-> **참고**: 실제 배포 정보(IP, 사용자명, SSH 키 등)는 별도로 안전하게 관리하세요.
+## 📁 파일 구성
 
-## 📋 목차
+| 파일 | 설명 |
+|------|------|
+| `setup_server.sh` | 서버 초기 설정 스크립트 (Docker, 의존성, systemd 서비스 설정) |
+| `DIRECTORY_STRUCTURE.md` | 서버 배포 디렉토리 구조 가이드 |
+| `TODO_GHCR_AUTH.md` | GitHub Container Registry 인증 설정 가이드 |
+| `README.md` | 이 파일 - 배포 가이드 개요 |
 
-1. [서버 초기 설정](#1-서버-초기-설정)
-2. [GitHub Secrets 설정](#2-github-secrets-설정)
-3. [자동 배포 (CI/CD)](#3-자동-배포-cicd)
-4. [수동 배포](#4-수동-배포)
-5. [문제 해결](#5-문제-해결)
+## 🚀 빠른 시작
 
----
+### 1. 최초 서버 설정
 
-## 1. 서버 초기 설정
-
-### 1.1 서버 접속
+서버에 처음 배포할 때 한 번만 실행:
 
 ```bash
-ssh <USERNAME>@<SERVER_IP>
+# 저장소 클론 (임시)
+git clone https://github.com/GC-MapleWind/MSGS_13_B.git ~/temp_backend
+cd ~/temp_backend
+
+# 초기 설정 스크립트 실행
+bash deploy/setup_server.sh
 ```
 
-### 1.2 Docker 설치
+이 스크립트는 다음을 자동으로 수행합니다:
+- ✅ 필수 패키지 설치 (Git, Python, uv)
+- ✅ 배포 디렉토리 구조 생성 (`~/dpbr_deploy/dpbr_backend`)
+- ✅ 의존성 설치
+- ✅ systemd 서비스 설정
+- ✅ 서비스 자동 시작
 
-서버에 Docker가 설치되어 있지 않다면:
+### 2. 환경 변수 설정
+
+`.env` 파일을 생성하고 필요한 값을 설정:
 
 ```bash
-# Docker 설치
-curl -fsSL https://get.docker.com -o get-docker.sh
-sudo sh get-docker.sh
-
-# 현재 사용자를 docker 그룹에 추가
-sudo usermod -aG docker $USER
-
-# 재로그인 필요
-exit
+cd ~/dpbr_deploy/dpbr_backend
+nano .env
 ```
 
-### 1.3 프로젝트 디렉토리 설정
+필수 환경 변수:
+```env
+# JWT 설정
+JWT_SECRET_KEY=your-secret-key-here
+ALGORITHM=HS256
+ACCESS_TOKEN_EXPIRE_MINUTES=30
 
-```bash
-# 저장소 클론
-git clone <YOUR_REPO_URL> ~/dpbr_backend
-cd ~/dpbr_backend
+# 서버 설정
+HOST=0.0.0.0
+PORT=8000
+ENVIRONMENT=production
 ```
 
----
+### 3. Docker 배포
 
-## 2. GitHub Secrets 설정
-
-GitHub 저장소 → Settings → Secrets and variables → Actions → New repository secret
-
-다음 secrets를 추가하세요:
-
-| Secret 이름 | 값 | 설명 |
-|------------|-----|------|
-| `SSH_PRIVATE_KEY` | SSH 개인 키 전체 내용 | `~/.ssh/<your_key_file>` 파일 내용 |
-| `SERVER_HOST` | `<SERVER_IP>` | 배포 서버 IP |
-| `SERVER_USER` | `<USERNAME>` | 서버 사용자명 |
-| `BACKEND_DEPLOY_PATH` | `/home/<USERNAME>/dpbr_backend` | 백엔드 프로젝트 경로 |
-
-### 2.1 SSH 키 복사 방법
-
-**로컬 머신에서:**
 ```bash
-cat ~/.ssh/<your_key_file>
+cd ~/dpbr_deploy/dpbr_backend
+
+# Docker Compose로 실행
+docker compose up -d
+
+# 또는 수동으로 실행
+docker build -t dpbr-backend:local .
+docker run -d --name dpbr-backend -p 8000:8000 --env-file .env dpbr-backend:local
 ```
 
-복사한 내용을 `SSH_PRIVATE_KEY` secret에 붙여넣으세요.
+## 🔄 자동 배포 (CI/CD)
 
-**중요:** 
-- `-----BEGIN PRIVATE KEY-----`부터 `-----END PRIVATE KEY-----`까지 전체를 복사해야 합니다.
-- 줄바꿈을 포함한 모든 내용을 그대로 복사하세요.
+`main` 브랜치에 push하면 GitHub Actions가 자동으로:
 
-### 2.2 서버에 공개 키 등록 확인
+1. ✅ Docker 이미지 빌드
+2. ✅ GitHub Container Registry에 push
+3. ✅ 서버에 SSH 접속
+4. ✅ 최신 코드 pull
+5. ✅ Docker Compose로 서비스 재시작
+6. ✅ Health check 수행
 
-서버의 `~/.ssh/authorized_keys`에 해당 SSH 키의 공개 키가 등록되어 있는지 확인하세요.
+### 필요한 GitHub Secrets
 
-```bash
-# 서버에서 실행
-cat ~/.ssh/authorized_keys
+레포지토리 Settings > Secrets에 다음을 추가:
+
+| Secret | 설명 |
+|--------|------|
+| `SSH_PRIVATE_KEY` | 서버 SSH private key |
+| `SERVER_HOST` | 서버 IP 또는 도메인 |
+| `SERVER_USER` | 서버 사용자명 (예: `ark1st`) |
+
+## 📂 디렉토리 구조
+
+자세한 내용은 [DIRECTORY_STRUCTURE.md](./DIRECTORY_STRUCTURE.md) 참고
+
+```
+~/dpbr_deploy/
+├── dpbr_front/      # 프론트엔드
+└── dpbr_backend/    # 백엔드 (이 레포)
+    ├── main.py
+    ├── Dockerfile
+    ├── docker-compose.yml
+    └── .env
 ```
 
----
+## 🔧 유용한 명령어
 
-## 3. 자동 배포 (CI/CD)
-
-### 3.1 배포 트리거
-
-다음 상황에서 자동으로 배포됩니다:
-
-- `main` 브랜치에 push할 때
-- GitHub Actions 탭에서 "Run workflow" 수동 실행
-
-### 3.2 배포 프로세스
-
-1. **PR 단계**: Docker 이미지 빌드 테스트 (push 안 함)
-2. **Main Merge 후**:
-   - Docker 이미지 빌드
-   - GitHub Container Registry에 푸시
-   - 서버에 SSH 접속
-   - `docker compose pull` 실행
-   - 서비스 재시작
-3. **Health Check**: API 응답 확인
-
-### 3.3 배포 확인
-
-배포 후 다음 URL에서 확인하세요:
-
-- Health Check: `http://<SERVER_IP>/health`
-- API 문서: `http://<SERVER_IP>/docs`
-- API 엔드포인트: `http://<SERVER_IP>/api/v1/characters`
-
----
-
-## 4. 수동 배포
-
-긴급한 경우 서버에서 수동으로 배포할 수 있습니다:
+### 서비스 관리
 
 ```bash
-# 서버 접속
-ssh <USERNAME>@<SERVER_IP>
+# 상태 확인
+sudo systemctl status dpbr-backend
 
-# 프로젝트 디렉토리로 이동
-cd ~/dpbr_backend
+# 재시작
+sudo systemctl restart dpbr-backend
 
-# 최신 코드 받기
-git pull origin main
+# 로그 확인
+sudo journalctl -u dpbr-backend -f
+```
 
-# GitHub Container Registry 로그인
-echo "<YOUR_GITHUB_TOKEN>" | docker login ghcr.io -u <YOUR_GITHUB_USERNAME> --password-stdin
+### Docker 관리
 
-# 이미지 pull 및 재시작
+```bash
+# 컨테이너 확인
+docker ps
+
+# 로그 확인
+docker logs dpbr-backend -f
+
+# 재시작
+docker restart dpbr-backend
+
+# 재배포
 docker compose pull
 docker compose up -d
-
-# 상태 확인
-docker compose ps
-docker compose logs -f
 ```
 
----
+## 🚨 문제 해결
 
-## 5. 문제 해결
+### 배포 실패
 
-### 5.1 서비스가 시작되지 않을 때
+1. **SSH 접속 문제**: `SSH_PRIVATE_KEY` secret 확인
+2. **이미지 pull 실패**: GHCR 인증 확인 (TODO_GHCR_AUTH.md 참고)
+3. **컨테이너 시작 실패**: `.env` 파일 확인
+4. **Health check 실패**: 로그 확인 (`docker logs dpbr-backend`)
+
+### 수동 롤백
 
 ```bash
-# 로그 확인
-docker compose logs backend
-
-# 컨테이너 상태 확인
-docker compose ps
-
-# 서비스 재시작
-docker compose restart backend
+cd ~/dpbr_deploy/dpbr_backend
+git log --oneline -5  # 이전 커밋 확인
+git checkout <이전-커밋-해시>
+docker compose up -d --force-recreate
 ```
 
-### 5.2 포트가 이미 사용 중일 때
+## 📚 추가 문서
 
-```bash
-# 8000 포트를 사용하는 프로세스 확인
-sudo lsof -i :8000
+- [디렉토리 구조 가이드](./DIRECTORY_STRUCTURE.md) - 배포 디렉토리 상세 설명
+- [GHCR 인증 설정](./TODO_GHCR_AUTH.md) - Container Registry 접근 설정
+- [CI/CD 워크플로우](../.github/workflows/deploy.yml) - GitHub Actions 설정
 
-# 프로세스 종료
-sudo kill -9 <PID>
+## 📞 도움이 필요하신가요?
 
-# 서비스 재시작
-docker compose restart
-```
-
-### 5.3 이미지 Pull 실패
-
-```bash
-# GitHub Container Registry 재로그인
-echo "<YOUR_TOKEN>" | docker login ghcr.io -u <YOUR_USERNAME> --password-stdin
-
-# 이미지 수동 pull
-docker pull ghcr.io/<YOUR_ORG>/<YOUR_REPO>-backend:latest
-```
-
-### 5.4 데이터베이스 초기화
-
-```bash
-cd ~/dpbr_backend
-
-# 볼륨 데이터 백업 (선택사항)
-docker run --rm -v dpbr_backend-data:/data -v $(pwd):/backup alpine tar czf /backup/db_backup.tar.gz -C /data .
-
-# DB 파일 삭제 (볼륨 내부)
-docker compose down
-docker volume rm dpbr_backend-data
-
-# 서비스 재시작 (새 DB 생성)
-docker compose up -d
-```
-
-### 5.5 메모리 부족
-
-```bash
-# 사용하지 않는 이미지 정리
-docker image prune -a
-
-# 사용하지 않는 컨테이너 정리
-docker container prune
-
-# 전체 시스템 정리 (주의!)
-docker system prune -a --volumes
-```
-
----
-
-## 6. 유용한 명령어
-
-```bash
-# Docker Compose 명령어
-docker compose ps                  # 컨테이너 상태
-docker compose logs -f backend     # 실시간 로그
-docker compose restart             # 재시작
-docker compose down                # 중지
-docker compose up -d               # 시작
-
-# 리소스 모니터링
-docker stats                       # 리소스 사용량
-docker system df                   # 디스크 사용량
-
-# 서버 정보
-curl http://localhost/health                   # 헬스 체크
-curl http://localhost/api/v1/characters        # API 테스트
-```
-
----
-
-## 📞 문의
-
-문제가 발생하면 GitHub Issues에 등록해주세요.
+- GitHub Issues에 문제 보고
+- 프로젝트 문서 확인: [DEVELOPMENT.md](../DEVELOPMENT.md)
