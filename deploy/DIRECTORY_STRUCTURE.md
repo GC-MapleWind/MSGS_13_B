@@ -170,14 +170,35 @@ docker rm dpbr-backend
 
 ## 🚨 문제 해결
 
+### 컨테이너 이름 충돌
+
+**에러**: `The container name "/dpbr-backend" is already in use`
+
+**원인**: 기존 컨테이너가 남아있어서 새 컨테이너를 만들 수 없음
+
+**해결**:
+
+```bash
+cd ~/dpbr_deploy/dpbr_backend
+
+# 방법 1: 자동 해결 스크립트
+bash deploy/fix_container_conflict.sh
+
+# 방법 2: 수동 해결
+docker stop dpbr-backend 2>/dev/null || true
+docker rm -f dpbr-backend 2>/dev/null || true
+docker compose down --remove-orphans
+docker compose up -d --force-recreate
+```
+
 ### 디렉토리 구조가 잘못된 경우
 
 기존 배포가 다른 경로에 있다면:
 
 ```bash
-# 1. 기존 컨테이너 중지
+# 1. 기존 컨테이너 중지 및 제거
 docker stop dpbr-backend
-docker rm dpbr-backend
+docker rm -f dpbr-backend
 
 # 2. 새 구조로 이동
 mkdir -p ~/dpbr_deploy

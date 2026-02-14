@@ -137,12 +137,37 @@ docker compose up -d
 
 ## 🚨 문제 해결
 
+### 컨테이너 이름 충돌 에러
+
+**증상**: `Error: The container name "/dpbr-backend" is already in use`
+
+**해결 방법**:
+
+```bash
+# 서버에서 실행
+cd ~/dpbr_deploy/dpbr_backend
+bash deploy/fix_container_conflict.sh
+```
+
+또는 수동으로:
+
+```bash
+# 기존 컨테이너 강제 제거
+docker stop dpbr-backend
+docker rm -f dpbr-backend
+
+# 재시작
+docker compose down --remove-orphans
+docker compose up -d --force-recreate
+```
+
 ### 배포 실패
 
 1. **SSH 접속 문제**: `SSH_PRIVATE_KEY` secret 확인
 2. **이미지 pull 실패**: GHCR 인증 확인 (TODO_GHCR_AUTH.md 참고)
 3. **컨테이너 시작 실패**: `.env` 파일 확인
 4. **Health check 실패**: 로그 확인 (`docker logs dpbr-backend`)
+5. **컨테이너 이름 충돌**: 위의 "컨테이너 이름 충돌 에러" 참고
 
 ### 수동 롤백
 
