@@ -153,10 +153,16 @@ jobs:
             
             # Restart services
             echo "🔄 Restarting services..."
-            docker compose up -d --remove-orphans || {
+            
+            # 기존 컨테이너 정리
+            docker stop dpbr-backend 2>/dev/null || true
+            docker rm -f dpbr-backend 2>/dev/null || true
+            
+            # 새 버전 시작
+            docker compose up -d --remove-orphans --force-recreate || {
               echo "❌ Service restart failed - attempting rollback"
-              docker compose down
-              docker compose up -d
+              docker compose down --remove-orphans
+              docker compose up -d --force-recreate
               exit 1
             }
             
@@ -208,8 +214,15 @@ jobs:
           ssh -i ~/.ssh/deploy_key "${SERVER_USER}@${SERVER_HOST}" << ENDSSH
             cd ${BACKEND_PATH}
             echo "🔄 Rolling back to previous version..."
-            docker compose down
-            docker compose up -d
+            
+            # 기존 컨테이너 강제 제거
+            docker stop dpbr-backend 2>/dev/null || true
+            docker rm -f dpbr-backend 2>/dev/null || true
+            
+            # 이전 버전으로 재시작
+            docker compose down --remove-orphans
+            docker compose up -d --force-recreate
+            
             echo "⚠️ Rollback completed - please check manually"
           ENDSSH
           exit 1
