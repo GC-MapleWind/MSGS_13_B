@@ -4,12 +4,14 @@ on:
   push:
     branches:
       - main
+      - dev
     paths:
       - '**'
       - '!**.md'
   pull_request:
     branches:
       - main
+    types: [opened, synchronize, reopened]
   workflow_dispatch:
 
 env:
@@ -247,5 +249,171 @@ jobs:
             docker compose up -d --force-recreate
             
             echo "⚠️ Rollback completed - please check manually"
+          ENDSSH
+          exit 1
+
+  # ═══════════════════════════════════════════════════
+  # Dev 환경
+  # ═══════════════════════════════════════════════════
+
+  build-and-push-dev:
+    name: Build and Push Dev Image
+    runs-on: ubuntu-latest
+    if: >-
+      github.event_name == 'pull_request' ||
+      (github.event_name == 'push' && github.ref == 'refs/heads/dev')
+    environment: dev
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push dev image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:dev
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Notify build failure
+        if: failure()
+        run: |
+          echo "❌ Dev Docker image build failed!"
+          exit 1
+
+  deploy-dev:
+    name: Deploy to Dev Server
+    needs: build-and-push-dev
+    runs-on: ubuntu-latest
+    concurrency:
+      group: dev-backend-deploy
+      cancel-in-progress: true
+    environment: dev
+    permissions:
+      contents: read
+      packages: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup SSH Key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H ${{ secrets.SERVER_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Deploy Dev Backend
+        env:
+          SERVER_HOST: ${{ secrets.SERVER_HOST }}
+          SERVER_USER: ${{ secrets.SERVER_USER }}
+          BACKEND_PATH: ~/dpbr_deploy_dev/dpbr_backend
+        run: |
+          ssh -i ~/.ssh/deploy_key "${SERVER_USER}@${SERVER_HOST}" "mkdir -p ${BACKEND_PATH}/deploy"
+          scp -i ~/.ssh/deploy_key docker-compose.dev.yml "${SERVER_USER}@${SERVER_HOST}:${BACKEND_PATH}/docker-compose.yml"
+          scp -i ~/.ssh/deploy_key deploy/nginx-dev.conf "${SERVER_USER}@${SERVER_HOST}:${BACKEND_PATH}/deploy/nginx-dev.conf"
+
+          ssh -i ~/.ssh/deploy_key "${SERVER_USER}@${SERVER_HOST}" << ENDSSH
+            set -e
+            cd ${BACKEND_PATH}
+
+            echo "🔐 Logging in to registry..."
+            echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+
+            echo "📥 Pulling dev image..."
+            docker compose pull || {
+              echo "❌ Dev image pull failed"
+              exit 1
+            }
+
+            echo "🛑 Stopping existing dev container..."
+            docker stop dpbr-backend-dev 2>/dev/null || true
+            docker rm -f dpbr-backend-dev 2>/dev/null || true
+
+            echo "🔄 Starting dev services..."
+            docker compose up -d --remove-orphans --force-recreate || {
+              echo "❌ Dev service restart failed"
+              docker compose down --remove-orphans
+              exit 1
+            }
+
+            echo "🔧 Updating dev Nginx configuration..."
+            sudo cp ${BACKEND_PATH}/deploy/nginx-dev.conf /etc/nginx/sites-available/dpbr-dev
+            sudo ln -sf /etc/nginx/sites-available/dpbr-dev /etc/nginx/sites-enabled/dpbr-dev
+            sudo nginx -t && sudo systemctl reload nginx
+
+            echo "🧹 Cleaning up old images..."
+            docker image prune -f --filter "until=24h"
+
+            echo "✅ Dev backend deployed!"
+          ENDSSH
+
+      - name: Health Check
+        env:
+          SERVER_HOST: ${{ secrets.SERVER_HOST }}
+          SERVER_USER: ${{ secrets.SERVER_USER }}
+        run: |
+          echo "🏥 Waiting for dev services to start..."
+          sleep 10
+
+          ssh -i ~/.ssh/deploy_key "${SERVER_USER}@${SERVER_HOST}" << 'ENDSSH'
+            echo "Checking dev backend container health..."
+            for i in 1 2 3 4 5 6; do
+              if curl -sf --connect-timeout 5 "http://127.0.0.1:8001/health" > /dev/null; then
+                echo "✅ Dev backend health check passed!"
+                break
+              fi
+              echo "  Attempt $i: waiting for dev backend..."
+              sleep 5
+            done
+
+            curl -sf "http://127.0.0.1:8001/health" || {
+              echo "❌ Dev backend health check failed"
+              docker logs dpbr-backend-dev --tail 30 || true
+              exit 1
+            }
+
+            echo "✅ Dev backend all checks passed"
+          ENDSSH
+
+      - name: Notify Success
+        if: success()
+        run: |
+          echo "🎉 Dev deployment successful!"
+          echo "- Docker image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:dev"
+          echo "- Deploy time: $(date)"
+
+      - name: Rollback on Failure
+        if: failure()
+        env:
+          SERVER_HOST: ${{ secrets.SERVER_HOST }}
+          SERVER_USER: ${{ secrets.SERVER_USER }}
+          BACKEND_PATH: ~/dpbr_deploy_dev/dpbr_backend
+        run: |
+          echo "❌ Dev deployment failed - rolling back..."
+          ssh -i ~/.ssh/deploy_key "${SERVER_USER}@${SERVER_HOST}" << ENDSSH
+            cd ${BACKEND_PATH}
+            echo "🔄 Rolling back dev backend..."
+            docker stop dpbr-backend-dev 2>/dev/null || true
+            docker rm -f dpbr-backend-dev 2>/dev/null || true
+            docker compose down --remove-orphans
+            docker compose up -d --force-recreate
+            echo "⚠️ Dev rollback completed - please check manually"
           ENDSSH
           exit 1
