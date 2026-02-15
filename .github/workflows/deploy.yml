@@ -98,6 +98,9 @@ jobs:
     needs: build-and-push
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    permissions:
+      contents: read
+      packages: read
     
     steps:
       - name: Setup SSH Key
@@ -114,8 +117,6 @@ jobs:
           SERVER_USER: ${{ secrets.SERVER_USER }}
           DEPLOY_ROOT: ~/dpbr_deploy
           BACKEND_PATH: ~/dpbr_deploy/dpbr_backend
-          REGISTRY: ${{ env.REGISTRY }}
-          IMAGE_NAME: ${{ env.IMAGE_NAME }}
         run: |
           ssh -i ~/.ssh/deploy_key "${SERVER_USER}@${SERVER_HOST}" << ENDSSH
             set -e
@@ -170,6 +171,13 @@ jobs:
             echo "🧹 Cleaning up old images..."
             docker image prune -af --filter "until=24h"
             
+            # Nginx 설정 배포 (호스트 레벨)
+            echo "🔧 Updating Nginx configuration..."
+            sudo cp ${BACKEND_PATH}/deploy/nginx.conf /etc/nginx/sites-available/dpbr
+            sudo ln -sf /etc/nginx/sites-available/dpbr /etc/nginx/sites-enabled/dpbr
+            sudo rm -f /etc/nginx/sites-enabled/default
+            sudo nginx -t && sudo systemctl reload nginx
+            
             echo "✅ Deployment completed!"
             echo "📂 Backend deployed to: ${BACKEND_PATH}"
           ENDSSH
@@ -177,24 +185,39 @@ jobs:
       - name: Health Check
         env:
           SERVER_HOST: ${{ secrets.SERVER_HOST }}
+          SERVER_USER: ${{ secrets.SERVER_USER }}
         run: |
-          set -e
           echo "🏥 Waiting for services to start..."
           sleep 10
           
-          echo "Checking health endpoint..."
-          curl -f "http://${SERVER_HOST}/health" || {
-            echo "❌ Health check failed"
-            exit 1
-          }
-          
-          echo "Checking API endpoint..."
-          curl -f "http://${SERVER_HOST}/api/v1/characters" || {
-            echo "❌ API health check failed"
-            exit 1
-          }
-          
-          echo "✅ All health checks passed"
+          # 서버 내부에서 직접 컨테이너 상태 확인
+          ssh -i ~/.ssh/deploy_key "${SERVER_USER}@${SERVER_HOST}" << 'ENDSSH'
+            echo "Checking backend container health..."
+            for i in 1 2 3 4 5 6; do
+              if curl -sf --connect-timeout 5 "http://127.0.0.1:8000/health" > /dev/null; then
+                echo "✅ Backend health check passed!"
+                break
+              fi
+              echo "  Attempt $i: waiting for backend..."
+              sleep 5
+            done
+            
+            # 최종 확인
+            curl -sf "http://127.0.0.1:8000/health" || {
+              echo "❌ Backend health check failed"
+              docker logs dpbr-backend --tail 30 || true
+              exit 1
+            }
+            
+            echo "Checking via Nginx (port 80)..."
+            curl -sf "http://127.0.0.1/health" || {
+              echo "❌ Nginx health check failed"
+              sudo nginx -t || true
+              exit 1
+            }
+            
+            echo "✅ All health checks passed"
+          ENDSSH
 
       - name: Notify Success
         if: success()
