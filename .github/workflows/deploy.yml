@@ -100,6 +100,9 @@ jobs:
     needs: build-and-push
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    concurrency:
+      group: prod-backend-deploy
+      cancel-in-progress: false
     permissions:
       contents: read
       packages: read
@@ -135,9 +138,13 @@ jobs:
             
             cd ${BACKEND_PATH}
             
-            # 현재 실행 중인 컨테이너 백업 (롤백용)
+            # 현재 실행 중인 컨테이너 + 설정 백업 (롤백용)
             echo "💾 Backing up current state..."
             docker compose ps > .deployment_backup || true
+            git rev-parse HEAD > .deployment_prev_commit || true
+            cp docker-compose.yml docker-compose.yml.bak 2>/dev/null || true
+            cp deploy/nginx.conf deploy/nginx.conf.bak 2>/dev/null || true
+            cp deploy/nginx-common.conf deploy/nginx-common.conf.bak 2>/dev/null || true
             
             # Pull latest changes
             echo "📦 Pulling latest code..."
@@ -171,10 +178,12 @@ jobs:
             
             # Cleanup old images
             echo "🧹 Cleaning up old images..."
-            docker image prune -af --filter "until=24h"
+            docker image prune -f --filter "until=24h"
             
             # Nginx 설정 배포 (호스트 레벨)
             echo "🔧 Updating Nginx configuration..."
+            sudo mkdir -p /etc/nginx/snippets
+            sudo cp ${BACKEND_PATH}/deploy/nginx-common.conf /etc/nginx/snippets/dpbr-common.conf
             sudo cp ${BACKEND_PATH}/deploy/nginx.conf /etc/nginx/sites-available/dpbr
             sudo ln -sf /etc/nginx/sites-available/dpbr /etc/nginx/sites-enabled/dpbr
             sudo rm -f /etc/nginx/sites-enabled/default
@@ -233,21 +242,38 @@ jobs:
         env:
           SERVER_HOST: ${{ secrets.SERVER_HOST }}
           SERVER_USER: ${{ secrets.SERVER_USER }}
-          BACKEND_PATH: ~/dpbr_deploy/dpbr_backend
         run: |
           echo "❌ 배포 실패 - 롤백 시도 중..."
-          ssh -i ~/.ssh/deploy_key "${SERVER_USER}@${SERVER_HOST}" << ENDSSH
+          ssh -i ~/.ssh/deploy_key "${SERVER_USER}@${SERVER_HOST}" << 'ENDSSH'
+            BACKEND_PATH=~/dpbr_deploy/dpbr_backend
             cd ${BACKEND_PATH}
             echo "🔄 Rolling back to previous version..."
-            
+
+            # Restore previous commit if available
+            if [ -f .deployment_prev_commit ]; then
+              PREV_COMMIT=$(cat .deployment_prev_commit)
+              echo "🔄 Reverting to commit: ${PREV_COMMIT}"
+              git checkout "${PREV_COMMIT}" -- . 2>/dev/null || true
+            fi
+
+            # Restore backed-up config files
+            cp docker-compose.yml.bak docker-compose.yml 2>/dev/null || true
+            cp deploy/nginx.conf.bak deploy/nginx.conf 2>/dev/null || true
+            cp deploy/nginx-common.conf.bak deploy/nginx-common.conf 2>/dev/null || true
+
             # 기존 컨테이너 강제 제거
             docker stop dpbr-backend 2>/dev/null || true
             docker rm -f dpbr-backend 2>/dev/null || true
-            
+
             # 이전 버전으로 재시작
             docker compose down --remove-orphans
             docker compose up -d --force-recreate
-            
+
+            # Restore Nginx config
+            sudo cp ${BACKEND_PATH}/deploy/nginx-common.conf /etc/nginx/snippets/dpbr-common.conf
+            sudo cp ${BACKEND_PATH}/deploy/nginx.conf /etc/nginx/sites-available/dpbr
+            sudo nginx -t && sudo systemctl reload nginx
+
             echo "⚠️ Rollback completed - please check manually"
           ENDSSH
           exit 1
@@ -259,9 +285,7 @@ jobs:
   build-and-push-dev:
     name: Build and Push Dev Image
     runs-on: ubuntu-latest
-    if: >-
-      github.event_name == 'pull_request' ||
-      (github.event_name == 'push' && github.ref == 'refs/heads/dev')
+    if: github.event_name == 'push' && github.ref == 'refs/heads/dev'
     environment: dev
     permissions:
       contents: read
@@ -319,13 +343,26 @@ jobs:
           chmod 600 ~/.ssh/deploy_key
           ssh-keyscan -H ${{ secrets.SERVER_HOST }} >> ~/.ssh/known_hosts
 
+      - name: Backup existing config
+        env:
+          SERVER_HOST: ${{ secrets.SERVER_HOST }}
+          SERVER_USER: ${{ secrets.SERVER_USER }}
+          BACKEND_PATH: ~/dpbr_deploy_dev/dpbr_backend
+        run: |
+          ssh -i ~/.ssh/deploy_key "${SERVER_USER}@${SERVER_HOST}" << 'ENDSSH'
+            BACKEND_PATH=~/dpbr_deploy_dev/dpbr_backend
+            mkdir -p ${BACKEND_PATH}/deploy
+            # Backup existing files for rollback (ignore if first deploy)
+            cp ${BACKEND_PATH}/docker-compose.yml ${BACKEND_PATH}/docker-compose.yml.bak 2>/dev/null || true
+            cp ${BACKEND_PATH}/deploy/nginx-dev.conf ${BACKEND_PATH}/deploy/nginx-dev.conf.bak 2>/dev/null || true
+          ENDSSH
+
       - name: Deploy Dev Backend
         env:
           SERVER_HOST: ${{ secrets.SERVER_HOST }}
           SERVER_USER: ${{ secrets.SERVER_USER }}
           BACKEND_PATH: ~/dpbr_deploy_dev/dpbr_backend
         run: |
-          ssh -i ~/.ssh/deploy_key "${SERVER_USER}@${SERVER_HOST}" "mkdir -p ${BACKEND_PATH}/deploy"
           scp -i ~/.ssh/deploy_key docker-compose.dev.yml "${SERVER_USER}@${SERVER_HOST}:${BACKEND_PATH}/docker-compose.yml"
           scp -i ~/.ssh/deploy_key deploy/nginx-dev.conf "${SERVER_USER}@${SERVER_HOST}:${BACKEND_PATH}/deploy/nginx-dev.conf"
 
@@ -404,16 +441,25 @@ jobs:
         env:
           SERVER_HOST: ${{ secrets.SERVER_HOST }}
           SERVER_USER: ${{ secrets.SERVER_USER }}
-          BACKEND_PATH: ~/dpbr_deploy_dev/dpbr_backend
         run: |
           echo "❌ Dev deployment failed - rolling back..."
-          ssh -i ~/.ssh/deploy_key "${SERVER_USER}@${SERVER_HOST}" << ENDSSH
+          ssh -i ~/.ssh/deploy_key "${SERVER_USER}@${SERVER_HOST}" << 'ENDSSH'
+            BACKEND_PATH=~/dpbr_deploy_dev/dpbr_backend
             cd ${BACKEND_PATH}
+            echo "🔄 Restoring previous config files..."
+            cp ${BACKEND_PATH}/docker-compose.yml.bak ${BACKEND_PATH}/docker-compose.yml 2>/dev/null || true
+            cp ${BACKEND_PATH}/deploy/nginx-dev.conf.bak ${BACKEND_PATH}/deploy/nginx-dev.conf 2>/dev/null || true
+
             echo "🔄 Rolling back dev backend..."
             docker stop dpbr-backend-dev 2>/dev/null || true
             docker rm -f dpbr-backend-dev 2>/dev/null || true
             docker compose down --remove-orphans
             docker compose up -d --force-recreate
+
+            echo "🔄 Restoring previous Nginx config..."
+            sudo cp ${BACKEND_PATH}/deploy/nginx-dev.conf /etc/nginx/sites-available/dpbr-dev
+            sudo nginx -t && sudo systemctl reload nginx
+
             echo "⚠️ Dev rollback completed - please check manually"
           ENDSSH
           exit 1
