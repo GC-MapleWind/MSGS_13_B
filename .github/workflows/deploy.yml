@@ -16,7 +16,7 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}-backend
+  IMAGE_NAME: gc-maplewind/msgs_13_b-backend
 
 jobs:
   # PR: 빌드 검증 (push 안 함)
