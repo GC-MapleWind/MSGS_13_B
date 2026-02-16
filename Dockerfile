@@ -13,8 +13,11 @@ COPY pyproject.toml uv.lock ./
 # 의존성 설치 (프로덕션 전용, dev 의존성 제외)
 RUN uv sync --frozen --no-dev
 
-# non-root 유저 생성
-RUN groupadd -r appuser && useradd -r -g appuser appuser
+# non-root 유저 생성 (홈 디렉토리 포함)
+RUN groupadd -r appuser && \
+    useradd -r -g appuser -m appuser && \
+    mkdir -p /home/appuser/.cache && \
+    chown -R appuser:appuser /home/appuser
 
 # 애플리케이션 코드 복사
 COPY . .
