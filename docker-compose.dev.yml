@@ -11,6 +11,7 @@ services:
       - ENVIRONMENT=development
       - HOST=0.0.0.0
       - PORT=8000
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY:-dev-jwt-secret}
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
       interval: 30s
