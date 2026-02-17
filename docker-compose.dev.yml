@@ -12,6 +12,11 @@ services:
       - HOST=0.0.0.0
       - PORT=8000
       - JWT_SECRET_KEY=${JWT_SECRET_KEY:-dev-jwt-secret}
+      - API_V1_PREFIX=${API_V1_PREFIX:-/api/v1}
+      - API_ROOT_PATH=${API_ROOT_PATH:-}
+      - API_DOCS_URL=${API_DOCS_URL:-/docs}
+      - API_REDOC_URL=${API_REDOC_URL:-/redoc}
+      - API_OPENAPI_URL=${API_OPENAPI_URL:-/openapi.json}
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
       interval: 30s
