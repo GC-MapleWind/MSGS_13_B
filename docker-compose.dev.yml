@@ -1,0 +1,23 @@
+services:
+  backend:
+    image: ghcr.io/gc-maplewind/msgs_13_b-backend:dev
+    container_name: dpbr-backend-dev
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8001:8000"
+    volumes:
+      - backend-data-dev:/app/data
+    environment:
+      - ENVIRONMENT=development
+      - HOST=0.0.0.0
+      - PORT=8000
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+volumes:
+  backend-data-dev:
+    driver: local
