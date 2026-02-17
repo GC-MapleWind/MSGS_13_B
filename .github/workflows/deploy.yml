@@ -14,7 +14,8 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}-backend
+  # GHCR requires lowercase repository names (see: https://github.com/GC-MapleWind/MSGS_13_B/actions)
+  IMAGE_NAME: gc-maplewind/msgs_13_b-backend
 
 jobs:
   # PR: 빌드 검증 (push 안 함)
