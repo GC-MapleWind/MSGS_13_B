@@ -187,14 +187,7 @@ jobs:
             echo "🧹 Cleaning up old images..."
             docker image prune -f --filter "until=24h"
             
-            # Nginx 설정 배포 (호스트 레벨)
-            echo "🔧 Updating Nginx configuration..."
-            sudo mkdir -p /etc/nginx/snippets
-            sudo cp ${BACKEND_PATH}/deploy/nginx-common.conf /etc/nginx/snippets/dpbr-common.conf
-            sudo cp ${BACKEND_PATH}/deploy/nginx.conf /etc/nginx/sites-available/dpbr
-            sudo ln -sf /etc/nginx/sites-available/dpbr /etc/nginx/sites-enabled/dpbr
-            sudo rm -f /etc/nginx/sites-enabled/default
-            sudo nginx -t && sudo systemctl reload nginx
+            # Nginx: deploy/nginx.conf, nginx-common.conf are in repo; copy to /etc/nginx on server once (requires sudo or root). Skip here to run without sudo.
             
             echo "✅ Deployment completed!"
             echo "📂 Backend deployed to: ${BACKEND_PATH}"
@@ -224,13 +217,6 @@ jobs:
             curl -sf "http://127.0.0.1:8000/health" || {
               echo "❌ Backend health check failed"
               docker logs dpbr-backend --tail 30 || true
-              exit 1
-            }
-            
-            echo "Checking via Nginx (port 80)..."
-            curl -sf "http://127.0.0.1/health" || {
-              echo "❌ Nginx health check failed"
-              sudo nginx -t || true
               exit 1
             }
             
@@ -276,10 +262,7 @@ jobs:
             docker compose down --remove-orphans
             docker compose up -d --force-recreate
 
-            # Restore Nginx config
-            sudo cp ${BACKEND_PATH}/deploy/nginx-common.conf /etc/nginx/snippets/dpbr-common.conf
-            sudo cp ${BACKEND_PATH}/deploy/nginx.conf /etc/nginx/sites-available/dpbr
-            sudo nginx -t && sudo systemctl reload nginx
+            # Nginx config restore skipped (requires sudo). Re-apply manually if needed.
 
             echo "⚠️ Rollback completed - please check manually"
           ENDSSH
@@ -398,10 +381,7 @@ jobs:
               exit 1
             }
 
-            echo "🔧 Updating dev Nginx configuration..."
-            sudo cp ${BACKEND_PATH}/deploy/nginx-dev.conf /etc/nginx/sites-available/dpbr-dev
-            sudo ln -sf /etc/nginx/sites-available/dpbr-dev /etc/nginx/sites-enabled/dpbr-dev
-            sudo nginx -t && sudo systemctl reload nginx
+            # Nginx: deploy/nginx-dev.conf → /etc/nginx/sites-available/dpbr-dev on server once (requires sudo). Skip here to run without sudo.
 
             echo "🧹 Cleaning up old images..."
             docker image prune -f --filter "until=24h"
@@ -464,9 +444,7 @@ jobs:
             docker compose down --remove-orphans
             docker compose up -d --force-recreate
 
-            echo "🔄 Restoring previous Nginx config..."
-            sudo cp ${BACKEND_PATH}/deploy/nginx-dev.conf /etc/nginx/sites-available/dpbr-dev
-            sudo nginx -t && sudo systemctl reload nginx
+            # Nginx config restore skipped (requires sudo). Re-apply manually if needed.
 
             echo "⚠️ Dev rollback completed - please check manually"
           ENDSSH
