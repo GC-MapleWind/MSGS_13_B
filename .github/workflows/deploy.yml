@@ -394,27 +394,22 @@ jobs:
           SERVER_HOST: ${{ secrets.SERVER_HOST }}
           SERVER_USER: ${{ secrets.SERVER_USER }}
         run: |
-          echo "🏥 Waiting for dev services to start..."
-          sleep 10
+          echo "🏥 Waiting for dev services to start (container start_period up to 40s)..."
+          sleep 20
 
           ssh -i ~/.ssh/deploy_key "${SERVER_USER}@${SERVER_HOST}" << 'ENDSSH'
             echo "Checking dev backend container health..."
-            for i in 1 2 3 4 5 6; do
+            for i in 1 2 3 4 5 6 7 8 9 10; do
               if curl -sf --connect-timeout 5 "http://127.0.0.1:8001/health" > /dev/null; then
                 echo "✅ Dev backend health check passed!"
-                break
+                exit 0
               fi
-              echo "  Attempt $i: waiting for dev backend..."
+              echo "  Attempt $i/10: waiting for dev backend..."
               sleep 5
             done
-
-            curl -sf "http://127.0.0.1:8001/health" || {
-              echo "❌ Dev backend health check failed"
-              docker logs dpbr-backend-dev --tail 30 || true
-              exit 1
-            }
-
-            echo "✅ Dev backend all checks passed"
+            echo "❌ Dev backend health check failed"
+            docker logs dpbr-backend-dev --tail 30 || true
+            exit 1
           ENDSSH
 
       - name: Notify Success
@@ -433,18 +428,16 @@ jobs:
           echo "❌ Dev deployment failed - rolling back..."
           ssh -i ~/.ssh/deploy_key "${SERVER_USER}@${SERVER_HOST}" << 'ENDSSH'
             BACKEND_PATH=~/dpbr_deploy_dev/dpbr_backend
-            cd ${BACKEND_PATH}
+            cd "${BACKEND_PATH}" || { echo "⚠️ BACKEND_PATH missing, skip rollback"; exit 0; }
             echo "🔄 Restoring previous config files..."
-            cp ${BACKEND_PATH}/docker-compose.yml.bak ${BACKEND_PATH}/docker-compose.yml 2>/dev/null || true
-            cp ${BACKEND_PATH}/deploy/nginx-dev.conf.bak ${BACKEND_PATH}/deploy/nginx-dev.conf 2>/dev/null || true
+            cp docker-compose.yml.bak docker-compose.yml 2>/dev/null || true
+            cp deploy/nginx-dev.conf.bak deploy/nginx-dev.conf 2>/dev/null || true
 
             echo "🔄 Rolling back dev backend..."
             docker stop dpbr-backend-dev 2>/dev/null || true
             docker rm -f dpbr-backend-dev 2>/dev/null || true
-            docker compose down --remove-orphans
-            docker compose up -d --force-recreate
-
-            # Nginx config restore skipped (requires sudo). Re-apply manually if needed.
+            docker compose down --remove-orphans 2>/dev/null || true
+            docker compose up -d --force-recreate 2>/dev/null || true
 
             echo "⚠️ Dev rollback completed - please check manually"
           ENDSSH
