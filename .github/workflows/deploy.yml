@@ -124,10 +124,16 @@ jobs:
             echo "📁 Setting up deployment directory structure..."
             mkdir -p ${DEPLOY_ROOT}
             
-            # 백엔드 디렉토리가 없으면 클론, 있으면 이동
+            # 백엔드 디렉토리 처리
             if [ ! -d "${BACKEND_PATH}" ]; then
               echo "📁 Backend directory not found. Cloning repository..."
               git clone https://github.com/GC-MapleWind/MSGS_13_B.git ${BACKEND_PATH}
+            elif [ ! -d "${BACKEND_PATH}/.git" ]; then
+              echo "⚠️  Directory exists but not a git repository. Removing and cloning..."
+              rm -rf ${BACKEND_PATH}
+              git clone https://github.com/GC-MapleWind/MSGS_13_B.git ${BACKEND_PATH}
+            else
+              echo "✅ Backend directory already exists"
             fi
             
             cd ${BACKEND_PATH}
