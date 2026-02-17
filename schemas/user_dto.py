@@ -9,6 +9,7 @@ class UserCreate(UserBase):
 
 class UserResponse(UserBase):
     id: int
+    student_id: str | None = None
     model_config = {"from_attributes": True}
 
 class Token(BaseModel):
