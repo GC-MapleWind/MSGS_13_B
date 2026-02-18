@@ -115,6 +115,18 @@ async def test_create_comment_anonymous_without_nickname_uses_random(monkeypatch
     assert created.author == "랜덤닉99"
 
 
+@pytest.mark.asyncio
+async def test_create_comment_anonymous_without_password_is_allowed(monkeypatch: pytest.MonkeyPatch):
+    fake_create = AsyncMock(side_effect=lambda _db, comment: comment)
+    monkeypatch.setattr(comment_service.comment_repo, "create", fake_create)
+
+    payload = CommentCreate(content="hello", nickname="게스트닉")
+    created = await comment_service.create_comment(db=None, data=payload, user=None)
+
+    assert created.author == "게스트닉"
+    assert created.password_hash is None
+
+
 def test_comment_create_blank_nickname_is_treated_as_none():
     payload = CommentCreate(content="hello", nickname="   ", password=" pass1234 ")
 
@@ -205,6 +217,26 @@ async def test_delete_comment_anonymous_correct_password_can_delete(monkeypatch:
         comment_id=14,
         user=None,
         payload=CommentDeleteRequest(password="pass1234"),
+    )
+
+    fake_delete.assert_awaited_once_with(None, comment)
+
+
+@pytest.mark.asyncio
+async def test_delete_comment_anonymous_without_password_hash_can_delete_without_payload(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    comment = SimpleNamespace(id=15, user_id=None, password_hash=None)
+    fake_delete = AsyncMock()
+
+    monkeypatch.setattr(comment_service.comment_repo, "get_by_id", AsyncMock(return_value=comment))
+    monkeypatch.setattr(comment_service.comment_repo, "delete", fake_delete)
+
+    await comment_service.delete_comment(
+        db=None,
+        comment_id=15,
+        user=None,
+        payload=None,
     )
 
     fake_delete.assert_awaited_once_with(None, comment)

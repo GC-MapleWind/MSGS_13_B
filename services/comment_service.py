@@ -60,11 +60,7 @@ async def create_comment(
         password_hash = None
     else:
         author = (data.nickname or "").strip() or _random_nickname()
-        if not data.password:
-            raise HTTPException(
-                status_code=400, detail="비로그인 댓글 삭제용 비밀번호를 입력해주세요."
-            )
-        password_hash = pwd_context.hash(data.password)
+        password_hash = pwd_context.hash(data.password) if data.password else None
 
     comment = Comment(
         user_id=user.id if user else None,
@@ -95,13 +91,12 @@ async def delete_comment(
         await comment_repo.delete(db, comment)
         return
 
-    password = (payload.password if payload else None) or ""
-    if not password:
-        raise HTTPException(status_code=400, detail="비밀번호를 입력해주세요.")
+    if comment.password_hash:
+        password = (payload.password if payload else None) or ""
+        if not password:
+            raise HTTPException(status_code=400, detail="비밀번호를 입력해주세요.")
 
-    if not comment.password_hash or not pwd_context.verify(
-        password, comment.password_hash
-    ):
-        raise HTTPException(status_code=403, detail="비밀번호가 올바르지 않습니다.")
+        if not pwd_context.verify(password, comment.password_hash):
+            raise HTTPException(status_code=403, detail="비밀번호가 올바르지 않습니다.")
 
     await comment_repo.delete(db, comment)
