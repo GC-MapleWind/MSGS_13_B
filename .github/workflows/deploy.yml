@@ -145,10 +145,15 @@ jobs:
             fi
             
             cd "$BACKEND_PATH"
+
+            if [ ! -f "$BACKEND_PATH/.env" ]; then
+              echo "❌ Missing .env file at $BACKEND_PATH/.env"
+              exit 1
+            fi
             
             # 현재 실행 중인 컨테이너 + 설정 백업 (롤백용)
             echo "💾 Backing up current state..."
-            docker compose ps > .deployment_backup || true
+            docker compose --env-file .env -f docker-compose.yml ps > .deployment_backup || true
             git rev-parse HEAD > .deployment_prev_commit || true
             cp docker-compose.yml docker-compose.yml.bak 2>/dev/null || true
             cp deploy/nginx.conf deploy/nginx.conf.bak 2>/dev/null || true
@@ -162,9 +167,9 @@ jobs:
 
             # Diagnose compose source to avoid accidental override usage
             echo "🧾 Compose files in deploy directory:"
-            ls -1 docker-compose*.yml docker-compose*.yaml 2>/dev/null || true
+            ls -1 docker-compose.yml docker-compose.yaml 2>/dev/null || true
             echo "🧾 Resolved backend image from docker-compose.yml:"
-            docker compose -f docker-compose.yml config | grep -E "image:|container_name:|build:" || true
+            docker compose --env-file .env -f docker-compose.yml config | grep -E "image:|container_name:|build:" || true
             
             # Login to GitHub Container Registry
             echo "🔐 Logging in to registry..."
@@ -172,7 +177,7 @@ jobs:
             
             # Pull latest images
             echo "📥 Pulling latest images..."
-            docker compose -f docker-compose.yml pull || {
+            docker compose --env-file .env -f docker-compose.yml pull || {
               echo "❌ Image pull failed"
               exit 1
             }
@@ -185,10 +190,10 @@ jobs:
             docker rm -f dpbr-backend 2>/dev/null || true
             
             # 새 버전 시작
-            docker compose -f docker-compose.yml up -d --remove-orphans --force-recreate || {
+            docker compose --env-file .env -f docker-compose.yml up -d --remove-orphans --force-recreate || {
               echo "❌ Service restart failed - attempting rollback"
-              docker compose -f docker-compose.yml down --remove-orphans
-              docker compose -f docker-compose.yml up -d --force-recreate
+              docker compose --env-file .env -f docker-compose.yml down --remove-orphans
+              docker compose --env-file .env -f docker-compose.yml up -d --force-recreate
               exit 1
             }
             
@@ -268,8 +273,8 @@ jobs:
             docker rm -f dpbr-backend 2>/dev/null || true
 
             # 이전 버전으로 재시작
-            docker compose -f docker-compose.yml down --remove-orphans
-            docker compose -f docker-compose.yml up -d --force-recreate
+            docker compose --env-file .env -f docker-compose.yml down --remove-orphans
+            docker compose --env-file .env -f docker-compose.yml up -d --force-recreate
 
             # Nginx config restore skipped (requires sudo). Re-apply manually if needed.
 
