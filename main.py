@@ -173,9 +173,10 @@ async def seed_data():
                     content="결산 보니까 뿌듯하네요 ㅎㅎ",
                 ),
                 Comment(
-                    user_id=test_user.id,
-                    author=test_user.name,
-                    content="다들 대단하시다...",
+                    user_id=None,
+                    author="별빛고래42",
+                    content="익명으로도 응원 남겨요!",
+                    password_hash=get_password_hash("1234"),
                 ),
             ]
             db.add_all(comments)

@@ -1,10 +1,21 @@
+import random
+
 from fastapi import HTTPException
+from passlib.context import CryptContext
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from models.comment import Comment
 from models.user import User
 from repositories import comment_repo
-from schemas.comment_dto import CommentCreate, CommentResponse
+from schemas.comment_dto import CommentCreate, CommentDeleteRequest, CommentResponse
+
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+ANON_PREFIXES = ["별빛", "단풍", "구름", "노을", "바람", "은하"]
+ANON_SUFFIXES = ["토끼", "사슴", "고래", "여우", "펭귄", "호랑이"]
+
+
+def _random_nickname() -> str:
+    return f"{random.choice(ANON_PREFIXES)}{random.choice(ANON_SUFFIXES)}{random.randint(10,99)}"
 
 
 async def get_comments(
@@ -18,7 +29,10 @@ async def get_comments(
 
     return [
         CommentResponse.model_validate(comment, from_attributes=True).model_copy(
-            update={"is_mine": bool(current_user and comment.user_id == current_user.id)}
+            update={
+                "is_mine": bool(current_user and comment.user_id == current_user.id),
+                "is_anonymous": comment.user_id is None,
+            }
         )
         for comment in comments
     ]
@@ -29,27 +43,47 @@ async def create_comment(
     data: CommentCreate,
     user: User | None,
 ) -> Comment:
-    author = user.name if user else (data.nickname or "").strip()
-    if not user and not author:
-        raise HTTPException(status_code=400, detail="비로그인 댓글 작성 시 닉네임이 필요합니다.")
+    if user:
+        author = user.name
+        password_hash = None
+    else:
+        author = (data.nickname or "").strip() or _random_nickname()
+        if not data.password:
+            raise HTTPException(status_code=400, detail="비로그인 댓글 삭제용 비밀번호를 입력해주세요.")
+        password_hash = pwd_context.hash(data.password)
 
     comment = Comment(
         user_id=user.id if user else None,
         author=author,
         content=data.content,
+        password_hash=password_hash,
     )
     return await comment_repo.create(db, comment)
 
 
-async def delete_comment(db: AsyncSession, comment_id: int, user: User) -> None:
+async def delete_comment(
+    db: AsyncSession,
+    comment_id: int,
+    user: User | None,
+    payload: CommentDeleteRequest | None = None,
+) -> None:
     comment = await comment_repo.get_by_id(db, comment_id)
     if not comment:
         raise HTTPException(status_code=404, detail="댓글을 찾을 수 없습니다.")
 
-    if comment.user_id is None:
-        raise HTTPException(status_code=403, detail="비로그인 댓글은 삭제할 수 없습니다.")
+    if comment.user_id is not None:
+        if user is None:
+            raise HTTPException(status_code=401, detail="로그인이 필요합니다.")
+        if comment.user_id != user.id:
+            raise HTTPException(status_code=403, detail="본인 댓글만 삭제할 수 있습니다.")
+        await comment_repo.delete(db, comment)
+        return
 
-    if comment.user_id != user.id:
-        raise HTTPException(status_code=403, detail="본인 댓글만 삭제할 수 있습니다.")
+    password = (payload.password if payload else None) or ""
+    if not password:
+        raise HTTPException(status_code=400, detail="비밀번호를 입력해주세요.")
+
+    if not comment.password_hash or not pwd_context.verify(password, comment.password_hash):
+        raise HTTPException(status_code=403, detail="비밀번호가 올바르지 않습니다.")
 
     await comment_repo.delete(db, comment)
