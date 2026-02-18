@@ -324,14 +324,8 @@ async def login(db: AsyncSession, username: str, password: str) -> tuple[Token, 
         HTTPException: 자격증명이 올바르지 않을 경우 401 Unauthorized 상태의 예외를 발생시킨다.
     """
     user = await user_repo.get_by_username(db, username)
-    matched_by_student_id = False
     if user is None:
         user = await user_repo.get_by_student_id(db, username)
-        matched_by_student_id = user is not None
-
-    # 레거시 프론트 호환: student_id 로그인 흐름에서 password=student_id를 전달하는 경우 허용
-    if matched_by_student_id and user and user.student_id and password == user.student_id:
-        return await _issue_service_tokens(db, user)
 
     # 500 에러 방지: 카카오 전용 계정(hashed_password가 None)이거나 비밀번호가 틀린 경우
     if not user or user.hashed_password is None or not verify_password(password, user.hashed_password):
