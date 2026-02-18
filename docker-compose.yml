@@ -11,6 +11,7 @@ services:
       - ENVIRONMENT=production
       - HOST=0.0.0.0
       - PORT=8000
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY:?JWT_SECRET_KEY is required}
       - API_V1_PREFIX=${API_V1_PREFIX:-/api/v1}
       - API_ROOT_PATH=${API_ROOT_PATH:-}
       - API_DOCS_URL=${API_DOCS_URL:-/docs}
