@@ -29,6 +29,14 @@ class CommentCreate(BaseModel):
 class CommentDeleteRequest(BaseModel):
     password: str | None = Field(default=None, min_length=4, max_length=20)
 
+    @field_validator("password", mode="before")
+    @classmethod
+    def strip_password(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        stripped = value.strip()
+        return stripped or None
+
 
 class CommentResponse(BaseModel):
     id: int

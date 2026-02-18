@@ -127,6 +127,11 @@ def test_comment_create_rejects_blank_content():
         CommentCreate(content="   ", password="pass1234")
 
 
+def test_comment_delete_request_blank_password_is_treated_as_none():
+    payload = CommentDeleteRequest(password="    ")
+    assert payload.password is None
+
+
 @pytest.mark.asyncio
 async def test_delete_comment_logged_in_owner_can_delete(monkeypatch: pytest.MonkeyPatch):
     comment = SimpleNamespace(id=11, user_id=7, password_hash=None)
