@@ -50,6 +50,25 @@ async def test_create_comment_falls_back_to_user_name(monkeypatch: pytest.Monkey
 
 
 @pytest.mark.asyncio
+async def test_create_comment_logged_in_uses_default_author_when_profile_empty(monkeypatch: pytest.MonkeyPatch):
+    captured = {}
+
+    async def fake_create(_db, comment):
+        captured["comment"] = comment
+        return comment
+
+    monkeypatch.setattr(comment_service.comment_repo, "create", fake_create)
+
+    user = SimpleNamespace(id=30, name="   ", nickname="  ")
+    payload = CommentCreate(content="hello")
+
+    created = await comment_service.create_comment(db=None, data=payload, user=user)
+
+    assert created.author == "익명"
+    assert captured["comment"].author == "익명"
+
+
+@pytest.mark.asyncio
 async def test_create_comment_logged_in_ignores_guest_fields(monkeypatch: pytest.MonkeyPatch):
     captured = {}
 
