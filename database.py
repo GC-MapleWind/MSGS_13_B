@@ -1,4 +1,4 @@
-from sqlalchemy import event
+from sqlalchemy import event, text
 from sqlalchemy.engine import Engine
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase
@@ -29,3 +29,10 @@ async def get_db():
 async def init_db():
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+
+        result = await conn.execute(text("PRAGMA table_info(comments)"))
+        columns = {row[1] for row in result.fetchall()}
+        if "password_hash" not in columns:
+            await conn.execute(
+                text("ALTER TABLE comments ADD COLUMN password_hash VARCHAR")
+            )
