@@ -121,29 +121,29 @@ jobs:
         env:
           SERVER_HOST: ${{ secrets.SERVER_HOST }}
           SERVER_USER: ${{ secrets.SERVER_USER }}
-          DEPLOY_ROOT: ~/dpbr_deploy
-          BACKEND_PATH: ~/dpbr_deploy/dpbr_backend
         run: |
-          ssh -i ~/.ssh/deploy_key "${SERVER_USER}@${SERVER_HOST}" << ENDSSH
+          ssh -i ~/.ssh/deploy_key "${SERVER_USER}@${SERVER_HOST}" << 'ENDSSH'
             set -e
+            DEPLOY_ROOT="$HOME/dpbr_deploy"
+            BACKEND_PATH="$DEPLOY_ROOT/dpbr_backend"
             
             # 배포 루트 디렉토리 생성
             echo "📁 Setting up deployment directory structure..."
-            mkdir -p ${DEPLOY_ROOT}
+            mkdir -p "$DEPLOY_ROOT"
             
             # 백엔드 디렉토리 처리
-            if [ ! -d "${BACKEND_PATH}" ]; then
+            if [ ! -d "$BACKEND_PATH" ]; then
               echo "📁 Backend directory not found. Cloning repository..."
-              git clone https://github.com/GC-MapleWind/MSGS_13_B.git ${BACKEND_PATH}
-            elif [ ! -d "${BACKEND_PATH}/.git" ]; then
+              git clone https://github.com/GC-MapleWind/MSGS_13_B.git "$BACKEND_PATH"
+            elif [ ! -d "$BACKEND_PATH/.git" ]; then
               echo "⚠️  Directory exists but not a git repository. Removing and cloning..."
-              rm -rf ${BACKEND_PATH}
-              git clone https://github.com/GC-MapleWind/MSGS_13_B.git ${BACKEND_PATH}
+              rm -rf "$BACKEND_PATH"
+              git clone https://github.com/GC-MapleWind/MSGS_13_B.git "$BACKEND_PATH"
             else
               echo "✅ Backend directory already exists"
             fi
             
-            cd ${BACKEND_PATH}
+            cd "$BACKEND_PATH"
             
             # 현재 실행 중인 컨테이너 + 설정 백업 (롤백용)
             echo "💾 Backing up current state..."
@@ -190,7 +190,7 @@ jobs:
             # Nginx: deploy/nginx.conf, nginx-common.conf are in repo; copy to /etc/nginx on server once (requires sudo or root). Skip here to run without sudo.
             
             echo "✅ Deployment completed!"
-            echo "📂 Backend deployed to: ${BACKEND_PATH}"
+            echo "📂 Backend deployed to: $BACKEND_PATH"
           ENDSSH
 
       - name: Health Check
@@ -238,8 +238,8 @@ jobs:
         run: |
           echo "❌ 배포 실패 - 롤백 시도 중..."
           ssh -i ~/.ssh/deploy_key "${SERVER_USER}@${SERVER_HOST}" << 'ENDSSH'
-            BACKEND_PATH=~/dpbr_deploy/dpbr_backend
-            cd ${BACKEND_PATH}
+            BACKEND_PATH="$HOME/dpbr_deploy/dpbr_backend"
+            cd "$BACKEND_PATH"
             echo "🔄 Rolling back to previous version..."
 
             # Restore previous commit if available
