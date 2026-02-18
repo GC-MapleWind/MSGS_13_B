@@ -46,5 +46,6 @@ class CommentResponse(BaseModel):
     is_anonymous: bool = False
     created_at: datetime.datetime
     is_mine: bool = False
+    delete_token: str | None = None
 
     model_config = {"from_attributes": True}
