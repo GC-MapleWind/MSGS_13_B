@@ -145,6 +145,11 @@ def test_comment_create_rejects_blank_content():
         CommentCreate(content="   ", password="pass1234")
 
 
+def test_comment_create_rejects_too_long_content():
+    with pytest.raises(ValidationError):
+        CommentCreate(content="a" * 501)
+
+
 def test_comment_delete_request_blank_password_is_treated_as_none():
     payload = CommentDeleteRequest(password="    ")
     assert payload.password is None
@@ -229,6 +234,27 @@ async def test_delete_comment_anonymous_correct_password_can_delete(monkeypatch:
 
 
 @pytest.mark.asyncio
+async def test_delete_comment_logged_in_user_can_delete_anonymous_with_password(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    password_hash = comment_service.pwd_context.hash("pass1234")
+    comment = SimpleNamespace(id=140, user_id=None, password_hash=password_hash)
+    fake_delete = AsyncMock()
+
+    monkeypatch.setattr(comment_service.comment_repo, "get_by_id", AsyncMock(return_value=comment))
+    monkeypatch.setattr(comment_service.comment_repo, "delete", fake_delete)
+
+    await comment_service.delete_comment(
+        db=None,
+        comment_id=140,
+        user=SimpleNamespace(id=777),
+        payload=CommentDeleteRequest(password="pass1234"),
+    )
+
+    fake_delete.assert_awaited_once_with(None, comment)
+
+
+@pytest.mark.asyncio
 async def test_delete_comment_anonymous_without_password_hash_forbidden(
     monkeypatch: pytest.MonkeyPatch,
 ):
@@ -272,6 +298,23 @@ async def test_get_comments_sets_is_mine_and_is_anonymous_flags(monkeypatch: pyt
     assert result[0].is_anonymous is False
     assert result[1].is_mine is False
     assert result[1].is_anonymous is True
+
+
+@pytest.mark.asyncio
+async def test_get_comments_clamps_page_and_limit(monkeypatch: pytest.MonkeyPatch):
+    captured = {}
+
+    async def fake_get_all(_db, skip: int, limit: int):
+        captured["skip"] = skip
+        captured["limit"] = limit
+        return []
+
+    monkeypatch.setattr(comment_service.comment_repo, "get_all", fake_get_all)
+
+    await comment_service.get_comments(db=None, page=0, limit=9999, current_user=None)
+
+    assert captured["skip"] == 0
+    assert captured["limit"] == comment_service.PAGE_LIMIT_MAX
 
 
 @pytest.mark.asyncio

@@ -2,8 +2,11 @@ import datetime
 from pydantic import BaseModel, Field, field_validator
 
 
+COMMENT_CONTENT_MAX_LENGTH = 500
+
+
 class CommentCreate(BaseModel):
-    content: str
+    content: str = Field(..., max_length=COMMENT_CONTENT_MAX_LENGTH)
     nickname: str | None = Field(
         default=None, min_length=2, max_length=10, pattern=r"^[a-zA-Z0-9가-힣]+$"
     )
