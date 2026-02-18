@@ -7,7 +7,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import select
 
-from database import async_session, init_db
+from admin import setup_admin
+from database import async_session, engine, init_db
 from models.character import Character
 from models.comment import Comment
 from models.settlement import Settlement
@@ -211,6 +212,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+setup_admin(app, engine)
 
 from controller.v1.characters import router as characters_router
 from controller.v1.comments import router as comments_router
