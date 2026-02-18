@@ -15,7 +15,7 @@ ANON_SUFFIXES = ["토끼", "사슴", "고래", "여우", "펭귄", "호랑이"]
 
 
 def _random_nickname() -> str:
-    return f"{random.choice(ANON_PREFIXES)}{random.choice(ANON_SUFFIXES)}{random.randint(10,99)}"
+    return f"{random.choice(ANON_PREFIXES)}{random.choice(ANON_SUFFIXES)}{random.randint(10, 99)}"
 
 
 async def get_comments(
@@ -44,12 +44,14 @@ async def create_comment(
     user: User | None,
 ) -> Comment:
     if user:
-        author = user.name
+        author = user.nickname or user.name
         password_hash = None
     else:
         author = (data.nickname or "").strip() or _random_nickname()
         if not data.password:
-            raise HTTPException(status_code=400, detail="비로그인 댓글 삭제용 비밀번호를 입력해주세요.")
+            raise HTTPException(
+                status_code=400, detail="비로그인 댓글 삭제용 비밀번호를 입력해주세요."
+            )
         password_hash = pwd_context.hash(data.password)
 
     comment = Comment(
@@ -75,7 +77,9 @@ async def delete_comment(
         if user is None:
             raise HTTPException(status_code=401, detail="로그인이 필요합니다.")
         if comment.user_id != user.id:
-            raise HTTPException(status_code=403, detail="본인 댓글만 삭제할 수 있습니다.")
+            raise HTTPException(
+                status_code=403, detail="본인 댓글만 삭제할 수 있습니다."
+            )
         await comment_repo.delete(db, comment)
         return
 
@@ -83,7 +87,9 @@ async def delete_comment(
     if not password:
         raise HTTPException(status_code=400, detail="비밀번호를 입력해주세요.")
 
-    if not comment.password_hash or not pwd_context.verify(password, comment.password_hash):
+    if not comment.password_hash or not pwd_context.verify(
+        password, comment.password_hash
+    ):
         raise HTTPException(status_code=403, detail="비밀번호가 올바르지 않습니다.")
 
     await comment_repo.delete(db, comment)
