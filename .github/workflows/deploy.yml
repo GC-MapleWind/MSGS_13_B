@@ -3,7 +3,6 @@ name: Backend CI/CD (Docker)
 on:
   push:
     branches:
-      - main
       - dev
     paths:
       - '**'
@@ -11,12 +10,14 @@ on:
   pull_request:
     branches:
       - main
+      - dev
     types: [opened, synchronize, reopened]
   workflow_dispatch:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}-backend
+  # GHCR requires lowercase repository names (see: https://github.com/GC-MapleWind/MSGS_13_B/actions)
+  IMAGE_NAME: gc-maplewind/msgs_13_b-backend
 
 jobs:
   # PR: 빌드 검증 (push 안 함)
@@ -130,10 +131,16 @@ jobs:
             echo "📁 Setting up deployment directory structure..."
             mkdir -p ${DEPLOY_ROOT}
             
-            # 백엔드 디렉토리가 없으면 클론, 있으면 이동
+            # 백엔드 디렉토리 처리
             if [ ! -d "${BACKEND_PATH}" ]; then
               echo "📁 Backend directory not found. Cloning repository..."
               git clone https://github.com/GC-MapleWind/MSGS_13_B.git ${BACKEND_PATH}
+            elif [ ! -d "${BACKEND_PATH}/.git" ]; then
+              echo "⚠️  Directory exists but not a git repository. Removing and cloning..."
+              rm -rf ${BACKEND_PATH}
+              git clone https://github.com/GC-MapleWind/MSGS_13_B.git ${BACKEND_PATH}
+            else
+              echo "✅ Backend directory already exists"
             fi
             
             cd ${BACKEND_PATH}
@@ -180,14 +187,7 @@ jobs:
             echo "🧹 Cleaning up old images..."
             docker image prune -f --filter "until=24h"
             
-            # Nginx 설정 배포 (호스트 레벨)
-            echo "🔧 Updating Nginx configuration..."
-            sudo mkdir -p /etc/nginx/snippets
-            sudo cp ${BACKEND_PATH}/deploy/nginx-common.conf /etc/nginx/snippets/dpbr-common.conf
-            sudo cp ${BACKEND_PATH}/deploy/nginx.conf /etc/nginx/sites-available/dpbr
-            sudo ln -sf /etc/nginx/sites-available/dpbr /etc/nginx/sites-enabled/dpbr
-            sudo rm -f /etc/nginx/sites-enabled/default
-            sudo nginx -t && sudo systemctl reload nginx
+            # Nginx: deploy/nginx.conf, nginx-common.conf are in repo; copy to /etc/nginx on server once (requires sudo or root). Skip here to run without sudo.
             
             echo "✅ Deployment completed!"
             echo "📂 Backend deployed to: ${BACKEND_PATH}"
@@ -217,13 +217,6 @@ jobs:
             curl -sf "http://127.0.0.1:8000/health" || {
               echo "❌ Backend health check failed"
               docker logs dpbr-backend --tail 30 || true
-              exit 1
-            }
-            
-            echo "Checking via Nginx (port 80)..."
-            curl -sf "http://127.0.0.1/health" || {
-              echo "❌ Nginx health check failed"
-              sudo nginx -t || true
               exit 1
             }
             
@@ -269,10 +262,7 @@ jobs:
             docker compose down --remove-orphans
             docker compose up -d --force-recreate
 
-            # Restore Nginx config
-            sudo cp ${BACKEND_PATH}/deploy/nginx-common.conf /etc/nginx/snippets/dpbr-common.conf
-            sudo cp ${BACKEND_PATH}/deploy/nginx.conf /etc/nginx/sites-available/dpbr
-            sudo nginx -t && sudo systemctl reload nginx
+            # Nginx config restore skipped (requires sudo). Re-apply manually if needed.
 
             echo "⚠️ Rollback completed - please check manually"
           ENDSSH
@@ -285,7 +275,7 @@ jobs:
   build-and-push-dev:
     name: Build and Push Dev Image
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' && github.ref == 'refs/heads/dev'
+    if: (github.event_name == 'push' && github.ref == 'refs/heads/dev') || (github.event_name == 'pull_request' && github.base_ref == 'dev')
     environment: dev
     permissions:
       contents: read
@@ -310,6 +300,7 @@ jobs:
         with:
           context: .
           push: true
+          platforms: linux/amd64,linux/arm64
           tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:dev
           cache-from: type=gha
           cache-to: type=gha,mode=max
@@ -324,9 +315,10 @@ jobs:
     name: Deploy to Dev Server
     needs: build-and-push-dev
     runs-on: ubuntu-latest
+    if: (github.event_name == 'push' && github.ref == 'refs/heads/dev') || (github.event_name == 'pull_request' && github.base_ref == 'dev')
     concurrency:
       group: dev-backend-deploy
-      cancel-in-progress: true
+      cancel-in-progress: false
     environment: dev
     permissions:
       contents: read
@@ -390,10 +382,7 @@ jobs:
               exit 1
             }
 
-            echo "🔧 Updating dev Nginx configuration..."
-            sudo cp ${BACKEND_PATH}/deploy/nginx-dev.conf /etc/nginx/sites-available/dpbr-dev
-            sudo ln -sf /etc/nginx/sites-available/dpbr-dev /etc/nginx/sites-enabled/dpbr-dev
-            sudo nginx -t && sudo systemctl reload nginx
+            # Nginx: deploy/nginx-dev.conf → /etc/nginx/sites-available/dpbr-dev on server once (requires sudo). Skip here to run without sudo.
 
             echo "🧹 Cleaning up old images..."
             docker image prune -f --filter "until=24h"
@@ -406,27 +395,22 @@ jobs:
           SERVER_HOST: ${{ secrets.SERVER_HOST }}
           SERVER_USER: ${{ secrets.SERVER_USER }}
         run: |
-          echo "🏥 Waiting for dev services to start..."
-          sleep 10
+          echo "🏥 Waiting for dev services to start (container start_period up to 40s)..."
+          sleep 20
 
           ssh -i ~/.ssh/deploy_key "${SERVER_USER}@${SERVER_HOST}" << 'ENDSSH'
             echo "Checking dev backend container health..."
-            for i in 1 2 3 4 5 6; do
+            for i in 1 2 3 4 5 6 7 8 9 10; do
               if curl -sf --connect-timeout 5 "http://127.0.0.1:8001/health" > /dev/null; then
                 echo "✅ Dev backend health check passed!"
-                break
+                exit 0
               fi
-              echo "  Attempt $i: waiting for dev backend..."
+              echo "  Attempt $i/10: waiting for dev backend..."
               sleep 5
             done
-
-            curl -sf "http://127.0.0.1:8001/health" || {
-              echo "❌ Dev backend health check failed"
-              docker logs dpbr-backend-dev --tail 30 || true
-              exit 1
-            }
-
-            echo "✅ Dev backend all checks passed"
+            echo "❌ Dev backend health check failed"
+            docker logs dpbr-backend-dev --tail 30 || true
+            exit 1
           ENDSSH
 
       - name: Notify Success
@@ -445,20 +429,16 @@ jobs:
           echo "❌ Dev deployment failed - rolling back..."
           ssh -i ~/.ssh/deploy_key "${SERVER_USER}@${SERVER_HOST}" << 'ENDSSH'
             BACKEND_PATH=~/dpbr_deploy_dev/dpbr_backend
-            cd ${BACKEND_PATH}
+            cd "${BACKEND_PATH}" || { echo "⚠️ BACKEND_PATH missing, skip rollback"; exit 0; }
             echo "🔄 Restoring previous config files..."
-            cp ${BACKEND_PATH}/docker-compose.yml.bak ${BACKEND_PATH}/docker-compose.yml 2>/dev/null || true
-            cp ${BACKEND_PATH}/deploy/nginx-dev.conf.bak ${BACKEND_PATH}/deploy/nginx-dev.conf 2>/dev/null || true
+            cp docker-compose.yml.bak docker-compose.yml 2>/dev/null || true
+            cp deploy/nginx-dev.conf.bak deploy/nginx-dev.conf 2>/dev/null || true
 
             echo "🔄 Rolling back dev backend..."
             docker stop dpbr-backend-dev 2>/dev/null || true
             docker rm -f dpbr-backend-dev 2>/dev/null || true
-            docker compose down --remove-orphans
-            docker compose up -d --force-recreate
-
-            echo "🔄 Restoring previous Nginx config..."
-            sudo cp ${BACKEND_PATH}/deploy/nginx-dev.conf /etc/nginx/sites-available/dpbr-dev
-            sudo nginx -t && sudo systemctl reload nginx
+            docker compose down --remove-orphans 2>/dev/null || true
+            docker compose up -d --force-recreate 2>/dev/null || true
 
             echo "⚠️ Dev rollback completed - please check manually"
           ENDSSH

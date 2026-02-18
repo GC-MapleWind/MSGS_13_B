@@ -28,6 +28,17 @@ async def get_by_username(db: AsyncSession, username: str) -> User | None:
     result = await db.execute(select(User).where(User.username == username))
     return result.scalar_one_or_none()
 
+
+async def get_by_student_id(db: AsyncSession, student_id: str) -> User | None:
+    """
+    학번(student_id)으로 일치하는 사용자 레코드를 조회합니다.
+
+    Returns:
+        `User` 인스턴스 또는 일치하는 사용자가 없으면 `None`.
+    """
+    result = await db.execute(select(User).where(User.student_id == student_id))
+    return result.scalar_one_or_none()
+
 async def get_by_kakao_id(db: AsyncSession, kakao_id: int) -> User | None:
     """
     카카오 ID로 데이터베이스에서 사용자 엔티티를 조회한다.

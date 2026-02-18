@@ -315,6 +315,8 @@ async def login(db: AsyncSession, username: str, password: str) -> tuple[Token, 
     """
     사용자 자격증명을 검증하고 액세스 토큰과 새 평문 리프레시 토큰을 발급한다.
 
+    하위 호환을 위해 `username` 값이 학번일 경우에도 로그인 시도한다.
+
     Returns:
         token_pair (tuple[Token, str]): 첫 번째 요소는 액세스 토큰(`Token`, token_type은 "bearer"), 두 번째 요소는 새 평문 리프레시 토큰(`str`)이다.
 
@@ -322,6 +324,8 @@ async def login(db: AsyncSession, username: str, password: str) -> tuple[Token, 
         HTTPException: 자격증명이 올바르지 않을 경우 401 Unauthorized 상태의 예외를 발생시킨다.
     """
     user = await user_repo.get_by_username(db, username)
+    if user is None:
+        user = await user_repo.get_by_student_id(db, username)
 
     # 500 에러 방지: 카카오 전용 계정(hashed_password가 None)이거나 비밀번호가 틀린 경우
     if not user or user.hashed_password is None or not verify_password(password, user.hashed_password):

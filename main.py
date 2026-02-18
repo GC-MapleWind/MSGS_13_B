@@ -2,41 +2,93 @@ import datetime
 import os
 from contextlib import asynccontextmanager
 
+from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import select
-from dotenv import load_dotenv
 
 from database import async_session, init_db
 from models.character import Character
-from models.settlement import Settlement
 from models.comment import Comment
+from models.settlement import Settlement
 
 # 환경 변수 로드
 load_dotenv()
 
+
+def _normalize_router_prefix(value: str | None, default: str) -> str:
+    raw_value = default if value is None else value.strip()
+    if not raw_value:
+        raise ValueError("API_V1_PREFIX cannot be empty")
+
+    if not raw_value.startswith("/"):
+        raw_value = f"/{raw_value}"
+
+    normalized = raw_value.rstrip("/")
+    if normalized in {"", "/"}:
+        raise ValueError("API_V1_PREFIX must include at least one path segment")
+
+    return normalized
+
+
+def _normalize_root_path(value: str | None) -> str:
+    if value is None:
+        return ""
+
+    raw_value = value.strip()
+    if not raw_value:
+        return ""
+
+    if not raw_value.startswith("/"):
+        raw_value = f"/{raw_value}"
+
+    return raw_value.rstrip("/")
+
+
+def _normalize_optional_path(value: str | None, default: str) -> str | None:
+    raw_value = default if value is None else value.strip()
+    if raw_value == "" or raw_value.lower() in {"none", "null", "off", "false"}:
+        return None
+
+    if not raw_value.startswith("/"):
+        raw_value = f"/{raw_value}"
+
+    normalized = raw_value.rstrip("/")
+    return normalized or "/"
+
+
+API_V1_PREFIX = _normalize_router_prefix(os.getenv("API_V1_PREFIX"), "/api/v1")
+API_ROOT_PATH = _normalize_root_path(os.getenv("API_ROOT_PATH"))
+API_DOCS_URL = _normalize_optional_path(os.getenv("API_DOCS_URL"), "/docs")
+API_REDOC_URL = _normalize_optional_path(os.getenv("API_REDOC_URL"), "/redoc")
+API_OPENAPI_URL = _normalize_optional_path(
+    os.getenv("API_OPENAPI_URL"), "/openapi.json"
+)
+
+
 async def seed_data():
     """
     데이터베이스에 테스트용 기본 데이터를 필요할 경우 생성한다.
-    
+
     데이터베이스의 각 테이블(User, Character, Settlement, Comment)에 레코드가 없을 때에 한해 테스트 사용자, 예제 캐릭터들, 해당 캐릭터에 연관된 결산 항목들 및 댓글들을 생성하여 영속화하고 커밋한다.
     """
     async with async_session() as db:
         from models.user import User
         from services.user_service import get_password_hash
-        
+
         # 1. 테스트 유저 생성
         result = await db.execute(select(User).limit(1))
         test_user = result.scalar_one_or_none()
-        
+
         if test_user is None:
             test_user = User(
                 username="test",
                 hashed_password=get_password_hash("password123"),
-                name="관리자"
+                name="강민",
+                student_id="202145123",
             )
             db.add(test_user)
-            await db.flush() # ID 생성을 위해 flush
+            await db.flush()  # ID 생성을 위해 flush
 
         # 2. 캐릭터 생성
         result = await db.execute(select(Character).limit(1))
@@ -107,12 +159,24 @@ async def seed_data():
         result = await db.execute(select(Comment).limit(1))
         if result.scalar_one_or_none() is None:
             comments = [
-                Comment(user_id=test_user.id, author=test_user.name, content="올해도 수고했어요!"),
-                Comment(user_id=test_user.id, author=test_user.name, content="결산 보니까 뿌듯하네요 ㅎㅎ"),
-                Comment(user_id=test_user.id, author=test_user.name, content="다들 대단하시다..."),
+                Comment(
+                    user_id=test_user.id,
+                    author=test_user.name,
+                    content="올해도 수고했어요!",
+                ),
+                Comment(
+                    user_id=test_user.id,
+                    author=test_user.name,
+                    content="결산 보니까 뿌듯하네요 ㅎㅎ",
+                ),
+                Comment(
+                    user_id=test_user.id,
+                    author=test_user.name,
+                    content="다들 대단하시다...",
+                ),
             ]
             db.add_all(comments)
-            
+
         await db.commit()
 
 
@@ -123,11 +187,21 @@ async def lifespan(app: FastAPI):
     yield
 
 
-app = FastAPI(title="단풍바람 (MapleWind) API", version="1.0.0", lifespan=lifespan)
+app = FastAPI(
+    title="단풍바람 (MapleWind) API",
+    version="1.0.0",
+    lifespan=lifespan,
+    root_path=API_ROOT_PATH,
+    docs_url=API_DOCS_URL,
+    redoc_url=API_REDOC_URL,
+    openapi_url=API_OPENAPI_URL,
+)
 
 # CORS 설정: 보안을 위해 허용할 도메인을 명시합니다.
 # .env 파일에 ALLOWED_ORIGINS=http://localhost:3000,http://127.0.0.1:3000 와 같이 설정하세요.
-allowed_origins_str = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000,http://localhost:5173")
+allowed_origins_str = os.getenv(
+    "ALLOWED_ORIGINS", "http://localhost:3000,http://localhost:5173"
+)
 ALLOWED_ORIGINS = [origin.strip() for origin in allowed_origins_str.split(",")]
 
 app.add_middleware(
@@ -139,16 +213,16 @@ app.add_middleware(
 )
 
 from controller.v1.characters import router as characters_router
-from controller.v1.settlements import router as settlements_router
 from controller.v1.comments import router as comments_router
+from controller.v1.settlements import router as settlements_router
 from controller.v1.system import router as system_router
 from controller.v1.users import router as users_router
 
-app.include_router(characters_router, prefix="/api/v1")
-app.include_router(settlements_router, prefix="/api/v1")
-app.include_router(comments_router, prefix="/api/v1")
-app.include_router(system_router, prefix="/api/v1")
-app.include_router(users_router, prefix="/api/v1")
+app.include_router(characters_router, prefix=API_V1_PREFIX)
+app.include_router(settlements_router, prefix=API_V1_PREFIX)
+app.include_router(comments_router, prefix=API_V1_PREFIX)
+app.include_router(system_router, prefix=API_V1_PREFIX)
+app.include_router(users_router, prefix=API_V1_PREFIX)
 
 
 @app.get("/health")
