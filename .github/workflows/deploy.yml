@@ -156,10 +156,8 @@ jobs:
             
             # Pull latest changes
             echo "📦 Pulling latest code..."
-            git pull origin main
-
-            # Force-sync production compose from tracked main branch state
             git fetch origin main
+            git reset --hard origin/main
             git checkout origin/main -- docker-compose.yml
 
             # Diagnose compose source to avoid accidental override usage
