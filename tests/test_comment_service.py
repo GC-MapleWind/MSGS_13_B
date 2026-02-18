@@ -30,6 +30,7 @@ async def test_create_comment_prefers_user_nickname(monkeypatch: pytest.MonkeyPa
     assert captured["comment"].author == "Nick"
     assert captured["comment"].user_id == 1
     assert captured["comment"].password_hash is None
+    assert getattr(created, "delete_token", None) is None
 
 
 @pytest.mark.asyncio
@@ -102,6 +103,7 @@ async def test_create_comment_anonymous_always_uses_random_nickname(monkeypatch:
     assert created.author == "랜덤닉99"
     assert created.user_id is None
     assert created.password_hash is not None
+    assert created.delete_token == "pass1234"
 
 
 @pytest.mark.asyncio
@@ -126,7 +128,9 @@ async def test_create_comment_anonymous_without_password_is_allowed(monkeypatch:
     created = await comment_service.create_comment(db=None, data=payload, user=None)
 
     assert created.author == "랜덤닉11"
-    assert created.password_hash is None
+    assert created.password_hash is not None
+    assert isinstance(created.delete_token, str)
+    assert len(created.delete_token) >= 16
 
 
 def test_comment_create_blank_nickname_is_treated_as_none():
@@ -225,7 +229,7 @@ async def test_delete_comment_anonymous_correct_password_can_delete(monkeypatch:
 
 
 @pytest.mark.asyncio
-async def test_delete_comment_anonymous_without_password_hash_can_delete_without_payload(
+async def test_delete_comment_anonymous_without_password_hash_forbidden(
     monkeypatch: pytest.MonkeyPatch,
 ):
     comment = SimpleNamespace(id=15, user_id=None, password_hash=None)
@@ -234,14 +238,16 @@ async def test_delete_comment_anonymous_without_password_hash_can_delete_without
     monkeypatch.setattr(comment_service.comment_repo, "get_by_id", AsyncMock(return_value=comment))
     monkeypatch.setattr(comment_service.comment_repo, "delete", fake_delete)
 
-    await comment_service.delete_comment(
-        db=None,
-        comment_id=15,
-        user=None,
-        payload=None,
-    )
+    with pytest.raises(HTTPException) as exc:
+        await comment_service.delete_comment(
+            db=None,
+            comment_id=15,
+            user=None,
+            payload=None,
+        )
 
-    fake_delete.assert_awaited_once_with(None, comment)
+    assert exc.value.status_code == 403
+    fake_delete.assert_not_awaited()
 
 
 @pytest.mark.asyncio

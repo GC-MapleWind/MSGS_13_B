@@ -1,4 +1,5 @@
 import random
+import secrets
 
 from fastapi import HTTPException
 from passlib.context import CryptContext
@@ -55,12 +56,15 @@ async def create_comment(
     data: CommentCreate,
     user: User | None,
 ) -> Comment:
+    delete_token: str | None = None
+
     if user:
         author = _resolve_user_author(user)
         password_hash = None
     else:
         author = _random_nickname()
-        password_hash = pwd_context.hash(data.password) if data.password else None
+        delete_token = data.password or secrets.token_urlsafe(16)
+        password_hash = pwd_context.hash(delete_token)
 
     comment = Comment(
         user_id=user.id if user else None,
@@ -68,7 +72,10 @@ async def create_comment(
         content=data.content,
         password_hash=password_hash,
     )
-    return await comment_repo.create(db, comment)
+    created = await comment_repo.create(db, comment)
+    if delete_token:
+        setattr(created, "delete_token", delete_token)
+    return created
 
 
 async def delete_comment(
@@ -91,12 +98,14 @@ async def delete_comment(
         await comment_repo.delete(db, comment)
         return
 
-    if comment.password_hash:
-        password = (payload.password if payload else None) or ""
-        if not password:
-            raise HTTPException(status_code=400, detail="비밀번호를 입력해주세요.")
+    if not comment.password_hash:
+        raise HTTPException(status_code=403, detail="본인 댓글만 삭제할 수 있습니다.")
 
-        if not pwd_context.verify(password, comment.password_hash):
-            raise HTTPException(status_code=403, detail="비밀번호가 올바르지 않습니다.")
+    password = (payload.password if payload else None) or ""
+    if not password:
+        raise HTTPException(status_code=400, detail="비밀번호를 입력해주세요.")
+
+    if not pwd_context.verify(password, comment.password_hash):
+        raise HTTPException(status_code=403, detail="비밀번호가 올바르지 않습니다.")
 
     await comment_repo.delete(db, comment)
