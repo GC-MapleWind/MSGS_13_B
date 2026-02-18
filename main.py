@@ -16,6 +16,56 @@ from models.settlement import Settlement
 load_dotenv()
 
 
+def _normalize_router_prefix(value: str | None, default: str) -> str:
+    raw_value = default if value is None else value.strip()
+    if not raw_value:
+        raise ValueError("API_V1_PREFIX cannot be empty")
+
+    if not raw_value.startswith("/"):
+        raw_value = f"/{raw_value}"
+
+    normalized = raw_value.rstrip("/")
+    if normalized in {"", "/"}:
+        raise ValueError("API_V1_PREFIX must include at least one path segment")
+
+    return normalized
+
+
+def _normalize_root_path(value: str | None) -> str:
+    if value is None:
+        return ""
+
+    raw_value = value.strip()
+    if not raw_value:
+        return ""
+
+    if not raw_value.startswith("/"):
+        raw_value = f"/{raw_value}"
+
+    return raw_value.rstrip("/")
+
+
+def _normalize_optional_path(value: str | None, default: str) -> str | None:
+    raw_value = default if value is None else value.strip()
+    if raw_value == "" or raw_value.lower() in {"none", "null", "off", "false"}:
+        return None
+
+    if not raw_value.startswith("/"):
+        raw_value = f"/{raw_value}"
+
+    normalized = raw_value.rstrip("/")
+    return normalized or "/"
+
+
+API_V1_PREFIX = _normalize_router_prefix(os.getenv("API_V1_PREFIX"), "/api/v1")
+API_ROOT_PATH = _normalize_root_path(os.getenv("API_ROOT_PATH"))
+API_DOCS_URL = _normalize_optional_path(os.getenv("API_DOCS_URL"), "/docs")
+API_REDOC_URL = _normalize_optional_path(os.getenv("API_REDOC_URL"), "/redoc")
+API_OPENAPI_URL = _normalize_optional_path(
+    os.getenv("API_OPENAPI_URL"), "/openapi.json"
+)
+
+
 async def seed_data():
     """
     데이터베이스에 테스트용 기본 데이터를 필요할 경우 생성한다.
@@ -137,7 +187,15 @@ async def lifespan(app: FastAPI):
     yield
 
 
-app = FastAPI(title="단풍바람 (MapleWind) API", version="1.0.0", lifespan=lifespan)
+app = FastAPI(
+    title="단풍바람 (MapleWind) API",
+    version="1.0.0",
+    lifespan=lifespan,
+    root_path=API_ROOT_PATH,
+    docs_url=API_DOCS_URL,
+    redoc_url=API_REDOC_URL,
+    openapi_url=API_OPENAPI_URL,
+)
 
 # CORS 설정: 보안을 위해 허용할 도메인을 명시합니다.
 # .env 파일에 ALLOWED_ORIGINS=http://localhost:3000,http://127.0.0.1:3000 와 같이 설정하세요.
@@ -160,11 +218,11 @@ from controller.v1.settlements import router as settlements_router
 from controller.v1.system import router as system_router
 from controller.v1.users import router as users_router
 
-app.include_router(characters_router, prefix="/api/v1")
-app.include_router(settlements_router, prefix="/api/v1")
-app.include_router(comments_router, prefix="/api/v1")
-app.include_router(system_router, prefix="/api/v1")
-app.include_router(users_router, prefix="/api/v1")
+app.include_router(characters_router, prefix=API_V1_PREFIX)
+app.include_router(settlements_router, prefix=API_V1_PREFIX)
+app.include_router(comments_router, prefix=API_V1_PREFIX)
+app.include_router(system_router, prefix=API_V1_PREFIX)
+app.include_router(users_router, prefix=API_V1_PREFIX)
 
 
 @app.get("/health")
