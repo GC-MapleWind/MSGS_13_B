@@ -66,12 +66,7 @@ async def get_current_user(
     db: AsyncSession = Depends(get_db)
 ) -> User:
     user = await _resolve_user_from_token(token, db, raise_on_error=True)
-    if user is None:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Could not validate credentials",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
+    assert user is not None, "_resolve_user_from_token with raise_on_error=True should not return None"
     return user
 
 

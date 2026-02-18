@@ -26,11 +26,11 @@ async def create_comment(
     current_user: User | None = Depends(get_current_user_optional),
 ):
     created = await comment_service.create_comment(db, data, current_user)
-    return CommentResponse.model_validate(created, from_attributes=True).model_copy(
+    return CommentResponse.model_validate(created.comment, from_attributes=True).model_copy(
         update={
-            "is_mine": bool(current_user and created.user_id == current_user.id),
-            "is_anonymous": created.user_id is None,
-            "delete_token": getattr(created, "delete_token", None),
+            "is_mine": bool(current_user and created.comment.user_id == current_user.id),
+            "is_anonymous": created.comment.user_id is None,
+            "delete_token": created.delete_token,
         }
     )
 

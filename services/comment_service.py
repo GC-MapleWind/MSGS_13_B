@@ -1,5 +1,6 @@
 import random
 import secrets
+from dataclasses import dataclass
 
 from fastapi import HTTPException
 from passlib.context import CryptContext
@@ -16,6 +17,12 @@ ANON_SUFFIXES = ["토끼", "사슴", "고래", "여우", "펭귄", "호랑이"]
 
 PAGE_LIMIT_MAX = 100
 PAGE_LIMIT_DEFAULT = 20
+
+
+@dataclass(slots=True)
+class CreateCommentResult:
+    comment: Comment
+    delete_token: str | None = None
 
 
 def _random_nickname() -> str:
@@ -60,7 +67,7 @@ async def create_comment(
     db: AsyncSession,
     data: CommentCreate,
     user: User | None,
-) -> Comment:
+) -> CreateCommentResult:
     delete_token: str | None = None
 
     if user:
@@ -78,9 +85,7 @@ async def create_comment(
         password_hash=password_hash,
     )
     created = await comment_repo.create(db, comment)
-    if delete_token:
-        setattr(created, "delete_token", delete_token)
-    return created
+    return CreateCommentResult(comment=created, delete_token=delete_token)
 
 
 async def delete_comment(
@@ -104,7 +109,7 @@ async def delete_comment(
         return
 
     if not comment.password_hash:
-        raise HTTPException(status_code=403, detail="본인 댓글만 삭제할 수 있습니다.")
+        raise HTTPException(status_code=403, detail="삭제할 수 없는 댓글입니다.")
 
     password = (payload.password if payload else None) or ""
     if not password:
