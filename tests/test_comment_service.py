@@ -91,14 +91,15 @@ async def test_create_comment_logged_in_ignores_guest_fields(monkeypatch: pytest
 
 
 @pytest.mark.asyncio
-async def test_create_comment_anonymous_uses_given_nickname(monkeypatch: pytest.MonkeyPatch):
+async def test_create_comment_anonymous_always_uses_random_nickname(monkeypatch: pytest.MonkeyPatch):
     fake_create = AsyncMock(side_effect=lambda _db, comment: comment)
     monkeypatch.setattr(comment_service.comment_repo, "create", fake_create)
+    monkeypatch.setattr(comment_service, "_random_nickname", lambda: "랜덤닉99")
 
     payload = CommentCreate(content="hello", nickname="익명닉", password="pass1234")
     created = await comment_service.create_comment(db=None, data=payload, user=None)
 
-    assert created.author == "익명닉"
+    assert created.author == "랜덤닉99"
     assert created.user_id is None
     assert created.password_hash is not None
 
@@ -119,11 +120,12 @@ async def test_create_comment_anonymous_without_nickname_uses_random(monkeypatch
 async def test_create_comment_anonymous_without_password_is_allowed(monkeypatch: pytest.MonkeyPatch):
     fake_create = AsyncMock(side_effect=lambda _db, comment: comment)
     monkeypatch.setattr(comment_service.comment_repo, "create", fake_create)
+    monkeypatch.setattr(comment_service, "_random_nickname", lambda: "랜덤닉11")
 
     payload = CommentCreate(content="hello", nickname="게스트닉")
     created = await comment_service.create_comment(db=None, data=payload, user=None)
 
-    assert created.author == "게스트닉"
+    assert created.author == "랜덤닉11"
     assert created.password_hash is None
 
 

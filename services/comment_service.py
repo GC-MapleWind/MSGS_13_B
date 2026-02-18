@@ -59,7 +59,7 @@ async def create_comment(
         author = _resolve_user_author(user)
         password_hash = None
     else:
-        author = (data.nickname or "").strip() or _random_nickname()
+        author = _random_nickname()
         password_hash = pwd_context.hash(data.password) if data.password else None
 
     comment = Comment(
