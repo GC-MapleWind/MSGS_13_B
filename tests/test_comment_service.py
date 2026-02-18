@@ -6,6 +6,8 @@ import pytest
 from fastapi import HTTPException
 
 from services import comment_service
+from pydantic import ValidationError
+
 from schemas.comment_dto import CommentCreate, CommentDeleteRequest
 
 
@@ -111,6 +113,18 @@ async def test_create_comment_anonymous_without_nickname_uses_random(monkeypatch
     created = await comment_service.create_comment(db=None, data=payload, user=None)
 
     assert created.author == "랜덤닉99"
+
+
+def test_comment_create_blank_nickname_is_treated_as_none():
+    payload = CommentCreate(content="hello", nickname="   ", password=" pass1234 ")
+
+    assert payload.nickname is None
+    assert payload.password == "pass1234"
+
+
+def test_comment_create_rejects_blank_content():
+    with pytest.raises(ValidationError):
+        CommentCreate(content="   ", password="pass1234")
 
 
 @pytest.mark.asyncio
