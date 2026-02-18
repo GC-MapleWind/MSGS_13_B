@@ -38,13 +38,25 @@ async def get_comments(
     ]
 
 
+def _resolve_user_author(user: User) -> str:
+    nickname = (user.nickname or "").strip()
+    if nickname:
+        return nickname
+
+    name = (user.name or "").strip()
+    if name:
+        return name
+
+    return "익명"
+
+
 async def create_comment(
     db: AsyncSession,
     data: CommentCreate,
     user: User | None,
 ) -> Comment:
     if user:
-        author = user.nickname or user.name
+        author = _resolve_user_author(user)
         password_hash = None
     else:
         author = (data.nickname or "").strip() or _random_nickname()
