@@ -3,7 +3,6 @@ name: Backend CI/CD (Docker)
 on:
   push:
     branches:
-      - main
       - dev
     paths:
       - '**'
@@ -11,6 +10,7 @@ on:
   pull_request:
     branches:
       - main
+      - dev
     types: [opened, synchronize, reopened]
   workflow_dispatch:
 
@@ -275,7 +275,7 @@ jobs:
   build-and-push-dev:
     name: Build and Push Dev Image
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' && github.ref == 'refs/heads/dev'
+    if: (github.event_name == 'push' && github.ref == 'refs/heads/dev') || (github.event_name == 'pull_request' && github.base_ref == 'dev')
     environment: dev
     permissions:
       contents: read
@@ -315,9 +315,10 @@ jobs:
     name: Deploy to Dev Server
     needs: build-and-push-dev
     runs-on: ubuntu-latest
+    if: (github.event_name == 'push' && github.ref == 'refs/heads/dev') || (github.event_name == 'pull_request' && github.base_ref == 'dev')
     concurrency:
       group: dev-backend-deploy
-      cancel-in-progress: true
+      cancel-in-progress: false
     environment: dev
     permissions:
       contents: read
