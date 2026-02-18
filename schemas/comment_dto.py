@@ -10,7 +10,7 @@ class CommentCreate(BaseModel):
     nickname: str | None = Field(
         default=None, min_length=2, max_length=10, pattern=r"^[a-zA-Z0-9가-힣]+$"
     )
-    password: str | None = Field(default=None, min_length=4, max_length=20)
+    password: str | None = Field(default=None, min_length=4, max_length=64)
 
     @field_validator("content")
     @classmethod
@@ -30,7 +30,7 @@ class CommentCreate(BaseModel):
 
 
 class CommentDeleteRequest(BaseModel):
-    password: str | None = Field(default=None, min_length=4, max_length=20)
+    password: str | None = Field(default=None, min_length=4, max_length=64)
 
     @field_validator("password", mode="before")
     @classmethod

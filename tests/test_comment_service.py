@@ -26,11 +26,11 @@ async def test_create_comment_prefers_user_nickname(monkeypatch: pytest.MonkeyPa
 
     created = await comment_service.create_comment(db=None, data=payload, user=user)
 
-    assert created.author == "Nick"
+    assert created.comment.author == "Nick"
     assert captured["comment"].author == "Nick"
     assert captured["comment"].user_id == 1
     assert captured["comment"].password_hash is None
-    assert getattr(created, "delete_token", None) is None
+    assert created.delete_token is None
 
 
 @pytest.mark.asyncio
@@ -48,7 +48,7 @@ async def test_create_comment_falls_back_to_user_name(monkeypatch: pytest.Monkey
 
     created = await comment_service.create_comment(db=None, data=payload, user=user)
 
-    assert created.author == "Real Name"
+    assert created.comment.author == "Real Name"
     assert captured["comment"].author == "Real Name"
 
 
@@ -67,7 +67,7 @@ async def test_create_comment_logged_in_uses_default_author_when_profile_empty(m
 
     created = await comment_service.create_comment(db=None, data=payload, user=user)
 
-    assert created.author == "익명"
+    assert created.comment.author == "익명"
     assert captured["comment"].author == "익명"
 
 
@@ -86,7 +86,7 @@ async def test_create_comment_logged_in_ignores_guest_fields(monkeypatch: pytest
 
     created = await comment_service.create_comment(db=None, data=payload, user=user)
 
-    assert created.author == "AccountNick"
+    assert created.comment.author == "AccountNick"
     assert captured["comment"].user_id == 3
     assert captured["comment"].password_hash is None
 
@@ -100,9 +100,9 @@ async def test_create_comment_anonymous_always_uses_random_nickname(monkeypatch:
     payload = CommentCreate(content="hello", nickname="익명닉", password="pass1234")
     created = await comment_service.create_comment(db=None, data=payload, user=None)
 
-    assert created.author == "랜덤닉99"
-    assert created.user_id is None
-    assert created.password_hash is not None
+    assert created.comment.author == "랜덤닉99"
+    assert created.comment.user_id is None
+    assert created.comment.password_hash is not None
     assert created.delete_token == "pass1234"
 
 
@@ -115,7 +115,7 @@ async def test_create_comment_anonymous_without_nickname_uses_random(monkeypatch
     payload = CommentCreate(content="hello", password="pass1234")
     created = await comment_service.create_comment(db=None, data=payload, user=None)
 
-    assert created.author == "랜덤닉99"
+    assert created.comment.author == "랜덤닉99"
 
 
 @pytest.mark.asyncio
@@ -127,8 +127,8 @@ async def test_create_comment_anonymous_without_password_is_allowed(monkeypatch:
     payload = CommentCreate(content="hello", nickname="게스트닉")
     created = await comment_service.create_comment(db=None, data=payload, user=None)
 
-    assert created.author == "랜덤닉11"
-    assert created.password_hash is not None
+    assert created.comment.author == "랜덤닉11"
+    assert created.comment.password_hash is not None
     assert isinstance(created.delete_token, str)
     assert len(created.delete_token) >= 16
 
