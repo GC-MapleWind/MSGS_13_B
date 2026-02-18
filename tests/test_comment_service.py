@@ -8,7 +8,7 @@ from fastapi import HTTPException
 from services import comment_service
 from pydantic import ValidationError
 
-from schemas.comment_dto import CommentCreate, CommentDeleteRequest
+from schemas.comment_dto import CommentCreate, CommentDeleteRequest, CommentResponse
 
 
 @pytest.mark.asyncio
@@ -242,3 +242,66 @@ async def test_delete_comment_anonymous_without_password_hash_can_delete_without
     )
 
     fake_delete.assert_awaited_once_with(None, comment)
+
+
+@pytest.mark.asyncio
+async def test_get_comments_sets_is_mine_and_is_anonymous_flags(monkeypatch: pytest.MonkeyPatch):
+    comments = [
+        SimpleNamespace(id=1, user_id=7, author="u1", content="a", created_at="2026-02-19T00:00:00"),
+        SimpleNamespace(id=2, user_id=None, author="anon", content="b", created_at="2026-02-19T00:01:00"),
+    ]
+
+    monkeypatch.setattr(comment_service.comment_repo, "get_all", AsyncMock(return_value=comments))
+
+    result = await comment_service.get_comments(
+        db=None,
+        page=1,
+        limit=20,
+        current_user=SimpleNamespace(id=7),
+    )
+
+    assert len(result) == 2
+    assert isinstance(result[0], CommentResponse)
+    assert result[0].is_mine is True
+    assert result[0].is_anonymous is False
+    assert result[1].is_mine is False
+    assert result[1].is_anonymous is True
+
+
+@pytest.mark.asyncio
+async def test_delete_comment_logged_out_cannot_delete_logged_in_comment(monkeypatch: pytest.MonkeyPatch):
+    comment = SimpleNamespace(id=99, user_id=7, password_hash=None)
+    fake_delete = AsyncMock()
+
+    monkeypatch.setattr(comment_service.comment_repo, "get_by_id", AsyncMock(return_value=comment))
+    monkeypatch.setattr(comment_service.comment_repo, "delete", fake_delete)
+
+    with pytest.raises(HTTPException) as exc:
+        await comment_service.delete_comment(
+            db=None,
+            comment_id=99,
+            user=None,
+            payload=None,
+        )
+
+    assert exc.value.status_code == 401
+    fake_delete.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_delete_comment_not_found_returns_404(monkeypatch: pytest.MonkeyPatch):
+    fake_delete = AsyncMock()
+
+    monkeypatch.setattr(comment_service.comment_repo, "get_by_id", AsyncMock(return_value=None))
+    monkeypatch.setattr(comment_service.comment_repo, "delete", fake_delete)
+
+    with pytest.raises(HTTPException) as exc:
+        await comment_service.delete_comment(
+            db=None,
+            comment_id=404,
+            user=SimpleNamespace(id=1),
+            payload=None,
+        )
+
+    assert exc.value.status_code == 404
+    fake_delete.assert_not_awaited()
