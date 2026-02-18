@@ -1,40 +1,55 @@
+from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from models.comment import Comment
 from models.user import User
 from repositories import comment_repo
-from schemas.comment_dto import CommentCreate
+from schemas.comment_dto import CommentCreate, CommentResponse
 
 
-async def get_comments(db: AsyncSession, page: int = 1, limit: int = 20) -> list[Comment]:
-    """
-    페이지 번호와 페이지 크기(limit)에 따라 댓글 목록을 가져옵니다.
-    
-    Parameters:
-    	page (int): 조회할 페이지 번호(1부터 시작).
-    	limit (int): 한 페이지당 가져올 댓글 수.
-    
-    Returns:
-    	comments (list[Comment]): 지정된 페이지와 한도에 해당하는 Comment 객체 목록.
-    """
+async def get_comments(
+    db: AsyncSession,
+    page: int = 1,
+    limit: int = 20,
+    current_user: User | None = None,
+) -> list[CommentResponse]:
     skip = (page - 1) * limit
-    return await comment_repo.get_all(db, skip=skip, limit=limit)
+    comments = await comment_repo.get_all(db, skip=skip, limit=limit)
+
+    return [
+        CommentResponse.model_validate(comment, from_attributes=True).model_copy(
+            update={"is_mine": bool(current_user and comment.user_id == current_user.id)}
+        )
+        for comment in comments
+    ]
 
 
-async def create_comment(db: AsyncSession, data: CommentCreate, user: User) -> Comment:
-    """
-    새 댓글을 생성하고 생성된 Comment 객체를 반환합니다.
-    
-    Parameters:
-        data (CommentCreate): 생성할 댓글의 내용 정보를 담은 DTO.
-        user (User): 댓글 작성자로 연결할 인증된 사용자; 작성자 이름과 user_id로 설정됩니다.
-    
-    Returns:
-        Comment: 데이터베이스에 저장된 새 Comment 인스턴스.
-    """
+async def create_comment(
+    db: AsyncSession,
+    data: CommentCreate,
+    user: User | None,
+) -> Comment:
+    author = user.name if user else (data.nickname or "").strip()
+    if not user and not author:
+        raise HTTPException(status_code=400, detail="비로그인 댓글 작성 시 닉네임이 필요합니다.")
+
     comment = Comment(
-        user_id=user.id,
-        author=user.name,  # 로그인한 유저의 이름을 작성자로 자동 설정
+        user_id=user.id if user else None,
+        author=author,
         content=data.content,
     )
     return await comment_repo.create(db, comment)
+
+
+async def delete_comment(db: AsyncSession, comment_id: int, user: User) -> None:
+    comment = await comment_repo.get_by_id(db, comment_id)
+    if not comment:
+        raise HTTPException(status_code=404, detail="댓글을 찾을 수 없습니다.")
+
+    if comment.user_id is None:
+        raise HTTPException(status_code=403, detail="비로그인 댓글은 삭제할 수 없습니다.")
+
+    if comment.user_id != user.id:
+        raise HTTPException(status_code=403, detail="본인 댓글만 삭제할 수 있습니다.")
+
+    await comment_repo.delete(db, comment)

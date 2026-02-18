@@ -21,3 +21,13 @@ async def create(db: AsyncSession, comment: Comment) -> Comment:
     await db.commit()
     await db.refresh(comment)
     return comment
+
+
+async def get_by_id(db: AsyncSession, comment_id: int) -> Comment | None:
+    result = await db.execute(select(Comment).where(Comment.id == comment_id))
+    return result.scalar_one_or_none()
+
+
+async def delete(db: AsyncSession, comment: Comment) -> None:
+    await db.delete(comment)
+    await db.commit()
