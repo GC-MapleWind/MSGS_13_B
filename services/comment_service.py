@@ -14,6 +14,9 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 ANON_PREFIXES = ["별빛", "단풍", "구름", "노을", "바람", "은하"]
 ANON_SUFFIXES = ["토끼", "사슴", "고래", "여우", "펭귄", "호랑이"]
 
+PAGE_LIMIT_MAX = 100
+PAGE_LIMIT_DEFAULT = 20
+
 
 def _random_nickname() -> str:
     return f"{random.choice(ANON_PREFIXES)}{random.choice(ANON_SUFFIXES)}{random.randint(10, 99)}"
@@ -22,9 +25,11 @@ def _random_nickname() -> str:
 async def get_comments(
     db: AsyncSession,
     page: int = 1,
-    limit: int = 20,
+    limit: int = PAGE_LIMIT_DEFAULT,
     current_user: User | None = None,
 ) -> list[CommentResponse]:
+    page = max(1, page)
+    limit = max(1, min(limit, PAGE_LIMIT_MAX))
     skip = (page - 1) * limit
     comments = await comment_repo.get_all(db, skip=skip, limit=limit)
 
