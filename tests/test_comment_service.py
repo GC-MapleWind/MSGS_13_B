@@ -354,3 +354,68 @@ async def test_delete_comment_not_found_returns_404(monkeypatch: pytest.MonkeyPa
 
     assert exc.value.status_code == 404
     fake_delete.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_delete_comment_anonymous_rate_limited_after_retries(monkeypatch: pytest.MonkeyPatch):
+    comment_service._anon_delete_attempts.clear()
+
+    password_hash = comment_service.pwd_context.hash("pass1234")
+    comment = SimpleNamespace(id=201, user_id=None, password_hash=password_hash)
+
+    monkeypatch.setattr(comment_service.comment_repo, "get_by_id", AsyncMock(return_value=comment))
+    monkeypatch.setattr(comment_service.comment_repo, "delete", AsyncMock())
+
+    for _ in range(comment_service.ANON_DELETE_MAX_ATTEMPTS):
+        with pytest.raises(HTTPException) as exc:
+            await comment_service.delete_comment(
+                db=None,
+                comment_id=201,
+                user=None,
+                payload=CommentDeleteRequest(password="wrong-pass"),
+                client_key="ip-1",
+            )
+        assert exc.value.status_code == 403
+
+    with pytest.raises(HTTPException) as exc:
+        await comment_service.delete_comment(
+            db=None,
+            comment_id=201,
+            user=None,
+            payload=CommentDeleteRequest(password="wrong-pass"),
+            client_key="ip-1",
+        )
+
+    assert exc.value.status_code == 429
+
+
+@pytest.mark.asyncio
+async def test_delete_comment_anonymous_success_resets_rate_limit(monkeypatch: pytest.MonkeyPatch):
+    comment_service._anon_delete_attempts.clear()
+
+    password_hash = comment_service.pwd_context.hash("pass1234")
+    comment = SimpleNamespace(id=202, user_id=None, password_hash=password_hash)
+
+    fake_delete = AsyncMock()
+    monkeypatch.setattr(comment_service.comment_repo, "get_by_id", AsyncMock(return_value=comment))
+    monkeypatch.setattr(comment_service.comment_repo, "delete", fake_delete)
+
+    with pytest.raises(HTTPException):
+        await comment_service.delete_comment(
+            db=None,
+            comment_id=202,
+            user=None,
+            payload=CommentDeleteRequest(password="wrong-pass"),
+            client_key="ip-2",
+        )
+
+    await comment_service.delete_comment(
+        db=None,
+        comment_id=202,
+        user=None,
+        payload=CommentDeleteRequest(password="pass1234"),
+        client_key="ip-2",
+    )
+
+    assert "ip-2:202" not in comment_service._anon_delete_attempts
+    fake_delete.assert_awaited_once_with(None, comment)
