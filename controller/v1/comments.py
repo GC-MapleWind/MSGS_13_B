@@ -16,7 +16,9 @@ async def get_comments(
     db: AsyncSession = Depends(get_db),
     current_user: User | None = Depends(get_current_user_optional),
 ):
-    return await comment_service.get_comments(db, page=page, limit=limit, current_user=current_user)
+    return await comment_service.get_comments(
+        db, page=page, limit=limit, current_user=current_user
+    )
 
 
 @router.post("", response_model=CommentResponse, status_code=201)
@@ -26,9 +28,13 @@ async def create_comment(
     current_user: User | None = Depends(get_current_user_optional),
 ):
     created = await comment_service.create_comment(db, data, current_user)
-    return CommentResponse.model_validate(created.comment, from_attributes=True).model_copy(
+    return CommentResponse.model_validate(
+        created.comment, from_attributes=True
+    ).model_copy(
         update={
-            "is_mine": bool(current_user and created.comment.user_id == current_user.id),
+            "is_mine": bool(
+                current_user and created.comment.user_id == current_user.id
+            ),
             "is_anonymous": created.comment.user_id is None,
             "delete_token": created.delete_token,
         }
@@ -44,8 +50,12 @@ async def delete_comment(
     request: Request = None,
 ):
     forwarded_for = request.headers.get("x-forwarded-for") if request else None
-    client_host = (request.client.host if request and request.client else None) or "unknown"
-    client_key = (forwarded_for.split(",", 1)[0].strip() if forwarded_for else client_host) or "unknown"
+    client_host = (
+        request.client.host if request and request.client else None
+    ) or "unknown"
+    client_key = (
+        forwarded_for.split(",", 1)[0].strip() if forwarded_for else client_host
+    ) or "unknown"
 
     await comment_service.delete_comment(
         db,

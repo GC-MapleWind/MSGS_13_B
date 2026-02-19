@@ -13,12 +13,16 @@ load_dotenv()
 
 JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY")
 if not JWT_SECRET_KEY:
-    raise ValueError("FATAL: JWT_SECRET_KEY 환경 변수가 설정되지 않았습니다. .env 파일을 확인하세요.")
+    raise ValueError(
+        "FATAL: JWT_SECRET_KEY 환경 변수가 설정되지 않았습니다. .env 파일을 확인하세요."
+    )
 
 ALGORITHM = os.getenv("ALGORITHM", "HS256")
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/users/login")
-oauth2_scheme_optional = OAuth2PasswordBearer(tokenUrl="/api/v1/users/login", auto_error=False)
+oauth2_scheme_optional = OAuth2PasswordBearer(
+    tokenUrl="/api/v1/users/login", auto_error=False
+)
 
 
 async def _resolve_user_from_token(
@@ -62,11 +66,12 @@ async def _resolve_user_from_token(
 
 
 async def get_current_user(
-    token: str = Depends(oauth2_scheme),
-    db: AsyncSession = Depends(get_db)
+    token: str = Depends(oauth2_scheme), db: AsyncSession = Depends(get_db)
 ) -> User:
     user = await _resolve_user_from_token(token, db, raise_on_error=True)
-    assert user is not None, "_resolve_user_from_token with raise_on_error=True should not return None"
+    assert user is not None, (
+        "_resolve_user_from_token with raise_on_error=True should not return None"
+    )
     return user
 
 
