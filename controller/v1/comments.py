@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Body, Depends, Response, status
+from fastapi import APIRouter, Body, Depends, Request, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from controller.dependencies import get_db, get_current_user_optional
@@ -41,6 +41,17 @@ async def delete_comment(
     payload: CommentDeleteRequest | None = Body(default=None),
     db: AsyncSession = Depends(get_db),
     current_user: User | None = Depends(get_current_user_optional),
+    request: Request = None,
 ):
-    await comment_service.delete_comment(db, comment_id, current_user, payload)
+    forwarded_for = request.headers.get("x-forwarded-for") if request else None
+    client_host = (request.client.host if request and request.client else None) or "unknown"
+    client_key = (forwarded_for.split(",", 1)[0].strip() if forwarded_for else client_host) or "unknown"
+
+    await comment_service.delete_comment(
+        db,
+        comment_id,
+        current_user,
+        payload,
+        client_key=client_key,
+    )
     return Response(status_code=status.HTTP_204_NO_CONTENT)
