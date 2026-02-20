@@ -263,10 +263,11 @@ async def finalize_kakao_registration(
         
         kakao_id = payload.get("kakao_id")
         phone_number = payload.get("phone_number")
-        birthdate = payload.get("birthdate")
+        birthdate_str = payload.get("birthdate")
+        birthdate = datetime.date.fromisoformat(birthdate_str) if birthdate_str else None
         gender = payload.get("gender")
         temp_name = payload.get("temp_name")
-    except JWTError as e:
+    except (JWTError, ValueError) as e:
         raise HTTPException(status_code=401, detail="Register token expired or invalid") from e
 
     # 1. 신규 유저 생성
