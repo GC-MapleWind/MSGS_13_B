@@ -1,3 +1,4 @@
+from typing import List
 from pydantic import BaseModel
 
 
@@ -15,6 +16,11 @@ class CharacterResponse(CharacterBase):
 
     model_config = {"from_attributes": True}
 
-
+class CharacterPageResponse(BaseModel):
+    items: List[CharacterResponse]
+    total: int
+    page: int
+    limit: int
+    
 class CharacterDetailResponse(CharacterResponse):
     pass
