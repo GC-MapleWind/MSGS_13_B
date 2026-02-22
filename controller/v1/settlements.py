@@ -9,7 +9,5 @@ router = APIRouter(prefix="/settlements", tags=["settlements"])
 
 
 @router.get("/{settlement_id}", response_model=SettlementDetailResponse)
-async def get_settlement_detail(
-    settlement_id: int, db: AsyncSession = Depends(get_db)
-):
+async def get_settlement_detail(settlement_id: int, db: AsyncSession = Depends(get_db)):
     return await settlement_service.get_settlement_detail(db, settlement_id)

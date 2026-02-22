@@ -15,4 +15,6 @@ class Character(Base):
     server: Mapped[str] = mapped_column(String, nullable=False)
     avatar_url: Mapped[str | None] = mapped_column(String, nullable=True)
 
-    settlements = relationship("Settlement", back_populates="character", cascade="all, delete-orphan")
+    settlements = relationship(
+        "Settlement", back_populates="character", cascade="all, delete-orphan"
+    )
