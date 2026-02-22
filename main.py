@@ -12,6 +12,7 @@ from database import async_session, engine, init_db
 from models.character import Character
 from models.comment import Comment
 from models.settlement import Settlement
+from models.team import TeamMember, TeamMessage
 
 # 환경 변수 로드
 load_dotenv()

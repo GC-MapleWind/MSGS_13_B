@@ -1,4 +1,8 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
+from sqlalchemy.ext.asyncio import AsyncSession
+from controller.dependencies import get_db
+from schemas.team_dto import TeamMemberResponse, TeamMemberDetailResponse
+from services import team_service
 
 router = APIRouter(prefix="/system", tags=["system"])
 
@@ -14,3 +18,15 @@ async def get_notices():
             {"author": "운영팀", "content": "항상 이용해 주셔서 감사합니다."},
         ],
     }
+
+
+@router.get("/team", response_model=list[TeamMemberResponse])
+async def get_team_members(db: AsyncSession = Depends(get_db)):
+    """운영팀 전체 정보 및 리스트 조회"""
+    return await team_service.get_team_members(db)
+
+
+@router.get("/team/{member_id}", response_model=TeamMemberDetailResponse)
+async def get_team_member_detail(member_id: int, db: AsyncSession = Depends(get_db)):
+    """특정 팀원의 상세 한마디 조회"""
+    return await team_service.get_team_member_detail(db, member_id)
