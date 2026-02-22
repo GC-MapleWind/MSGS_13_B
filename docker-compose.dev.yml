@@ -1,3 +1,5 @@
+name: dpbr-dev
+
 services:
   backend:
     image: ghcr.io/gc-maplewind/msgs_13_b-backend:dev
