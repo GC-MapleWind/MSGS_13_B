@@ -8,11 +8,13 @@
 
 ## 2. 변경된 파일 및 주요 내용
 
-### [NEW] Models
+### [MODIFY] Models
 *   `models/team.py`: `TeamMember` (기본 정보) 및 `TeamMessage` (상세 메시지) 테이블 정의. 1:1 관계 설정.
+    *   `TeamMessage`에 `title` (제목) 필드 추가됨.
 
-### [NEW] Schemas (DTO)
+### [MODIFY] Schemas (DTO)
 *   `schemas/team_dto.py`: API 응답을 위한 `TeamMemberResponse`, `TeamMemberDetailResponse` 정의.
+    *   `TeamMessage` 관련 DTO에 `title` 필드 추가됨.
 
 ### [MODIFY] Controllers
 *   `controller/v1/system.py`:
