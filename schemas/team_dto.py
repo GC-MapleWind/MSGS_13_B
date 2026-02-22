@@ -1,6 +1,7 @@
 from pydantic import BaseModel
 
 class TeamMessageBase(BaseModel):
+    title: str
     content: str
     detail_img_url: str | None = None
 

@@ -179,6 +179,21 @@ async def seed_data():
             ]
             db.add_all(comments)
 
+        # 5. 운영팀 테스트 데이터 생성
+        result = await db.execute(select(TeamMember).limit(1))
+        if result.scalar_one_or_none() is None:
+            new_member = TeamMember(name="테스트", role="테스터", profile_img_url=None)
+            db.add(new_member)
+            await db.flush()
+
+            new_message = TeamMessage(
+                member_id=new_member.id,
+                title="제목테스트입니다.",
+                content="테스트입니다.",
+                detail_img_url=None,
+            )
+            db.add(new_message)
+
         await db.commit()
 
 

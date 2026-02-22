@@ -18,6 +18,7 @@ class TeamMessage(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     member_id: Mapped[int] = mapped_column(Integer, ForeignKey("team_members.id"), unique=True, nullable=False)
+    title: Mapped[str] = mapped_column(String, nullable=False)
     content: Mapped[str] = mapped_column(Text, nullable=False)
     detail_img_url: Mapped[str] = mapped_column(String, nullable=True)
 
