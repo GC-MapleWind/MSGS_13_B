@@ -36,3 +36,13 @@ async def get_team_members(db: AsyncSession = Depends(get_db)):
 async def get_team_member_detail(member_id: int, db: AsyncSession = Depends(get_db)):
     """특정 팀원의 상세 한마디 조회"""
     return await team_service.get_team_member_detail(db, member_id)
+
+
+@router.get("/admin-character", response_model=dict)
+async def get_admin_character(db: AsyncSession = Depends(get_db)):
+    """사이드바용: 운영팀 캐릭터 ID 반환"""
+    from repositories import character_repo
+    character = await character_repo.get_admin_team(db)
+    if not character:
+        return {"id": None}
+    return {"id": character.id, "name": character.name}
