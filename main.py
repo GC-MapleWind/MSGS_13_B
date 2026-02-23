@@ -8,6 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import select
 
 from database import async_session, init_db
+from models.application import Application, Member
 from models.character import Character
 from models.comment import Comment
 from models.settlement import Settlement
@@ -213,10 +214,12 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+from controller.v1.applications import router as applications_router
 from controller.v1.characters import router as characters_router
 from controller.v1.comments import router as comments_router
 from controller.v1.settlements import router as settlements_router
 from controller.v1.system import router as system_router
+from controller.v1.meta import router as meta_router
 from controller.v1.users import router as users_router
 
 app.include_router(characters_router, prefix=API_V1_PREFIX)
@@ -224,6 +227,8 @@ app.include_router(settlements_router, prefix=API_V1_PREFIX)
 app.include_router(comments_router, prefix=API_V1_PREFIX)
 app.include_router(system_router, prefix=API_V1_PREFIX)
 app.include_router(users_router, prefix=API_V1_PREFIX)
+app.include_router(applications_router, prefix=API_V1_PREFIX)
+app.include_router(meta_router, prefix=API_V1_PREFIX)
 
 
 @app.get("/health")
