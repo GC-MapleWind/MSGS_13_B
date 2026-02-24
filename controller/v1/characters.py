@@ -3,7 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from controller.dependencies import get_db
 from schemas.character_dto import CharacterDetailResponse, CharacterResponse
-from schemas.settlement_dto import SettlementResponse, SettlementDetailResponse
+from schemas.settlement_dto import SettlementResponse
 from services import character_service, settlement_service
 
 router = APIRouter(prefix="/characters", tags=["characters"])

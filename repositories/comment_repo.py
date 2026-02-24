@@ -4,14 +4,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from models.comment import Comment
 
 
-async def get_all(
-    db: AsyncSession, skip: int = 0, limit: int = 20
-) -> list[Comment]:
+async def get_all(db: AsyncSession, skip: int = 0, limit: int = 20) -> list[Comment]:
     result = await db.execute(
-        select(Comment)
-        .order_by(Comment.created_at.desc())
-        .offset(skip)
-        .limit(limit)
+        select(Comment).order_by(Comment.created_at.desc()).offset(skip).limit(limit)
     )
     return list(result.scalars().all())
 
