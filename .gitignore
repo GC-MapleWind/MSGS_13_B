@@ -25,3 +25,8 @@ ssh-key-*
 *.db
 *.sqlite
 *.sqlite3
+
+# Static data files (images, Excel - managed outside git)
+13기 메생결산/
+*.xlsx
+*.xls
