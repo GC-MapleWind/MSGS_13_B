@@ -1,7 +1,7 @@
 """
 단풍바람 13기 메생결산 실데이터 삽입 스크립트.
 
-- 명부(25-2 시트)   → User + Character 생성
+- 명부(25-2 시트)   → User + Character(name=실명, detail_txt=닉네임, user_id) 생성
 - 메생결산시트.xlsx  → Settlement 생성 (이름 기준으로 Character 매칭)
 
 Usage:
@@ -41,18 +41,16 @@ def load_roster() -> list[dict]:
     members: list[dict] = []
     for row in ws.iter_rows(min_row=2, values_only=True):
         name, gender, _dept, student_id, nickname, level, server, _cgender, job = row[:9]
-        # 탈퇴 회원 또는 필수 필드 누락 시 건너뜀
         if not name or str(gender).strip() == "탈퇴":
             continue
         if not nickname or not level or not server or not job:
             continue
         members.append(
             {
-                "name": str(name).strip(),
+                "name": str(name).strip(),            # 실명 → User.name, Character.name
                 "gender": "female" if str(gender).strip() == "여자" else "male",
                 "student_id": str(int(student_id)) if student_id else None,
-                # nickname은 인게임 캐릭터명 (Character.name으로 사용)
-                "nickname": str(nickname).strip(),
+                "nickname": str(nickname).strip(),    # 닉네임 → Character.detail_txt
                 "level": int(level),
                 "server": str(server).strip(),
                 "job": str(job).strip(),
@@ -81,6 +79,15 @@ def load_settlements() -> list[dict]:
     return rows
 
 
+def _resolve_img_ext(member_name: str, img_stem: str) -> str | None:
+    """실제 파일 확장자를 찾아 img_url을 반환한다."""
+    member_dir = EXCEL_DIR / member_name
+    for ext in (".png", ".jpg", ".jpeg", ".PNG", ".JPG", ".JPEG"):
+        if (member_dir / (img_stem + ext)).exists():
+            return f"/static/settlements/{member_name}/{img_stem}{ext}"
+    return None
+
+
 async def seed() -> None:
     await init_db()
 
@@ -92,93 +99,110 @@ async def seed() -> None:
 
     async with async_session() as db:
 
-        # ── 1. User & Character 삽입 ────────────────────────────────────
-        # 이름 → Character 매핑 (Settlement 연결에 사용)
-        name_to_char: dict[str, Character] = {}
+        # ── Phase 1: User 생성 ──────────────────────────────────────────
+        name_to_user: dict[str, User] = {}
 
         for m in roster:
-            # ── User ──
             r = await db.execute(select(User).where(User.name == m["name"]))
-            if r.scalar_one_or_none() is None:
-                # username: 학번 우선, 없으면 닉네임
+            user = r.scalar_one_or_none()
+            if user is None:
                 username = m["student_id"] or m["nickname"]
-                # username 충돌 방어 (동일 학번이 이미 존재하는 경우)
+                # username 충돌 방어
                 r2 = await db.execute(select(User).where(User.username == username))
                 if r2.scalar_one_or_none() is not None:
                     username = m["nickname"]
 
-                db.add(
-                    User(
-                        username=username,
-                        name=m["name"],
-                        student_id=m["student_id"],
-                        nickname=m["nickname"],
-                        gender=m["gender"],
-                    )
+                user = User(
+                    username=username,
+                    name=m["name"],
+                    student_id=m["student_id"],
+                    nickname=m["nickname"],
+                    gender=m["gender"],
                 )
+                db.add(user)
                 print(f"[USER+] {m['name']} (username={username})")
             else:
-                print(f"[USER=] {m['name']} - 이미 존재, 건너뜀")
+                print(f"[USER=] {m['name']} - 이미 존재")
 
-            # ── Character ──
-            r = await db.execute(
-                select(Character).where(Character.name == m["nickname"])
-            )
+            name_to_user[m["name"]] = user
+
+        await db.flush()  # user.id 확보
+
+        # ── Phase 2: Character 생성 (name=실명, detail_txt=닉네임, user_id) ──
+        name_to_char: dict[str, Character] = {}
+
+        for m in roster:
+            r = await db.execute(select(Character).where(Character.name == m["name"]))
             char = r.scalar_one_or_none()
+            user = name_to_user[m["name"]]
+
             if char is None:
                 char = Character(
-                    name=m["nickname"],
+                    user_id=user.id,
+                    name=m["name"],           # 실명
+                    detail_txt=m["nickname"], # 닉네임
                     level=m["level"],
                     server=m["server"],
                     job=m["job"],
                 )
                 db.add(char)
-                await db.flush()  # char.id 확보
+                await db.flush()
                 print(
-                    f"[CHAR+] {m['nickname']}"
-                    f" (Lv.{m['level']} {m['job']} / {m['server']})"
+                    f"[CHAR+] {m['name']} ({m['nickname']})"
+                    f" Lv.{m['level']} {m['job']} / {m['server']}"
                 )
             else:
-                print(f"[CHAR=] {m['nickname']} - 이미 존재, 건너뜀")
+                print(f"[CHAR=] {m['name']} - 이미 존재")
 
             name_to_char[m["name"]] = char
 
         await db.flush()
 
-        # ── 2. Settlement 삽입 ──────────────────────────────────────────
+        # ── Phase 3: Settlement 생성 ────────────────────────────────────
         print()
         s_ok = 0
         s_skip = 0
         for s in settlement_rows:
             char = name_to_char.get(s["name"])
             if char is None:
-                print(f"[WARN]  Settlement 건너뜀 (미매칭 이름: {s['name']})")
+                print(f"[WARN]  Settlement 건너뜀 (미매칭: {s['name']})")
                 s_skip += 1
                 continue
 
-            # img_url: /static/settlements/{이름}/{이미지명}.png
-            img_url = (
-                f"/static/settlements/{s['name']}/{s['img_name']}.png"
-                if s["img_name"]
-                else None
-            )
+            # 이미지명에 쉼표가 있는 경우(복수 이미지) → 첫 번째만 처리
+            img_stems = [x.strip() for x in s["img_name"].split(",")] if s["img_name"] else []
 
-            db.add(
-                Settlement(
-                    character_id=char.id,
-                    title=s["caption"],
-                    description=None,
-                    img_url=img_url,
-                    acquired_at=s["date"],
+            for i, stem in enumerate(img_stems):
+                img_url = _resolve_img_ext(s["name"], stem)
+                db.add(
+                    Settlement(
+                        character_id=char.id,
+                        title=s["caption"],
+                        description=None,
+                        img_url=img_url,
+                        acquired_at=s["date"],
+                    )
                 )
-            )
-            s_ok += 1
+                s_ok += 1
+
+            if not img_stems:
+                db.add(
+                    Settlement(
+                        character_id=char.id,
+                        title=s["caption"],
+                        description=None,
+                        img_url=None,
+                        acquired_at=s["date"],
+                    )
+                )
+                s_ok += 1
 
         await db.commit()
 
     print(f"\n{'=' * 50}")
     print(f"✓ 완료!")
-    print(f"  User/Character: {len(roster)}명 처리")
+    print(f"  User: {len(roster)}명 처리")
+    print(f"  Character: {len(name_to_char)}개 처리")
     print(f"  Settlement: {s_ok}개 삽입 (건너뜀: {s_skip}개)")
     print(f"{'=' * 50}")
 
