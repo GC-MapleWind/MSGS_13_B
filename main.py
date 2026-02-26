@@ -5,6 +5,7 @@ from contextlib import asynccontextmanager
 from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from sqlalchemy import select
 
 from admin import setup_admin
@@ -230,6 +231,15 @@ app.add_middleware(
 )
 
 setup_admin(app, engine)
+
+# 메생결산 이미지 static 서빙
+# URL: /static/settlements/{이름}/{이미지명}.png
+# 실제 경로: 13기 메생결산/{이름}/{이미지명}.png
+app.mount(
+    "/static/settlements",
+    StaticFiles(directory="13기 메생결산"),
+    name="settlements",
+)
 
 from controller.v1.characters import router as characters_router
 from controller.v1.comments import router as comments_router
