@@ -1,15 +1,47 @@
+import os
+from pathlib import Path
+
 from sqlalchemy import event, inspect, text
 from sqlalchemy.engine import Engine
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase
 
-DATABASE_URL = "sqlite+aiosqlite:///./maplewind.db"
+DEFAULT_DATABASE_URL = "sqlite+aiosqlite:///./data/maplewind.db"
+
+
+def get_database_url() -> str:
+    return os.getenv("DATABASE_URL", DEFAULT_DATABASE_URL)
+
+
+def _sqlite_db_path(database_url: str) -> Path | None:
+    for prefix in ("sqlite+aiosqlite:///", "sqlite:///"):
+        if database_url.startswith(prefix):
+            raw_path = database_url[len(prefix) :].split("?", 1)[0]
+            if raw_path in {"", ":memory:"}:
+                return None
+            if raw_path.startswith("/"):
+                return Path(raw_path)
+            return Path(raw_path)
+    return None
+
+
+def ensure_sqlite_directory(database_url: str) -> None:
+    sqlite_path = _sqlite_db_path(database_url)
+    if sqlite_path is None:
+        return
+    sqlite_path.parent.mkdir(parents=True, exist_ok=True)
+
+
+DATABASE_URL = get_database_url()
+ensure_sqlite_directory(DATABASE_URL)
 
 engine = create_async_engine(DATABASE_URL, echo=False)
 
 # SQLite 외래 키(Foreign Key) 제약 조건 활성화
 @event.listens_for(Engine, "connect")
 def set_sqlite_pragma(dbapi_connection, connection_record):
+    if engine.dialect.name != "sqlite":
+        return
     cursor = dbapi_connection.cursor()
     cursor.execute("PRAGMA foreign_keys=ON")
     cursor.close()

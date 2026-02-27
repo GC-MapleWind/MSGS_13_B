@@ -1,6 +1,8 @@
 import datetime
+import logging
 import os
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from dotenv import load_dotenv
 from fastapi import FastAPI
@@ -17,6 +19,7 @@ from models.team import TeamMember, TeamMessage
 
 # 환경 변수 로드
 load_dotenv()
+logger = logging.getLogger(__name__)
 
 
 def _normalize_router_prefix(value: str | None, default: str) -> str:
@@ -60,6 +63,31 @@ def _normalize_optional_path(value: str | None, default: str) -> str | None:
     return normalized or "/"
 
 
+def _env_bool(name: str, default: bool) -> bool:
+    value = os.getenv(name)
+    if value is None:
+        return default
+
+    normalized = value.strip().lower()
+    if normalized in {"1", "true", "yes", "on"}:
+        return True
+    if normalized in {"0", "false", "no", "off"}:
+        return False
+    return default
+
+
+def _mount_static_if_exists(app: FastAPI, url_path: str, directory: str, name: str) -> None:
+    target = Path(directory)
+    if target.exists() and target.is_dir():
+        app.mount(url_path, StaticFiles(directory=directory), name=name)
+        return
+    logger.warning(
+        "Skipping static mount '%s': directory '%s' not found",
+        name,
+        directory,
+    )
+
+
 API_V1_PREFIX = _normalize_router_prefix(os.getenv("API_V1_PREFIX"), "/api/v1")
 API_ROOT_PATH = _normalize_root_path(os.getenv("API_ROOT_PATH"))
 API_DOCS_URL = _normalize_optional_path(os.getenv("API_DOCS_URL"), "/docs")
@@ -67,6 +95,8 @@ API_REDOC_URL = _normalize_optional_path(os.getenv("API_REDOC_URL"), "/redoc")
 API_OPENAPI_URL = _normalize_optional_path(
     os.getenv("API_OPENAPI_URL"), "/openapi.json"
 )
+DB_AUTO_INIT = _env_bool("DB_AUTO_INIT", default=True)
+DB_AUTO_SEED = _env_bool("DB_AUTO_SEED", default=False)
 
 
 async def seed_data():
@@ -201,8 +231,10 @@ async def seed_data():
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    await init_db()
-    await seed_data()
+    if DB_AUTO_INIT:
+        await init_db()
+    if DB_AUTO_SEED:
+        await seed_data()
     yield
 
 
@@ -236,19 +268,21 @@ setup_admin(app, engine)
 # 메생결산 이미지 static 서빙
 # URL: /static/settlements/{이름}/{이미지명}.png
 # 실제 경로: 13기 메생결산/{이름}/{이미지명}.png
-app.mount(
+_mount_static_if_exists(
+    app,
     "/static/settlements",
-    StaticFiles(directory="13기 메생결산"),
-    name="settlements",
+    "13기 메생결산",
+    "settlements",
 )
 
 # 아바타 이미지 static 서빙
 # URL: /static/avatars/{폴더}/avatar_image.png
 # 실제 경로: avatars/{폴더}/avatar_image.png
-app.mount(
+_mount_static_if_exists(
+    app,
     "/static/avatars",
-    StaticFiles(directory="avatars"),
-    name="avatars",
+    "avatars",
+    "avatars",
 )
 
 from controller.v1.characters import router as characters_router

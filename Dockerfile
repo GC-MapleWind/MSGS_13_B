@@ -22,6 +22,9 @@ RUN groupadd -r appuser && \
 # 애플리케이션 코드 복사
 COPY . .
 
+# SQLite 파일 경로 디렉토리 보장
+RUN mkdir -p /app/data
+
 # 애플리케이션 디렉토리 소유권 변경
 RUN chown -R appuser:appuser /app
 

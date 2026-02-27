@@ -8,13 +8,16 @@ services:
     ports:
       - "127.0.0.1:8001:8000"
     volumes:
-      - ./maplewind.db:/app/data/maplewind.db
+      - ./data:/app/data
       - ./13기 메생결산:/app/13기 메생결산:ro
       - ./avatars:/app/avatars:ro
     environment:
       - ENVIRONMENT=development
       - HOST=0.0.0.0
       - PORT=8000
+      - DATABASE_URL=${DATABASE_URL:-sqlite+aiosqlite:///./data/maplewind.db}
+      - DB_AUTO_INIT=${DB_AUTO_INIT:-true}
+      - DB_AUTO_SEED=${DB_AUTO_SEED:-true}
       - JWT_SECRET_KEY=${JWT_SECRET_KEY:?JWT_SECRET_KEY is not set}
       - API_V1_PREFIX=${API_V1_PREFIX:-/api/v1}
       - API_ROOT_PATH=${API_ROOT_PATH:-}
@@ -27,4 +30,3 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
-
