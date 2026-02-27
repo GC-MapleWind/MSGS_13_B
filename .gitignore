@@ -28,5 +28,6 @@ ssh-key-*
 
 # Static data files (images, Excel - managed outside git)
 13기 메생결산/
+avatars/
 *.xlsx
 *.xls
