@@ -3,7 +3,7 @@
 
 DB의 모든 Character를 순회하며:
   1. detail_txt(닉네임)으로 Nexon API에서 아바타 이미지 다운로드
-  2. avatars/{실명}/avatar_image.png 로 저장
+  2. avatars/{id}/avatar_image.png 로 저장 (300×300, y=200 오프셋)
   3. Character.avatar_url 업데이트
 
 Usage:
@@ -29,7 +29,7 @@ AVATAR_SIZE = 96      # 최종 저장 크기 (px)
 
 
 def crop_to_character(image_bytes: bytes, size: int = AVATAR_SIZE) -> bytes:
-    """원본 이미지에서 캐릭터 중심 기준으로 size×size 크롭."""
+    """y=200 이미지에서 캐릭터 중심 기준으로 size×size 크롭."""
     img = Image.open(io.BytesIO(image_bytes)).convert("RGBA")
     arr = np.array(img)
     alpha = arr[:, :, 3]
@@ -42,22 +42,19 @@ def crop_to_character(image_bytes: bytes, size: int = AVATAR_SIZE) -> bytes:
     rmin, rmax = np.where(rows)[0][[0, -1]]
     cmin, cmax = np.where(cols)[0][[0, -1]]
 
-    # 캐릭터 중심 좌표
     cx = (cmin + cmax) // 2
     cy = (rmin + rmax) // 2
 
     h, w = arr.shape[:2]
     half = size // 2
 
-    # 96×96 박스 (이미지 경계 클램프)
-    left  = max(0, cx - half)
-    right = min(w, cx + half)
-    top   = max(0, cy - half)
+    left   = max(0, cx - half)
+    right  = min(w, cx + half)
+    top    = max(0, cy - half)
     bottom = min(h, cy + half)
 
     cropped = img.crop((left, top, right, bottom))
 
-    # 정확히 size×size (경계에 걸린 경우 투명으로 패딩)
     result = Image.new("RGBA", (size, size), (0, 0, 0, 0))
     result.paste(cropped, (half - (cx - left), half - (cy - top)))
 
@@ -90,8 +87,10 @@ async def fetch_avatar(client: httpx.AsyncClient, nickname: str) -> bytes | None
 
         await asyncio.sleep(REQUEST_DELAY)
 
-        # 3단계: 이미지 다운로드
-        resp = await client.get(image_url)
+        # 3단계: y=200 오프셋으로 이미지 다운로드 (maple.gg 방식 - 캐릭터 중앙 정렬)
+        base_url = image_url.split("?")[0]
+        url = f"{base_url}?width=300&height=300&y=200"
+        resp = await client.get(url)
         resp.raise_for_status()
         return resp.content
 
