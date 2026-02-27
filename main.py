@@ -241,6 +241,15 @@ app.mount(
     name="settlements",
 )
 
+# 아바타 이미지 static 서빙
+# URL: /static/avatars/{폴더}/avatar_image.png
+# 실제 경로: avatars/{폴더}/avatar_image.png
+app.mount(
+    "/static/avatars",
+    StaticFiles(directory="avatars"),
+    name="avatars",
+)
+
 from controller.v1.characters import router as characters_router
 from controller.v1.comments import router as comments_router
 from controller.v1.settlements import router as settlements_router
