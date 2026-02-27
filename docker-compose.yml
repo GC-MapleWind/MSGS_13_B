@@ -1,0 +1,31 @@
+name: dpbr-main
+
+services:
+  backend:
+    image: ghcr.io/gc-maplewind/msgs_13_b-backend:latest
+    container_name: dpbr-backend
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8000:8000"
+    volumes:
+      - backend-data:/app/data
+    environment:
+      - ENVIRONMENT=production
+      - HOST=0.0.0.0
+      - PORT=8000
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY:?JWT_SECRET_KEY is required}
+      - API_V1_PREFIX=${API_V1_PREFIX:-/api/v1}
+      - API_ROOT_PATH=${API_ROOT_PATH:-}
+      - API_DOCS_URL=${API_DOCS_URL:-/docs}
+      - API_REDOC_URL=${API_REDOC_URL:-/redoc}
+      - API_OPENAPI_URL=${API_OPENAPI_URL:-/openapi.json}
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+volumes:
+  backend-data:
+    driver: local

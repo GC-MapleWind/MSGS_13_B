@@ -8,5 +8,27 @@ wheels/
 
 # Virtual environments
 .venv
+
 maplewind.db
-maplewind.db
+
+# SSH Keys (보안)
+*.key
+*.pem
+*.ppk
+id_rsa
+id_rsa.pub
+ssh-key-*
+
+# Environment variables
+.env
+.env.local
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Static data files (images, Excel - managed outside git)
+13기 메생결산/
+*.xlsx
+*.xls

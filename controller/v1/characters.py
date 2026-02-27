@@ -3,6 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from controller.dependencies import get_db
 from schemas.character_dto import CharacterDetailResponse, CharacterResponse, CharacterPageResponse
+
 from schemas.settlement_dto import SettlementResponse
 from services import character_service, settlement_service
 
