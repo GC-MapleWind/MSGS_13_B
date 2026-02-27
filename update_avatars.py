@@ -12,6 +12,7 @@ Usage:
 
 import asyncio
 import io
+import os
 from pathlib import Path
 
 import httpx
@@ -22,7 +23,7 @@ from sqlalchemy import select
 from database import async_session, init_db
 from models.character import Character
 
-API_KEY = "test_0b9588ee37a9653d3cd662672aa2dbb0bf52710c8a5e730aabd25cdf86bdd6b4efe8d04e6d233bd35cf2fabdeb93fb0d"
+API_KEY = os.environ.get("NEXON_API_KEY", "")
 AVATARS_DIR = Path("avatars")
 REQUEST_DELAY = 0.5  # 초 (rate limit 방지)
 AVATAR_SIZE = 96      # 최종 저장 크기 (px)

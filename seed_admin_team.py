@@ -17,8 +17,8 @@ from models.team import TeamMember, TeamMessage
 # ──────────────────────────────────────────────
 ADMIN_TEAM_DATA = [
     {
-        "name": "강민,
-        "role": "인사팀장장",
+        "name": "강민",
+        "role": "인사팀장",
         "profile_img_url": None,
         "message": {
             "title": "13기 단풍바람을 이끌며",
@@ -27,8 +27,8 @@ ADMIN_TEAM_DATA = [
         },
     },
     {
-        "name": "배승민
-        "role": "행사팀장
+        "name": "배승민",
+        "role": "행사팀장",
         "profile_img_url": None,
         "message": {
             "title": "함께해서 즐거웠습니다",
@@ -37,7 +37,7 @@ ADMIN_TEAM_DATA = [
         },
     },
     {
-        "name": "강민아
+        "name": "강민아",
         "role": "홍보팀장",
         "profile_img_url": None,
         "message": {
