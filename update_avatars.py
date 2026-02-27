@@ -11,10 +11,12 @@ Usage:
 """
 
 import asyncio
-import os
+import io
 from pathlib import Path
 
 import httpx
+import numpy as np
+from PIL import Image
 from sqlalchemy import select
 
 from database import async_session, init_db
@@ -23,6 +25,45 @@ from models.character import Character
 API_KEY = "test_0b9588ee37a9653d3cd662672aa2dbb0bf52710c8a5e730aabd25cdf86bdd6b4efe8d04e6d233bd35cf2fabdeb93fb0d"
 AVATARS_DIR = Path("avatars")
 REQUEST_DELAY = 0.5  # 초 (rate limit 방지)
+AVATAR_SIZE = 96      # 최종 저장 크기 (px)
+
+
+def crop_to_character(image_bytes: bytes, size: int = AVATAR_SIZE) -> bytes:
+    """원본 이미지에서 캐릭터 중심 기준으로 size×size 크롭."""
+    img = Image.open(io.BytesIO(image_bytes)).convert("RGBA")
+    arr = np.array(img)
+    alpha = arr[:, :, 3]
+
+    rows = np.any(alpha > 10, axis=1)
+    cols = np.any(alpha > 10, axis=0)
+    if not rows.any():
+        return image_bytes
+
+    rmin, rmax = np.where(rows)[0][[0, -1]]
+    cmin, cmax = np.where(cols)[0][[0, -1]]
+
+    # 캐릭터 중심 좌표
+    cx = (cmin + cmax) // 2
+    cy = (rmin + rmax) // 2
+
+    h, w = arr.shape[:2]
+    half = size // 2
+
+    # 96×96 박스 (이미지 경계 클램프)
+    left  = max(0, cx - half)
+    right = min(w, cx + half)
+    top   = max(0, cy - half)
+    bottom = min(h, cy + half)
+
+    cropped = img.crop((left, top, right, bottom))
+
+    # 정확히 size×size (경계에 걸린 경우 투명으로 패딩)
+    result = Image.new("RGBA", (size, size), (0, 0, 0, 0))
+    result.paste(cropped, (half - (cx - left), half - (cy - top)))
+
+    buf = io.BytesIO()
+    result.save(buf, format="PNG")
+    return buf.getvalue()
 
 
 async def fetch_avatar(client: httpx.AsyncClient, nickname: str) -> bytes | None:
@@ -75,7 +116,7 @@ async def update_all_avatars() -> None:
                 print(f"[SKIP] {char.name}: 닉네임 없음")
                 continue
 
-            save_dir = AVATARS_DIR / char.name
+            save_dir = AVATARS_DIR / str(char.id)
             save_path = save_dir / "avatar_image.png"
 
             print(f"[DOWN] {char.name} ({nickname}) 다운로드 중...")
@@ -85,9 +126,9 @@ async def update_all_avatars() -> None:
                 continue
 
             save_dir.mkdir(parents=True, exist_ok=True)
-            save_path.write_bytes(image_data)
+            save_path.write_bytes(crop_to_character(image_data))
 
-            avatar_url = f"/static/avatars/{char.name}/avatar_image.png"
+            avatar_url = f"/static/avatars/{char.id}/avatar_image.png"
             async with async_session() as db:
                 result = await db.execute(
                     select(Character).where(Character.id == char.id)
