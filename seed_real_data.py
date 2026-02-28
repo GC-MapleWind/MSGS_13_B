@@ -10,6 +10,7 @@ Usage:
 
 import asyncio
 import datetime
+import os
 from pathlib import Path
 
 import openpyxl
@@ -21,7 +22,8 @@ from models.settlement import Settlement
 from models.user import User
 
 BASE_DIR = Path(__file__).parent
-EXCEL_DIR = BASE_DIR / "13기 메생결산"
+_default_excel_dir = BASE_DIR / "13기 메생결산"
+EXCEL_DIR = Path(os.environ.get("INIT_DATA_DIR", str(_default_excel_dir)))
 ROSTER_PATH = EXCEL_DIR / "25-2 단풍바람 명부.xlsx"
 SETTLEMENT_PATH = EXCEL_DIR / "메생결산시트.xlsx"
 
