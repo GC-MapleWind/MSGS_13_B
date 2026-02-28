@@ -1,6 +1,7 @@
 import datetime
 import os
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from dotenv import load_dotenv
 from fastapi import FastAPI
@@ -201,7 +202,14 @@ async def seed_data():
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await init_db()
-    await seed_data()
+    init_data_dir = Path(os.environ.get("INIT_DATA_DIR", "13기 메생결산"))
+    if init_data_dir.exists():
+        # INIT_DATA_DIR이 마운트되어 있으면 실제 데이터로 자동 초기화
+        from seed_real_data import seed as seed_real
+        await seed_real()
+    else:
+        # 마운트된 데이터 없음 → 테스트 데이터로 초기화
+        await seed_data()
     yield
 
 
@@ -234,10 +242,11 @@ setup_admin(app, engine)
 
 # 메생결산 이미지 static 서빙
 # URL: /static/settlements/{이름}/{이미지명}.png
-# 실제 경로: 13기 메생결산/{이름}/{이미지명}.png
+# 실제 경로: INIT_DATA_DIR/{이름}/{이미지명}.png (기본값: 13기 메생결산/)
+_settlements_dir = os.environ.get("INIT_DATA_DIR", "13기 메생결산")
 app.mount(
     "/static/settlements",
-    StaticFiles(directory="13기 메생결산"),
+    StaticFiles(directory=_settlements_dir),
     name="settlements",
 )
 

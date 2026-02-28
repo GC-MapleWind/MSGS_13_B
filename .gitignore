@@ -9,6 +9,8 @@ wheels/
 # Virtual environments
 .venv
 
+maplewind.db
+
 # SSH Keys (보안)
 *.key
 *.pem

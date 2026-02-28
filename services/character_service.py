@@ -14,3 +14,17 @@ async def get_character_info(db: AsyncSession, char_id: int) -> Character:
     if not character:
         raise HTTPException(status_code=404, detail="Character not found")
     return character
+
+
+async def get_charactors_pagenation(
+    db: AsyncSession, page: int, limit: int
+) -> dict[str, object]:
+    offset = (page - 1) * limit
+    items = await character_repo.get_all(db, skip=offset, limit=limit)
+    total = await character_repo.count(db)
+    return {
+        "items": items,
+        "total": total,
+        "page": page,
+        "limit": limit,
+    }
