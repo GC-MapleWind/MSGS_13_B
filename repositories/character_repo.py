@@ -1,4 +1,4 @@
-from sqlalchemy import select, func, exists
+from sqlalchemy import exists, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from models.character import Character
@@ -33,5 +33,9 @@ async def get_by_id(db: AsyncSession, char_id: int) -> Character | None:
 
 
 async def count(db: AsyncSession) -> int:
-    result = await db.execute(select(func.count(Character.id)))
+    result = await db.execute(
+        select(func.count(Character.id))
+        .where(Character.name != ADMIN_TEAM_NAME)
+        .where(exists().where(Settlement.character_id == Character.id))
+    )
     return int(result.scalar_one())

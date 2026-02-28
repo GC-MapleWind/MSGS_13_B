@@ -1,9 +1,19 @@
+import os
+from pathlib import Path
+
 from sqlalchemy import event
 from sqlalchemy.engine import Engine
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase
 
-DATABASE_URL = "sqlite+aiosqlite:///./maplewind.db"
+DATABASE_URL = os.environ.get("DATABASE_URL", "sqlite+aiosqlite:///./maplewind.db")
+
+# SQLite 사용 시 DB 디렉토리 자동 생성
+if DATABASE_URL.startswith("sqlite"):
+    _db_path = DATABASE_URL.split("///", 1)[-1].lstrip("./")
+    _db_dir = Path(_db_path).parent
+    if str(_db_dir) not in ("", "."):
+        _db_dir.mkdir(parents=True, exist_ok=True)
 
 engine = create_async_engine(DATABASE_URL, echo=False)
 
