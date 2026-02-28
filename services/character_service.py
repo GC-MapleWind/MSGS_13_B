@@ -1,9 +1,8 @@
 from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from models.character import Character
 from repositories import character_repo
-from schemas.character_dto import CharacterPageResponse
+from models.character import Character
 
 
 async def get_all_characters(db: AsyncSession) -> list[Character]:
@@ -17,11 +16,15 @@ async def get_character_info(db: AsyncSession, char_id: int) -> Character:
     return character
 
 
-async def get_characters(
+async def get_charactors_pagenation(
     db: AsyncSession, page: int, limit: int
-) -> CharacterPageResponse:
+) -> dict[str, object]:
     offset = (page - 1) * limit
     items = await character_repo.get_all(db, skip=offset, limit=limit)
     total = await character_repo.count(db)
-
-    return CharacterPageResponse(items=items, total=total, page=page, limit=limit)
+    return {
+        "items": items,
+        "total": total,
+        "page": page,
+        "limit": limit,
+    }

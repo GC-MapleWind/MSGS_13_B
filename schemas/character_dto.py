@@ -16,12 +16,12 @@ class CharacterResponse(CharacterBase):
     model_config = {"from_attributes": True}
 
 
-class CharacterPageResponse(BaseModel):
+class CharacterDetailResponse(CharacterResponse):
+    pass
+
+
+class CharactorsPagenationResponse(BaseModel):
     items: list[CharacterResponse]
     total: int
     page: int
     limit: int
-
-
-class CharacterDetailResponse(CharacterResponse):
-    pass
