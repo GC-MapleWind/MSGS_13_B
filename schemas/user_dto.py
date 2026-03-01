@@ -1,8 +1,8 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class UserBase(BaseModel):
-    username: str
+    student_id: str = Field(validation_alias="username")
     name: str
 
 
@@ -12,7 +12,6 @@ class UserCreate(UserBase):
 
 class UserResponse(UserBase):
     id: int
-    student_id: str | None = None
     model_config = {"from_attributes": True}
 
 
@@ -35,4 +34,4 @@ class KakaoRegisterRequest(BaseModel):
 
 
 class TokenData(BaseModel):
-    username: str | None = None
+    student_id: str | None = None

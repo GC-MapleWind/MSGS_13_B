@@ -50,11 +50,10 @@ class UserAdmin(ModelView, model=User):
         User.username,
         User.name,
         User.kakao_id,
-        User.student_id,
         User.nickname,
         User.gender,
     ]
-    column_searchable_list = [User.username, User.name, User.student_id, User.nickname]
+    column_searchable_list = [User.username, User.name, User.nickname]
     column_sortable_list = [User.id, User.username, User.name]
     column_details_exclude_list = [User.hashed_password, User.refresh_token_hash]
     form_excluded_columns = [

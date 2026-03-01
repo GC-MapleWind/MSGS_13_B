@@ -21,7 +21,6 @@ class User(Base):
 
     # 카카오 연동 및 추가 정보 필드
     kakao_id: Mapped[int | None] = mapped_column(BigInteger, unique=True, index=True, nullable=True)
-    student_id: Mapped[str | None] = mapped_column(String, unique=True, index=True, nullable=True)
     nickname: Mapped[str | None] = mapped_column(String, nullable=True)
     phone_number: Mapped[str | None] = mapped_column(String, nullable=True)
     birthdate: Mapped[date | None] = mapped_column(Date, nullable=True)

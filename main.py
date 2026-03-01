@@ -14,7 +14,7 @@ from controller.v1.users import router as users_router
 from starlette.middleware.sessions import SessionMiddleware
 from starlette.responses import PlainTextResponse
 from fastapi.staticfiles import StaticFiles
-from sqlalchemy import select
+from sqlalchemy import select, text
 
 from admin import setup_admin
 from database import async_session, engine, init_db
@@ -103,10 +103,9 @@ async def seed_data():
 
         if test_user is None:
             test_user = User(
-                username="test",
+                username="202145123",
                 hashed_password=get_password_hash("password123"),
                 name="강민",
-                student_id="202145123",
             )
             db.add(test_user)
             await db.flush()  # ID 생성을 위해 flush
@@ -216,9 +215,50 @@ async def seed_data():
         await db.commit()
 
 
+async def migrate_user_student_id_to_username() -> None:
+    async with async_session() as db:
+        columns_result = await db.execute(text("PRAGMA table_info(users)"))
+        columns = [row[1] for row in columns_result.fetchall()]
+        if "student_id" not in columns:
+            return
+
+        users_result = await db.execute(
+            text("SELECT id, username, student_id FROM users WHERE student_id IS NOT NULL")
+        )
+        users = users_result.fetchall()
+
+        for user_id, username, student_id in users:
+            if not student_id:
+                continue
+            if username == student_id:
+                continue
+            conflict_result = await db.execute(
+                text("SELECT id FROM users WHERE username = :student_id AND id != :user_id"),
+                {"student_id": student_id, "user_id": user_id},
+            )
+            if conflict_result.scalar_one_or_none() is None:
+                await db.execute(
+                    text("UPDATE users SET username = :student_id WHERE id = :user_id"),
+                    {"student_id": student_id, "user_id": user_id},
+                )
+
+        index_result = await db.execute(text("PRAGMA index_list(users)"))
+        for _seq, index_name, _unique, _origin, _partial in index_result.fetchall():
+            if "student_id" in index_name:
+                await db.execute(text(f"DROP INDEX IF EXISTS {index_name}"))
+
+        version_result = await db.execute(text("SELECT sqlite_version()"))
+        sqlite_version = version_result.scalar_one()
+        version_parts = tuple(int(part) for part in str(sqlite_version).split(".")[:3])
+        if version_parts >= (3, 35, 0):
+            await db.execute(text("ALTER TABLE users DROP COLUMN student_id"))
+        await db.commit()
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await init_db()
+    await migrate_user_student_id_to_username()
     init_data_dir = Path(os.environ.get("INIT_DATA_DIR", "13기 메생결산"))
     if init_data_dir.exists():
         # INIT_DATA_DIR이 마운트되어 있으면 실제 데이터로 자동 초기화

@@ -2,6 +2,7 @@ import datetime
 import os
 import secrets
 import hashlib
+from typing import cast
 import httpx
 from fastapi import HTTPException, status
 from jose import jwt, JWTError
@@ -16,9 +17,10 @@ from schemas.user_dto import UserCreate, Token
 # 환경 변수 로드
 load_dotenv()
 
-JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY")
-if not JWT_SECRET_KEY:
+_jwt_secret_key = os.getenv("JWT_SECRET_KEY")
+if not _jwt_secret_key:
     raise ValueError("FATAL: JWT_SECRET_KEY 환경 변수가 설정되지 않았습니다. .env 파일을 확인하세요.")
+JWT_SECRET_KEY = cast(str, _jwt_secret_key)
 
 ALGORITHM = os.getenv("ALGORITHM", "HS256")
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 30))  # AT 수명 단축 (기본값 30분)
@@ -201,8 +203,7 @@ async def process_kakao_login(db: AsyncSession, code: str) -> dict:
 
         gender = kakao_account.get("gender") # male / female
 
-        # 3. 기존 회원 여부 확인 (1순위: kakao_ 접두사 username, 2순위: phone_number 연동)
-        user = await user_repo.get_by_username(db, f"kakao_{kakao_id}")
+        user = await user_repo.get_by_kakao_id(db, kakao_id)
 
         if not user and phone_number:
             # 기존 계정이 있는지 확인 (전화번호 연동)
@@ -272,10 +273,9 @@ async def finalize_kakao_registration(
 
     # 1. 신규 유저 생성
     new_user = User(
-        username=f"kakao_{kakao_id}",
+        username=student_id,
         name=temp_name,
         kakao_id=kakao_id,
-        student_id=student_id,
         nickname=nickname,
         phone_number=phone_number,
         birthdate=birthdate,
@@ -298,7 +298,7 @@ async def signup(db: AsyncSession, user_data: UserCreate) -> User:
     Raises:
         HTTPException: 같은 사용자명이 이미 존재하는 경우 상태 코드 400으로 발생한다.
     """
-    existing_user = await user_repo.get_by_username(db, user_data.username)
+    existing_user = await user_repo.get_by_student_id(db, user_data.student_id)
     if existing_user:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -306,13 +306,13 @@ async def signup(db: AsyncSession, user_data: UserCreate) -> User:
         )
     
     new_user = User(
-        username=user_data.username,
+        username=user_data.student_id,
         hashed_password=get_password_hash(user_data.password),
         name=user_data.name
     )
     return await user_repo.create(db, new_user)
 
-async def login(db: AsyncSession, username: str, password: str) -> tuple[Token, str]:
+async def login(db: AsyncSession, name: str, student_id: str) -> tuple[Token, str]:
     """
     사용자 자격증명을 검증하고 액세스 토큰과 새 평문 리프레시 토큰을 발급한다.
 
@@ -324,15 +324,11 @@ async def login(db: AsyncSession, username: str, password: str) -> tuple[Token, 
     Raises:
         HTTPException: 자격증명이 올바르지 않을 경우 401 Unauthorized 상태의 예외를 발생시킨다.
     """
-    user = await user_repo.get_by_username(db, username)
-    if user is None:
-        user = await user_repo.get_by_student_id(db, username)
-
-    # 500 에러 방지: 카카오 전용 계정(hashed_password가 None)이거나 비밀번호가 틀린 경우
-    if not user or user.hashed_password is None or not verify_password(password, user.hashed_password):
+    user = await user_repo.get_by_student_id(db, student_id)
+    if not user or user.name != name:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect username or password",
+            detail="Incorrect name or student id",
             headers={"WWW-Authenticate": "Bearer"},
         )
     
