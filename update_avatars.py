@@ -1,3 +1,4 @@
+
 """
 전체 캐릭터 아바타 이미지 다운로드 및 DB 업데이트 스크립트.
 
@@ -24,6 +25,9 @@ from database import async_session, init_db
 from models.character import Character
 
 API_KEY = os.environ.get("NEXON_API_KEY", "")
+if not API_KEY:
+    raise SystemExit("NEXON_API_KEY is required")
+
 AVATARS_DIR = Path("avatars")
 REQUEST_DELAY = 0.5  # 초 (rate limit 방지)
 AVATAR_SIZE = 96      # 최종 저장 크기 (px)
@@ -75,6 +79,8 @@ async def fetch_avatar(client: httpx.AsyncClient, nickname: str) -> bytes | None
         )
         resp.raise_for_status()
         ocid = resp.json().get("ocid")
+        if not ocid:
+            raise ValueError("ocid not found")
 
         await asyncio.sleep(REQUEST_DELAY)
 
@@ -85,6 +91,8 @@ async def fetch_avatar(client: httpx.AsyncClient, nickname: str) -> bytes | None
         )
         resp.raise_for_status()
         image_url = resp.json().get("character_image")
+        if not image_url:
+            raise ValueError("character_image not found")
 
         await asyncio.sleep(REQUEST_DELAY)
 
@@ -95,7 +103,7 @@ async def fetch_avatar(client: httpx.AsyncClient, nickname: str) -> bytes | None
         resp.raise_for_status()
         return resp.content
 
-    except Exception as e:
+    except (httpx.HTTPError, ValueError) as e:
         print(f"  [FAIL] {nickname}: {e}")
         return None
 

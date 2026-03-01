@@ -6,6 +6,13 @@ from pathlib import Path
 from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from controller.v1.characters import router as characters_router
+from controller.v1.comments import router as comments_router
+from controller.v1.settlements import router as settlements_router
+from controller.v1.system import router as system_router
+from controller.v1.users import router as users_router
+from starlette.middleware.sessions import SessionMiddleware
+from starlette.responses import PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy import select
 
@@ -68,6 +75,16 @@ API_REDOC_URL = _normalize_optional_path(os.getenv("API_REDOC_URL"), "/redoc")
 API_OPENAPI_URL = _normalize_optional_path(
     os.getenv("API_OPENAPI_URL"), "/openapi.json"
 )
+ADMIN_SESSION_SECRET = os.getenv("ADMIN_SESSION_SECRET", "maplewind-admin-session")
+
+
+class ImageOnlyStaticFiles(StaticFiles):
+    ALLOWED_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp", ".gif", ".svg"}
+
+    async def get_response(self, path: str, scope):
+        if Path(path).suffix.lower() not in self.ALLOWED_EXTENSIONS:
+            return PlainTextResponse("Not Found", status_code=404)
+        return await super().get_response(path, scope)
 
 
 async def seed_data():
@@ -238,6 +255,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.add_middleware(
+    SessionMiddleware,
+    secret_key=ADMIN_SESSION_SECRET,
+)
+
 setup_admin(app, engine)
 
 # 메생결산 이미지 static 서빙
@@ -246,7 +268,7 @@ setup_admin(app, engine)
 _settlements_dir = os.environ.get("INIT_DATA_DIR", "13기 메생결산")
 app.mount(
     "/static/settlements",
-    StaticFiles(directory=_settlements_dir),
+    ImageOnlyStaticFiles(directory=_settlements_dir),
     name="settlements",
 )
 
@@ -258,12 +280,6 @@ app.mount(
     StaticFiles(directory="avatars"),
     name="avatars",
 )
-
-from controller.v1.characters import router as characters_router
-from controller.v1.comments import router as comments_router
-from controller.v1.settlements import router as settlements_router
-from controller.v1.system import router as system_router
-from controller.v1.users import router as users_router
 
 app.include_router(characters_router, prefix=API_V1_PREFIX)
 app.include_router(settlements_router, prefix=API_V1_PREFIX)

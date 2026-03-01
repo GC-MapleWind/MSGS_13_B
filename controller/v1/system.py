@@ -1,8 +1,9 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
+
 from controller.dependencies import get_db
 from schemas.team_dto import TeamMemberResponse, TeamMemberDetailResponse
-from services import team_service
+from services import character_service, team_service
 
 router = APIRouter(prefix="/system", tags=["system"])
 
@@ -41,8 +42,7 @@ async def get_team_member_detail(member_id: int, db: AsyncSession = Depends(get_
 @router.get("/admin-character", response_model=dict)
 async def get_admin_character(db: AsyncSession = Depends(get_db)):
     """사이드바용: 운영팀 캐릭터 ID 반환"""
-    from repositories import character_repo
-    character = await character_repo.get_admin_team(db)
+    character = await character_service.get_admin_character(db)
     if not character:
         return {"id": None}
     return {"id": character.id, "name": character.name}

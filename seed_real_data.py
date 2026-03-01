@@ -10,7 +10,6 @@ Usage:
 
 import asyncio
 import datetime
-import os
 from pathlib import Path
 
 import openpyxl
@@ -22,8 +21,8 @@ from models.settlement import Settlement
 from models.user import User
 
 BASE_DIR = Path(__file__).parent
-_default_excel_dir = BASE_DIR / "13기 메생결산"
-EXCEL_DIR = Path(os.environ.get("INIT_DATA_DIR", str(_default_excel_dir)))
+EXCEL_DIR = BASE_DIR / "13기 메생결산"
+AVATARS_DIR = BASE_DIR / "avatars"
 ROSTER_PATH = EXCEL_DIR / "25-2 단풍바람 명부.xlsx"
 SETTLEMENT_PATH = EXCEL_DIR / "메생결산시트.xlsx"
 
@@ -108,11 +107,17 @@ async def seed() -> None:
             r = await db.execute(select(User).where(User.name == m["name"]))
             user = r.scalar_one_or_none()
             if user is None:
-                username = m["student_id"] or m["nickname"]
-                # username 충돌 방어
-                r2 = await db.execute(select(User).where(User.username == username))
-                if r2.scalar_one_or_none() is not None:
-                    username = m["nickname"]
+                base_username = m["student_id"] or m["nickname"]
+                username = base_username
+                suffix = 1
+                while True:
+                    r2 = await db.execute(
+                        select(User.id).where(User.username == username)
+                    )
+                    if r2.scalar_one_or_none() is None:
+                        break
+                    suffix += 1
+                    username = f"{base_username}_{suffix}"
 
                 user = User(
                     username=username,
@@ -149,9 +154,17 @@ async def seed() -> None:
                 )
                 db.add(char)
                 await db.flush()
+
+                # 기존 아바타 파일이 있으면 avatar_url 세팅
+                for ext in (".png", ".jpg", ".jpeg", ".PNG", ".JPG", ".JPEG"):
+                    if (AVATARS_DIR / str(char.id) / f"avatar_image{ext}").exists():
+                        char.avatar_url = f"/static/avatars/{char.id}/avatar_image{ext}"
+                        break
+
                 print(
                     f"[CHAR+] {m['name']} ({m['nickname']})"
                     f" Lv.{m['level']} {m['job']} / {m['server']}"
+                    + (f" avatar={char.avatar_url}" if char.avatar_url else "")
                 )
             else:
                 print(f"[CHAR=] {m['name']} - 이미 존재")
@@ -171,11 +184,21 @@ async def seed() -> None:
                 s_skip += 1
                 continue
 
-            # 이미지명에 쉼표가 있는 경우(복수 이미지) → 첫 번째만 처리
             img_stems = [x.strip() for x in s["img_name"].split(",")] if s["img_name"] else []
 
-            for i, stem in enumerate(img_stems):
+            for stem in img_stems:
                 img_url = _resolve_img_ext(s["name"], stem)
+                exists = await db.execute(
+                    select(Settlement.id).where(
+                        Settlement.character_id == char.id,
+                        Settlement.title == s["caption"],
+                        Settlement.acquired_at == s["date"],
+                        Settlement.img_url == img_url,
+                    )
+                )
+                if exists.scalar_one_or_none() is not None:
+                    continue
+
                 db.add(
                     Settlement(
                         character_id=char.id,
@@ -188,6 +211,17 @@ async def seed() -> None:
                 s_ok += 1
 
             if not img_stems:
+                exists = await db.execute(
+                    select(Settlement.id).where(
+                        Settlement.character_id == char.id,
+                        Settlement.title == s["caption"],
+                        Settlement.acquired_at == s["date"],
+                        Settlement.img_url.is_(None),
+                    )
+                )
+                if exists.scalar_one_or_none() is not None:
+                    continue
+
                 db.add(
                     Settlement(
                         character_id=char.id,
@@ -202,7 +236,7 @@ async def seed() -> None:
         await db.commit()
 
     print(f"\n{'=' * 50}")
-    print(f"✓ 완료!")
+    print("✓ 완료!")
     print(f"  User: {len(roster)}명 처리")
     print(f"  Character: {len(name_to_char)}개 처리")
     print(f"  Settlement: {s_ok}개 삽입 (건너뜀: {s_skip}개)")

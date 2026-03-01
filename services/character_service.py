@@ -4,9 +4,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from repositories import character_repo
 from models.character import Character
 
+ADMIN_TEAM_NAME = "단풍바람 운영팀"
+
 
 async def get_all_characters(db: AsyncSession) -> list[Character]:
-    return await character_repo.get_all(db)
+    return await character_repo.get_all(
+        db,
+        exclude_name=ADMIN_TEAM_NAME,
+        require_settlement=True,
+    )
 
 
 async def get_character_info(db: AsyncSession, char_id: int) -> Character:
@@ -16,12 +22,26 @@ async def get_character_info(db: AsyncSession, char_id: int) -> Character:
     return character
 
 
-async def get_charactors_pagenation(
+async def get_admin_character(db: AsyncSession) -> Character | None:
+    return await character_repo.get_admin_team(db)
+
+
+async def get_characters_pagination(
     db: AsyncSession, page: int, limit: int
 ) -> dict[str, object]:
     offset = (page - 1) * limit
-    items = await character_repo.get_all(db, skip=offset, limit=limit)
-    total = await character_repo.count(db)
+    items = await character_repo.get_all(
+        db,
+        skip=offset,
+        limit=limit,
+        exclude_name=ADMIN_TEAM_NAME,
+        require_settlement=True,
+    )
+    total = await character_repo.count(
+        db,
+        exclude_name=ADMIN_TEAM_NAME,
+        require_settlement=True,
+    )
     return {
         "items": items,
         "total": total,

@@ -1,9 +1,42 @@
+import os
+import secrets
+
+from sqladmin.authentication import AuthenticationBackend
 from sqladmin import Admin, ModelView
 
 from models.character import Character
 from models.comment import Comment
 from models.settlement import Settlement
 from models.user import User
+
+
+class AdminAuth(AuthenticationBackend):
+    def __init__(self, secret_key: str):
+        super().__init__(secret_key=secret_key)
+        self._username = os.getenv("ADMIN_USERNAME", "admin")
+        self._password = os.getenv("ADMIN_PASSWORD")
+
+    async def login(self, request) -> bool:
+        form = await request.form()
+        username = form.get("username")
+        password = form.get("password")
+        if (
+            isinstance(username, str)
+            and isinstance(password, str)
+            and self._password
+            and secrets.compare_digest(username, self._username)
+            and secrets.compare_digest(password, self._password)
+        ):
+            request.session.update({"admin_authenticated": True})
+            return True
+        return False
+
+    async def logout(self, request) -> bool:
+        request.session.clear()
+        return True
+
+    async def authenticate(self, request) -> bool:
+        return bool(request.session.get("admin_authenticated"))
 
 
 class UserAdmin(ModelView, model=User):
@@ -83,7 +116,14 @@ class CommentAdmin(ModelView, model=Comment):
 
 
 def setup_admin(app, engine) -> Admin:
-    admin = Admin(app, engine, title="MapleWind Admin")
+    session_secret = os.getenv("ADMIN_SESSION_SECRET", "maplewind-admin-session")
+    authentication_backend = AdminAuth(secret_key=session_secret)
+    admin = Admin(
+        app,
+        engine,
+        title="MapleWind Admin",
+        authentication_backend=authentication_backend,
+    )
     admin.add_view(UserAdmin)
     admin.add_view(CharacterAdmin)
     admin.add_view(SettlementAdmin)

@@ -20,7 +20,7 @@ class CharacterDetailResponse(CharacterResponse):
     pass
 
 
-class CharactorsPagenationResponse(BaseModel):
+class CharactersPaginationResponse(BaseModel):
     items: list[CharacterResponse]
     total: int
     page: int

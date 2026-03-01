@@ -1,8 +1,14 @@
+from __future__ import annotations
+
 from datetime import date, datetime
+from typing import TYPE_CHECKING
 from sqlalchemy import String, Integer, DateTime, Date, BigInteger
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from database import Base
+
+if TYPE_CHECKING:
+    from models.character import Character
 
 
 class User(Base):
@@ -25,4 +31,4 @@ class User(Base):
     refresh_token_hash: Mapped[str | None] = mapped_column(String, nullable=True)
     refresh_token_expires_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
-    characters = relationship("Character", back_populates="user")
+    characters: Mapped[list[Character]] = relationship("Character", back_populates="user")

@@ -9,6 +9,9 @@ wheels/
 # Virtual environments
 .venv
 
+# Local tool state
+.omc/
+
 maplewind.db
 
 # SSH Keys (보안)
