@@ -7,7 +7,7 @@ from src.schemas.character_dto import (
     CharacterResponse,
     CharactersPaginationResponse,
 )
-from src.schemas.settlement_dto import SettlementResponse
+from src.schemas.settlement_dto import SettlementResponse, SettlementsPaginationResponse
 from src.services import character_service, settlement_service
 
 router = APIRouter(prefix="/characters", tags=["characters"])
@@ -37,3 +37,18 @@ async def get_character_settlements(
     character_id: int, db: AsyncSession = Depends(get_db)
 ):
     return await settlement_service.get_settlements_by_character(db, character_id)
+
+
+@router.get(
+    "/{character_id}/settlements/pagination",
+    response_model=SettlementsPaginationResponse,
+)
+async def get_character_settlements_pagination(
+    character_id: int,
+    page: int = Query(1, ge=1),
+    limit: int = Query(10, ge=1, le=100),
+    db: AsyncSession = Depends(get_db),
+):
+    return await settlement_service.get_settlements_by_character_pagination(
+        db, character_id, page, limit
+    )

@@ -27,6 +27,21 @@ def _find_image_url(name: str) -> str | None:
     return None
 
 
+def _normalize_header(value: object) -> str:
+    if value is None:
+        return ""
+    return str(value).strip().lower().replace(" ", "")
+
+
+def _find_image_url_by_filename(file_name: str | None, member_name: str) -> str | None:
+    if file_name:
+        direct = IMAGE_DIR / file_name
+        if direct.exists():
+            return f"{IMAGE_URL_PREFIX}/{direct.name}"
+
+    return _find_image_url(member_name)
+
+
 def _load_rows() -> list[dict[str, str | None]]:
     if not XLSX_PATH.exists():
         raise FileNotFoundError(f"XLSX not found: {XLSX_PATH}")
@@ -34,9 +49,36 @@ def _load_rows() -> list[dict[str, str | None]]:
     wb = openpyxl.load_workbook(XLSX_PATH)
     ws = wb[wb.sheetnames[0]]
 
+    header_cells = [ws.cell(row=1, column=i).value for i in range(1, ws.max_column + 1)]
+    headers = [_normalize_header(h) for h in header_cells]
+
+    filename_idx = headers.index("파일명") if "파일명" in headers else None
+    team_idx = headers.index("팀") if "팀" in headers else None
+    name_idx = headers.index("이름") if "이름" in headers else None
+    title_idx = headers.index("제목") if "제목" in headers else None
+    content_idx = headers.index("내용") if "내용" in headers else None
+
+    if name_idx is None:
+        raise ValueError("XLSX header must include '이름' column")
+
     by_name: dict[str, dict[str, str | None]] = {}
     for row in ws.iter_rows(min_row=2, values_only=True):
-        _, name, title, content, _photo = row[:5]
+        file_name = (
+            row[filename_idx]
+            if filename_idx is not None and filename_idx < len(row)
+            else None
+        )
+        team = row[team_idx] if team_idx is not None and team_idx < len(row) else None
+        name = row[name_idx] if name_idx < len(row) else None
+        title = (
+            row[title_idx] if title_idx is not None and title_idx < len(row) else None
+        )
+        content = (
+            row[content_idx]
+            if content_idx is not None and content_idx < len(row)
+            else None
+        )
+
         if not name:
             continue
 
@@ -46,10 +88,13 @@ def _load_rows() -> list[dict[str, str | None]]:
 
         by_name[name_text] = {
             "name": name_text,
-            "role": "운영팀",
+            "role": str(team).strip() if team else "운영팀",
             "title": str(title).strip() if title else "운영팀 한마디",
             "content": str(content).strip() if content else "",
-            "image_url": _find_image_url(name_text),
+            "image_url": _find_image_url_by_filename(
+                str(file_name).strip() if file_name else None,
+                name_text,
+            ),
         }
 
     return list(by_name.values())
