@@ -1,20 +1,24 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
+
 
 class UserBase(BaseModel):
-    username: str
+    student_id: str = Field(validation_alias="username")
     name: str
+
 
 class UserCreate(UserBase):
     password: str
 
+
 class UserResponse(UserBase):
     id: int
-    student_id: str | None = None
     model_config = {"from_attributes": True}
+
 
 class Token(BaseModel):
     access_token: str
     token_type: str
+
 
 class KakaoLoginResponse(BaseModel):
     is_new_user: bool
@@ -22,10 +26,12 @@ class KakaoLoginResponse(BaseModel):
     access_token: str | None = None
     token_type: str | None = "bearer"
 
+
 class KakaoRegisterRequest(BaseModel):
     register_token: str
     student_id: str
     nickname: str
 
+
 class TokenData(BaseModel):
-    username: str | None = None
+    student_id: str | None = None

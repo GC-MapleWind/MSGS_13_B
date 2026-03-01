@@ -1,3 +1,4 @@
+from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from models.comment import Comment
@@ -17,6 +18,12 @@ async def get_comments(db: AsyncSession, page: int = 1, limit: int = 20) -> list
     Returns:
     	comments (list[Comment]): 지정된 페이지와 한도에 해당하는 Comment 객체 목록.
     """
+    if page < 1 or limit < 1:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="page and limit must be positive",
+        )
+
     skip = (page - 1) * limit
     return await comment_repo.get_all(db, skip=skip, limit=limit)
 

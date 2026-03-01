@@ -18,3 +18,10 @@ class CharacterResponse(CharacterBase):
 
 class CharacterDetailResponse(CharacterResponse):
     pass
+
+
+class CharactersPaginationResponse(BaseModel):
+    items: list[CharacterResponse]
+    total: int
+    page: int
+    limit: int

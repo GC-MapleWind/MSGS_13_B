@@ -9,6 +9,11 @@ wheels/
 # Virtual environments
 .venv
 
+# Local tool state
+.omc/
+
+maplewind.db
+
 # SSH Keys (보안)
 *.key
 *.pem
@@ -25,3 +30,9 @@ ssh-key-*
 *.db
 *.sqlite
 *.sqlite3
+
+# Static data files (images, Excel - managed outside git)
+13기 메생결산/
+avatars/
+*.xlsx
+*.xls

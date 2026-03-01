@@ -36,7 +36,7 @@ async def get_by_student_id(db: AsyncSession, student_id: str) -> User | None:
     Returns:
         `User` 인스턴스 또는 일치하는 사용자가 없으면 `None`.
     """
-    result = await db.execute(select(User).where(User.student_id == student_id))
+    result = await db.execute(select(User).where(User.username == student_id))
     return result.scalar_one_or_none()
 
 async def get_by_kakao_id(db: AsyncSession, kakao_id: int) -> User | None:

@@ -1,3 +1,5 @@
+name: dpbr-dev
+
 services:
   backend:
     image: ghcr.io/gc-maplewind/msgs_13_b-backend:dev
@@ -6,7 +8,11 @@ services:
     ports:
       - "127.0.0.1:8001:8000"
     volumes:
-      - backend-data-dev:/app/data
+      - ./maplewind.db:/app/data/maplewind.db
+      - ./13기 메생결산:/app/13기 메생결산:ro
+      - ./avatars:/app/avatars:ro
+    env_file:
+      - .env
     environment:
       - ENVIRONMENT=development
       - HOST=0.0.0.0
@@ -24,6 +30,3 @@ services:
       retries: 3
       start_period: 40s
 
-volumes:
-  backend-data-dev:
-    driver: local

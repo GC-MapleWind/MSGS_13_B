@@ -10,7 +10,9 @@ class Settlement(Base):
     __tablename__ = "settlements"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    character_id: Mapped[int] = mapped_column(Integer, ForeignKey("characters.id"), nullable=False)
+    character_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("characters.id"), nullable=False
+    )
     title: Mapped[str] = mapped_column(String, nullable=False)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     img_url: Mapped[str | None] = mapped_column(String, nullable=True)
