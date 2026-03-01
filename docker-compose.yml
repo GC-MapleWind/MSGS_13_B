@@ -13,6 +13,8 @@ services:
       # 초기화 데이터: 이 폴더를 마운트하면 앱 시작 시 자동으로 실제 데이터 삽입
       # 포함 내용: 25-2 단풍바람 명부.xlsx, 메생결산시트.xlsx, 회원별 이미지 폴더
       - ./13기 메생결산:/app/init.d:ro
+    env_file:
+      - .env
     environment:
       - ENVIRONMENT=production
       - HOST=0.0.0.0

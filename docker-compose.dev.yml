@@ -11,6 +11,8 @@ services:
       - ./maplewind.db:/app/data/maplewind.db
       - ./13기 메생결산:/app/13기 메생결산:ro
       - ./avatars:/app/avatars:ro
+    env_file:
+      - .env
     environment:
       - ENVIRONMENT=development
       - HOST=0.0.0.0
