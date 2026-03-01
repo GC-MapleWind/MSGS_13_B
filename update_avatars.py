@@ -74,7 +74,8 @@ async def fetch_avatar(client: httpx.AsyncClient, nickname: str) -> bytes | None
     try:
         # 1단계: ocid 조회
         resp = await client.get(
-            f"https://open.api.nexon.com/maplestory/v1/id?character_name={nickname}",
+            "https://open.api.nexon.com/maplestory/v1/id",
+            params={"character_name": nickname},
             headers=headers,
         )
         resp.raise_for_status()
@@ -86,7 +87,8 @@ async def fetch_avatar(client: httpx.AsyncClient, nickname: str) -> bytes | None
 
         # 2단계: 캐릭터 기본 정보 조회
         resp = await client.get(
-            f"https://open.api.nexon.com/maplestory/v1/character/basic?ocid={ocid}",
+            "https://open.api.nexon.com/maplestory/v1/character/basic",
+            params={"ocid": ocid},
             headers=headers,
         )
         resp.raise_for_status()

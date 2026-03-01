@@ -185,6 +185,8 @@ async def process_kakao_login(db: AsyncSession, code: str) -> dict:
         
         kakao_data = user_res.json()
         kakao_id = kakao_data.get("id")
+        if not isinstance(kakao_id, int):
+            raise HTTPException(status_code=401, detail="Invalid kakao user id")
         kakao_account = kakao_data.get("kakao_account", {})
         profile = kakao_account.get("profile", {})
         

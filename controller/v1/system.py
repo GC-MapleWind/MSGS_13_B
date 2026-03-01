@@ -9,7 +9,7 @@ router = APIRouter(prefix="/system", tags=["system"])
 
 
 @router.get("/notices", response_model=dict)
-async def get_notices():
+async def get_notices() -> dict[str, list[dict[str, str]]]:
     return {
         "news": [
             {
@@ -28,19 +28,22 @@ async def get_notices():
 
 
 @router.get("/team", response_model=list[TeamMemberResponse])
-async def get_team_members(db: AsyncSession = Depends(get_db)):
+async def get_team_members(db: AsyncSession = Depends(get_db)) -> list[TeamMemberResponse]:
     """운영팀 전체 정보 및 리스트 조회"""
     return await team_service.get_team_members(db)
 
 
 @router.get("/team/{member_id}", response_model=TeamMemberDetailResponse)
-async def get_team_member_detail(member_id: int, db: AsyncSession = Depends(get_db)):
+async def get_team_member_detail(
+    member_id: int,
+    db: AsyncSession = Depends(get_db),
+) -> TeamMemberDetailResponse:
     """특정 팀원의 상세 한마디 조회"""
     return await team_service.get_team_member_detail(db, member_id)
 
 
 @router.get("/admin-character", response_model=dict)
-async def get_admin_character(db: AsyncSession = Depends(get_db)):
+async def get_admin_character(db: AsyncSession = Depends(get_db)) -> dict[str, int | str | None]:
     """사이드바용: 운영팀 캐릭터 ID 반환"""
     character = await character_service.get_admin_character(db)
     if not character:

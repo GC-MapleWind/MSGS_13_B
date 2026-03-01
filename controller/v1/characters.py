@@ -18,8 +18,7 @@ async def get_characters(db: AsyncSession = Depends(get_db)):
     return await character_service.get_all_characters(db)
 
 
-@router.get("/characters/pagination", response_model=CharactersPaginationResponse)
-@router.get("/charactors_pagenation", response_model=CharactersPaginationResponse)
+@router.get("/pagination", response_model=CharactersPaginationResponse)
 async def get_characters_pagination(
     page: int = Query(1, ge=1),
     limit: int = Query(10, ge=1, le=100),
