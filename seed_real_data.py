@@ -27,9 +27,9 @@ ROSTER_PATH = EXCEL_DIR / "25-2 단풍바람 명부.xlsx"
 SETTLEMENT_PATH = EXCEL_DIR / "메생결산시트.xlsx"
 
 
-def _parse_date(yymmdd: int) -> datetime.date:
+def _parse_date(yymmdd: object) -> datetime.date:
     """YYMMDD 정수(예: 250916) → date(2025, 9, 16)."""
-    s = f"{int(yymmdd):06d}"
+    s = f"{int(str(yymmdd)):06d}"
     yy, mm, dd = int(s[0:2]), int(s[2:4]), int(s[4:6])
     year = 2000 + yy if yy < 50 else 1900 + yy
     return datetime.date(year, mm, dd)
@@ -50,9 +50,9 @@ def load_roster() -> list[dict]:
             {
                 "name": str(name).strip(),            # 실명 → User.name, Character.name
                 "gender": "female" if str(gender).strip() == "여자" else "male",
-                "student_id": str(int(student_id)) if student_id else None,
+                "student_id": str(int(str(student_id))) if student_id else None,
                 "nickname": str(nickname).strip(),    # 닉네임 → Character.detail_txt
-                "level": int(level),
+                "level": int(str(level)),
                 "server": str(server).strip(),
                 "job": str(job).strip(),
             }
@@ -122,7 +122,6 @@ async def seed() -> None:
                 user = User(
                     username=username,
                     name=m["name"],
-                    student_id=m["student_id"],
                     nickname=m["nickname"],
                     gender=m["gender"],
                 )
