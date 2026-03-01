@@ -117,94 +117,60 @@ jobs:
           chmod 600 ~/.ssh/deploy_key
           ssh-keyscan -H ${{ secrets.SERVER_HOST }} >> ~/.ssh/known_hosts
 
+      - name: Checkout code
+        uses: actions/checkout@v4
+
       - name: Deploy with Docker Compose
         id: deploy
         env:
           SERVER_HOST: ${{ secrets.SERVER_HOST }}
           SERVER_USER: ${{ secrets.SERVER_USER }}
         run: |
-          ssh -i ~/.ssh/deploy_key "${SERVER_USER}@${SERVER_HOST}" << 'ENDSSH'
+          BACKEND_PATH="$HOME/dpbr_deploy/dpbr_backend"
+
+          # docker-compose.yml을 서버로 복사
+          scp -i ~/.ssh/deploy_key docker-compose.yml "${SERVER_USER}@${SERVER_HOST}:${BACKEND_PATH}/docker-compose.yml"
+
+          ssh -i ~/.ssh/deploy_key "${SERVER_USER}@${SERVER_HOST}" << ENDSSH
             set -e
-            DEPLOY_ROOT="$HOME/dpbr_deploy"
-            BACKEND_PATH="$DEPLOY_ROOT/dpbr_backend"
-            
-            # 배포 루트 디렉토리 생성
-            echo "📁 Setting up deployment directory structure..."
-            mkdir -p "$DEPLOY_ROOT"
-            
-            # 백엔드 디렉토리 처리
-            if [ ! -d "$BACKEND_PATH" ]; then
-              echo "📁 Backend directory not found. Cloning repository..."
-              git clone https://github.com/GC-MapleWind/MSGS_13_B.git "$BACKEND_PATH"
-            elif [ ! -d "$BACKEND_PATH/.git" ]; then
-              echo "⚠️  Directory exists but not a git repository. Removing and cloning..."
-              rm -rf "$BACKEND_PATH"
-              git clone https://github.com/GC-MapleWind/MSGS_13_B.git "$BACKEND_PATH"
-            else
-              echo "✅ Backend directory already exists"
-            fi
-            
             cd "$BACKEND_PATH"
 
-            if [ ! -f "$BACKEND_PATH/.env" ]; then
+            if [ ! -f ".env" ]; then
               echo "❌ Missing .env file at $BACKEND_PATH/.env"
               exit 1
             fi
-            
-            # 현재 실행 중인 컨테이너 + 설정 백업 (롤백용)
-            echo "💾 Backing up current state..."
-            docker compose --env-file .env -f docker-compose.yml ps > .deployment_backup || true
-            git rev-parse HEAD > .deployment_prev_commit || true
-            cp docker-compose.yml docker-compose.yml.bak 2>/dev/null || true
-            cp deploy/nginx.conf deploy/nginx.conf.bak 2>/dev/null || true
-            cp deploy/nginx-common.conf deploy/nginx-common.conf.bak 2>/dev/null || true
-            
-            # Pull latest changes
-            echo "📦 Pulling latest code..."
-            git fetch origin main
-            git reset --hard origin/main
-            git checkout origin/main -- docker-compose.yml
 
-            # Diagnose compose source to avoid accidental override usage
-            echo "🧾 Compose files in deploy directory:"
-            ls -1 docker-compose.yml docker-compose.yaml 2>/dev/null || true
-            echo "🧾 Resolved backend image from docker-compose.yml:"
-            docker compose --env-file .env -f docker-compose.yml config | grep -E "image:|container_name:|build:" || true
-            
+            # 롤백용 백업
+            cp docker-compose.yml docker-compose.yml.bak 2>/dev/null || true
+
             # Login to GitHub Container Registry
             echo "🔐 Logging in to registry..."
             echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
-            
-            # Pull latest images
-            echo "📥 Pulling latest images..."
-            docker compose --env-file .env -f docker-compose.yml pull || {
+
+            # Pull latest image
+            echo "📥 Pulling latest image..."
+            docker compose --env-file .env pull || {
               echo "❌ Image pull failed"
               exit 1
             }
-            
-            # Restart services
+
+            # 기존 컨테이너 정리 후 재시작
             echo "🔄 Restarting services..."
-            
-            # 기존 컨테이너 정리
             docker stop dpbr-backend 2>/dev/null || true
             docker rm -f dpbr-backend 2>/dev/null || true
-            
-            # 새 버전 시작
-            docker compose --env-file .env -f docker-compose.yml up -d --remove-orphans --force-recreate || {
+
+            docker compose --env-file .env up -d --remove-orphans --force-recreate || {
               echo "❌ Service restart failed - attempting rollback"
-              docker compose --env-file .env -f docker-compose.yml down --remove-orphans
-              docker compose --env-file .env -f docker-compose.yml up -d --force-recreate
+              cp docker-compose.yml.bak docker-compose.yml
+              docker compose --env-file .env up -d --force-recreate
               exit 1
             }
-            
+
             # Cleanup old images
             echo "🧹 Cleaning up old images..."
             docker image prune -f --filter "until=24h"
-            
-            # Nginx: deploy/nginx.conf, nginx-common.conf are in repo; copy to /etc/nginx on server once (requires sudo or root). Skip here to run without sudo.
-            
+
             echo "✅ Deployment completed!"
-            echo "📂 Backend deployed to: $BACKEND_PATH"
           ENDSSH
 
       - name: Health Check
@@ -219,16 +185,16 @@ jobs:
           ssh -i ~/.ssh/deploy_key "${SERVER_USER}@${SERVER_HOST}" << 'ENDSSH'
             echo "Checking backend container health..."
             for i in 1 2 3 4 5 6; do
-              if curl -sf --connect-timeout 5 "http://127.0.0.1:8000/health" > /dev/null; then
+              if curl -sf --connect-timeout 5 "http://127.0.0.1:8013/health" > /dev/null; then
                 echo "✅ Backend health check passed!"
                 break
               fi
               echo "  Attempt $i: waiting for backend..."
               sleep 5
             done
-            
+
             # 최종 확인
-            curl -sf "http://127.0.0.1:8000/health" || {
+            curl -sf "http://127.0.0.1:8013/health" || {
               echo "❌ Backend health check failed"
               docker logs dpbr-backend --tail 30 || true
               exit 1
@@ -256,27 +222,12 @@ jobs:
             cd "$BACKEND_PATH"
             echo "🔄 Rolling back to previous version..."
 
-            # Restore previous commit if available
-            if [ -f .deployment_prev_commit ]; then
-              PREV_COMMIT=$(cat .deployment_prev_commit)
-              echo "🔄 Reverting to commit: ${PREV_COMMIT}"
-              git checkout "${PREV_COMMIT}" -- . 2>/dev/null || true
-            fi
-
-            # Restore backed-up config files
             cp docker-compose.yml.bak docker-compose.yml 2>/dev/null || true
-            cp deploy/nginx.conf.bak deploy/nginx.conf 2>/dev/null || true
-            cp deploy/nginx-common.conf.bak deploy/nginx-common.conf 2>/dev/null || true
 
-            # 기존 컨테이너 강제 제거
             docker stop dpbr-backend 2>/dev/null || true
             docker rm -f dpbr-backend 2>/dev/null || true
-
-            # 이전 버전으로 재시작
-            docker compose --env-file .env -f docker-compose.yml down --remove-orphans
-            docker compose --env-file .env -f docker-compose.yml up -d --force-recreate
-
-            # Nginx config restore skipped (requires sudo). Re-apply manually if needed.
+            docker compose --env-file .env down --remove-orphans
+            docker compose --env-file .env up -d --force-recreate
 
             echo "⚠️ Rollback completed - please check manually"
           ENDSSH
