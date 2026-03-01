@@ -1,8 +1,11 @@
 import os
 import secrets
 
+from fastapi import FastAPI
 from sqladmin.authentication import AuthenticationBackend
 from sqladmin import Admin, ModelView
+from sqlalchemy.ext.asyncio import AsyncEngine
+from starlette.requests import Request
 
 from models.character import Character
 from models.comment import Comment
@@ -16,7 +19,7 @@ class AdminAuth(AuthenticationBackend):
         self._username = os.getenv("ADMIN_USERNAME", "admin")
         self._password = os.getenv("ADMIN_PASSWORD")
 
-    async def login(self, request) -> bool:
+    async def login(self, request: Request) -> bool:
         form = await request.form()
         username = form.get("username")
         password = form.get("password")
@@ -31,11 +34,11 @@ class AdminAuth(AuthenticationBackend):
             return True
         return False
 
-    async def logout(self, request) -> bool:
+    async def logout(self, request: Request) -> bool:
         request.session.clear()
         return True
 
-    async def authenticate(self, request) -> bool:
+    async def authenticate(self, request: Request) -> bool:
         return bool(request.session.get("admin_authenticated"))
 
 
@@ -114,8 +117,10 @@ class CommentAdmin(ModelView, model=Comment):
     column_default_sort = (Comment.created_at, True)
 
 
-def setup_admin(app, engine) -> Admin:
-    session_secret = os.getenv("ADMIN_SESSION_SECRET", "maplewind-admin-session")
+def setup_admin(app: FastAPI, engine: AsyncEngine) -> Admin:
+    session_secret = os.getenv("ADMIN_SESSION_SECRET")
+    if not session_secret:
+        raise RuntimeError("ADMIN_SESSION_SECRET must be set")
     authentication_backend = AdminAuth(secret_key=session_secret)
     admin = Admin(
         app,

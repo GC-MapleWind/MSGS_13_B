@@ -12,7 +12,8 @@ from controller.v1.settlements import router as settlements_router
 from controller.v1.system import router as system_router
 from controller.v1.users import router as users_router
 from starlette.middleware.sessions import SessionMiddleware
-from starlette.responses import PlainTextResponse
+from starlette.responses import PlainTextResponse, Response
+from starlette.types import Scope
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy import select, text
 
@@ -75,13 +76,15 @@ API_REDOC_URL = _normalize_optional_path(os.getenv("API_REDOC_URL"), "/redoc")
 API_OPENAPI_URL = _normalize_optional_path(
     os.getenv("API_OPENAPI_URL"), "/openapi.json"
 )
-ADMIN_SESSION_SECRET = os.getenv("ADMIN_SESSION_SECRET", "maplewind-admin-session")
+ADMIN_SESSION_SECRET = os.getenv("ADMIN_SESSION_SECRET")
+if not ADMIN_SESSION_SECRET:
+    raise RuntimeError("ADMIN_SESSION_SECRET is required")
 
 
 class ImageOnlyStaticFiles(StaticFiles):
     ALLOWED_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp", ".gif", ".svg"}
 
-    async def get_response(self, path: str, scope):
+    async def get_response(self, path: str, scope: Scope) -> Response:
         if Path(path).suffix.lower() not in self.ALLOWED_EXTENSIONS:
             return PlainTextResponse("Not Found", status_code=404)
         return await super().get_response(path, scope)
@@ -217,6 +220,10 @@ async def seed_data():
 
 async def migrate_user_student_id_to_username() -> None:
     async with async_session() as db:
+        bind = db.get_bind()
+        if bind.dialect.name != "sqlite":
+            return
+
         columns_result = await db.execute(text("PRAGMA table_info(users)"))
         columns = [row[1] for row in columns_result.fetchall()]
         if "student_id" not in columns:
@@ -306,6 +313,8 @@ setup_admin(app, engine)
 # URL: /static/settlements/{이름}/{이미지명}.png
 # 실제 경로: INIT_DATA_DIR/{이름}/{이미지명}.png (기본값: 13기 메생결산/)
 _settlements_dir = os.environ.get("INIT_DATA_DIR", "13기 메생결산")
+_avatars_dir = Path("avatars")
+_avatars_dir.mkdir(parents=True, exist_ok=True)
 app.mount(
     "/static/settlements",
     ImageOnlyStaticFiles(directory=_settlements_dir),
@@ -317,7 +326,7 @@ app.mount(
 # 실제 경로: avatars/{폴더}/avatar_image.png
 app.mount(
     "/static/avatars",
-    StaticFiles(directory="avatars"),
+    ImageOnlyStaticFiles(directory=_avatars_dir),
     name="avatars",
 )
 
