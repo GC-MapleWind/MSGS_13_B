@@ -61,7 +61,7 @@ app = FastAPI(root_path="/msgs13_dev/api")
 uvicorn이면:
 
 ```bash
-uvicorn main:app --host 0.0.0.0 --port 8000 --root-path /msgs13_dev/api
+uvicorn src.main:app --host 0.0.0.0 --port 8000 --root-path /msgs13_dev/api
 ```
 
 ### (C) “X-Forwarded-Prefix”를 root_path로 반영하도록 미들웨어/설정

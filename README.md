@@ -28,7 +28,7 @@
 - **커뮤니티 댓글**: 방명록 형태의 댓글 시스템
 - **사용자 시스템**: 로컬 회원가입/로그인 및 카카오 소셜 로그인 (JWT + Refresh Token)
 - **시스템 소식**: 운영팀 메시지 및 공지사항
-- **자동 시드 데이터**: 첫 실행 시 테스트 데이터 자동 생성
+- **명시적 시드 실행**: 운영/개발에서 필요한 시점에 수동 시드 실행
 - **API 문서 자동 생성**: Swagger UI & ReDoc 지원
 
 ---
@@ -71,7 +71,7 @@ cp .env.example .env
 uv sync
 
 # 4. 개발 서버 실행
-uv run uvicorn main:app --reload
+uv run uvicorn src.main:app --reload
 ```
 
 ### 접속 정보
@@ -86,11 +86,13 @@ uv run uvicorn main:app --reload
 
 ### 초기 데이터
 
-첫 실행 시 다음 시드 데이터가 자동으로 삽입됩니다:
-- 테스트 유저 (`test` / `password123`)
-- 캐릭터 3건 (강민아, 하늘빛, 바람의검)
-- 결산 4건
-- 댓글 3건
+앱 시작 시 자동 시드는 실행되지 않습니다.
+
+실데이터 시드는 필요할 때 명시적으로 실행합니다:
+
+```bash
+uv run python -m scripts.seed_real_data
+```
 
 ## 🏗 아키텍처
 

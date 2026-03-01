@@ -46,6 +46,11 @@ cd "$BACKEND_PATH"
 echo "📚 의존성 설치 중..."
 uv sync
 
+RUN_EXPLICIT_SEED=${RUN_EXPLICIT_SEED:-"false"}
+if [ "$RUN_EXPLICIT_SEED" = "true" ]; then
+    uv run python -m scripts.seed_real_data
+fi
+
 # 5. .env 파일 생성
 if [ ! -f ".env" ]; then
     echo "🔧 .env 파일 생성 중..."
@@ -59,6 +64,10 @@ PORT=8000
 
 # Environment
 ENVIRONMENT=production
+
+# Security
+JWT_SECRET_KEY=replace-with-strong-jwt-secret
+ADMIN_SESSION_SECRET=replace-with-strong-admin-session-secret
 EOF
     echo ".env 파일이 생성되었습니다. 필요한 설정을 수정해주세요."
 fi
@@ -75,7 +84,7 @@ Type=simple
 User=$DEPLOY_USER
 WorkingDirectory=$BACKEND_PATH
 Environment="PATH=/home/${DEPLOY_USER}/.cargo/bin:/usr/local/bin:/usr/bin:/bin"
-ExecStart=/home/${DEPLOY_USER}/.cargo/bin/uv run uvicorn main:app --host 0.0.0.0 --port 8000
+ExecStart=/home/${DEPLOY_USER}/.cargo/bin/uv run uvicorn src.main:app --host 0.0.0.0 --port 8000
 Restart=always
 RestartSec=10
 

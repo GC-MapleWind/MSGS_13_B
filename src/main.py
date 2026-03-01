@@ -1,4 +1,3 @@
-import datetime
 import os
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -15,14 +14,10 @@ from starlette.middleware.sessions import SessionMiddleware
 from starlette.responses import PlainTextResponse, Response
 from starlette.types import Scope
 from fastapi.staticfiles import StaticFiles
-from sqlalchemy import select, text
+from sqlalchemy import text
 
 from src.admin import setup_admin
 from src.database import async_session, engine, init_db
-from src.models.character import Character
-from src.models.comment import Comment
-from src.models.settlement import Settlement
-from src.models.team import TeamMember, TeamMessage
 
 # 환경 변수 로드
 load_dotenv()
@@ -90,134 +85,6 @@ class ImageOnlyStaticFiles(StaticFiles):
         return await super().get_response(path, scope)
 
 
-async def seed_data():
-    """
-    데이터베이스에 테스트용 기본 데이터를 필요할 경우 생성한다.
-
-    데이터베이스의 각 테이블(User, Character, Settlement, Comment)에 레코드가 없을 때에 한해 테스트 사용자, 예제 캐릭터들, 해당 캐릭터에 연관된 결산 항목들 및 댓글들을 생성하여 영속화하고 커밋한다.
-    """
-    async with async_session() as db:
-        from src.models.user import User
-        from src.services.user_service import get_password_hash
-
-        # 1. 테스트 유저 생성
-        result = await db.execute(select(User).limit(1))
-        test_user = result.scalar_one_or_none()
-
-        if test_user is None:
-            test_user = User(
-                username="202145123",
-                hashed_password=get_password_hash("password123"),
-                name="강민",
-            )
-            db.add(test_user)
-            await db.flush()  # ID 생성을 위해 flush
-
-        # 2. 캐릭터 생성
-        result = await db.execute(select(Character).limit(1))
-        if result.scalar_one_or_none() is None:
-            characters = [
-                Character(
-                    name="강민아",
-                    detail_txt="담와",
-                    level=265,
-                    job="아크",
-                    server="이브리스",
-                    avatar_url=None,
-                ),
-                Character(
-                    name="하늘빛",
-                    detail_txt="하빛",
-                    level=280,
-                    job="아델",
-                    server="스카니아",
-                    avatar_url=None,
-                ),
-                Character(
-                    name="바람의검",
-                    detail_txt=None,
-                    level=255,
-                    job="나이트로드",
-                    server="루나",
-                    avatar_url=None,
-                ),
-            ]
-            db.add_all(characters)
-            await db.flush()
-
-            # 3. 결산 생성
-            settlements = [
-                Settlement(
-                    character_id=characters[0].id,
-                    title="검은 마법사 클리어",
-                    description="검은 마법사를 처음으로 클리어했습니다!",
-                    img_url=None,
-                    acquired_at=datetime.date(2026, 8, 29),
-                ),
-                Settlement(
-                    character_id=characters[0].id,
-                    title="레벨 265 달성",
-                    description="꾸준한 사냥 끝에 265 레벨을 달성했습니다.",
-                    img_url=None,
-                    acquired_at=datetime.date(2026, 7, 15),
-                ),
-                Settlement(
-                    character_id=characters[1].id,
-                    title="스우 솔로 클리어",
-                    description="스우를 솔로로 클리어하는 데 성공!",
-                    img_url=None,
-                    acquired_at=datetime.date(2026, 8, 10),
-                ),
-                Settlement(
-                    character_id=characters[2].id,
-                    title="유니온 8000 달성",
-                    description="유니온 레벨 8000을 달성했습니다.",
-                    img_url=None,
-                    acquired_at=datetime.date(2026, 6, 20),
-                ),
-            ]
-            db.add_all(settlements)
-
-        # 4. 댓글 생성 (유저 연동)
-        result = await db.execute(select(Comment).limit(1))
-        if result.scalar_one_or_none() is None:
-            comments = [
-                Comment(
-                    user_id=test_user.id,
-                    author=test_user.name,
-                    content="올해도 수고했어요!",
-                ),
-                Comment(
-                    user_id=test_user.id,
-                    author=test_user.name,
-                    content="결산 보니까 뿌듯하네요 ㅎㅎ",
-                ),
-                Comment(
-                    user_id=test_user.id,
-                    author=test_user.name,
-                    content="다들 대단하시다...",
-                ),
-            ]
-            db.add_all(comments)
-
-        # 5. 운영팀 테스트 데이터 생성
-        result = await db.execute(select(TeamMember).limit(1))
-        if result.scalar_one_or_none() is None:
-            new_member = TeamMember(name="테스트", role="테스터", profile_img_url=None)
-            db.add(new_member)
-            await db.flush()
-
-            new_message = TeamMessage(
-                member_id=new_member.id,
-                title="제목테스트입니다.",
-                content="테스트입니다.",
-                detail_img_url=None,
-            )
-            db.add(new_message)
-
-        await db.commit()
-
-
 async def migrate_user_student_id_to_username() -> None:
     async with async_session() as db:
         bind = db.get_bind()
@@ -266,16 +133,6 @@ async def migrate_user_student_id_to_username() -> None:
 async def lifespan(app: FastAPI):
     await init_db()
     await migrate_user_student_id_to_username()
-    init_data_dir = Path(os.environ.get("INIT_DATA_DIR", "13기 메생결산"))
-    roster_file = init_data_dir / "25-2 단풍바람 명부.xlsx"
-    settlement_file = init_data_dir / "메생결산시트.xlsx"
-    if init_data_dir.exists() and roster_file.exists() and settlement_file.exists():
-        # INIT_DATA_DIR이 마운트되어 있으면 실제 데이터로 자동 초기화
-        from scripts.seed_real_data import seed as seed_real
-        await seed_real()
-    else:
-        # 마운트된 데이터 없음 → 테스트 데이터로 초기화
-        await seed_data()
     yield
 
 

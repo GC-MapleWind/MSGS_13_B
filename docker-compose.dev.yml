@@ -11,11 +11,15 @@ services:
       - ./maplewind.db:/app/data/maplewind.db
       - ./13기 메생결산:/app/13기 메생결산:ro
       - ./avatars:/app/avatars:ro
+    command: ["uv", "run", "uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000"]
     environment:
       - ENVIRONMENT=development
       - HOST=0.0.0.0
       - PORT=8000
+      - DATABASE_URL=sqlite+aiosqlite:////app/data/maplewind.db
+      - INIT_DATA_DIR=/app/13기 메생결산
       - JWT_SECRET_KEY=${JWT_SECRET_KEY:?JWT_SECRET_KEY is not set}
+      - ADMIN_SESSION_SECRET=${ADMIN_SESSION_SECRET:?ADMIN_SESSION_SECRET is not set}
       - API_V1_PREFIX=${API_V1_PREFIX:-/api/v1}
       - API_ROOT_PATH=${API_ROOT_PATH:-}
       - API_DOCS_URL=${API_DOCS_URL:-/docs}
@@ -27,4 +31,3 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
-

@@ -46,6 +46,7 @@ nano .env
 ```env
 # JWT 설정
 JWT_SECRET_KEY=your-secret-key-here
+ADMIN_SESSION_SECRET=your-admin-session-secret-here
 ALGORITHM=HS256
 ACCESS_TOKEN_EXPIRE_MINUTES=30
 
@@ -63,9 +64,15 @@ cd ~/dpbr_deploy/dpbr_backend
 # Docker Compose로 실행
 docker compose up -d
 
+# 실데이터 시드가 필요한 경우에만 명시적으로 실행
+docker compose exec backend uv run python -m scripts.seed_real_data
+
 # 또는 수동으로 실행
 docker build -t dpbr-backend:local .
 docker run -d --name dpbr-backend -p 8000:8000 --env-file .env dpbr-backend:local
+
+# 실데이터 시드가 필요한 경우에만 명시적으로 실행
+docker exec -it dpbr-backend uv run python -m scripts.seed_real_data
 ```
 
 ## 🔄 자동 배포 (CI/CD)

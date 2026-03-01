@@ -5,12 +5,14 @@
 - 메생결산시트.xlsx  → Settlement 생성 (이름 기준으로 Character 매칭)
 
 Usage:
-    uv run python seed_real_data.py
+    uv run python -m scripts.seed_real_data
 """
 
 import asyncio
 import datetime
+import os
 from pathlib import Path
+from typing import Optional
 
 import openpyxl
 from sqlalchemy import select
@@ -21,23 +23,27 @@ from src.models.settlement import Settlement
 from src.models.user import User
 
 ROOT_DIR = Path(__file__).resolve().parent.parent
-EXCEL_DIR = ROOT_DIR / "13기 메생결산"
 AVATARS_DIR = ROOT_DIR / "avatars"
-ROSTER_PATH = EXCEL_DIR / "25-2 단풍바람 명부.xlsx"
-SETTLEMENT_PATH = EXCEL_DIR / "메생결산시트.xlsx"
 
 
-def _parse_date(yymmdd: int) -> datetime.date:
+def _resolve_seed_paths() -> tuple[Path, Path, Path]:
+    excel_dir = Path(os.environ.get("INIT_DATA_DIR", str(ROOT_DIR / "13기 메생결산")))
+    roster_path = excel_dir / "25-2 단풍바람 명부.xlsx"
+    settlement_path = excel_dir / "메생결산시트.xlsx"
+    return excel_dir, roster_path, settlement_path
+
+
+def _parse_date(yymmdd: object) -> datetime.date:
     """YYMMDD 정수(예: 250916) → date(2025, 9, 16)."""
-    s = f"{int(yymmdd):06d}"
+    s = f"{int(str(yymmdd)):06d}"
     yy, mm, dd = int(s[0:2]), int(s[2:4]), int(s[4:6])
     year = 2000 + yy if yy < 50 else 1900 + yy
     return datetime.date(year, mm, dd)
 
 
-def load_roster() -> list[dict]:
+def load_roster(roster_path: Path) -> list[dict]:
     """명부 25-2 시트에서 활성 회원 목록을 읽어 반환한다."""
-    wb = openpyxl.load_workbook(ROSTER_PATH)
+    wb = openpyxl.load_workbook(roster_path)
     ws = wb["25-2"]
     members: list[dict] = []
     for row in ws.iter_rows(min_row=2, values_only=True):
@@ -50,9 +56,9 @@ def load_roster() -> list[dict]:
             {
                 "name": str(name).strip(),            # 실명 → User.name, Character.name
                 "gender": "female" if str(gender).strip() == "여자" else "male",
-                "student_id": str(int(student_id)) if student_id else None,
+                "student_id": str(int(str(student_id))) if student_id else None,
                 "nickname": str(nickname).strip(),    # 닉네임 → Character.detail_txt
-                "level": int(level),
+                "level": int(str(level)),
                 "server": str(server).strip(),
                 "job": str(job).strip(),
             }
@@ -60,9 +66,9 @@ def load_roster() -> list[dict]:
     return members
 
 
-def load_settlements() -> list[dict]:
+def load_settlements(settlement_path: Path) -> list[dict]:
     """메생결산시트 Sheet1에서 결산 항목을 읽어 반환한다."""
-    wb = openpyxl.load_workbook(SETTLEMENT_PATH)
+    wb = openpyxl.load_workbook(settlement_path)
     ws = wb["Sheet1"]
     rows: list[dict] = []
     for row in ws.iter_rows(min_row=2, values_only=True):
@@ -80,9 +86,9 @@ def load_settlements() -> list[dict]:
     return rows
 
 
-def _resolve_img_ext(member_name: str, img_stem: str) -> str | None:
+def _resolve_img_ext(excel_dir: Path, member_name: str, img_stem: str) -> Optional[str]:
     """실제 파일 확장자를 찾아 img_url을 반환한다."""
-    member_dir = EXCEL_DIR / member_name
+    member_dir = excel_dir / member_name
     for ext in (".png", ".jpg", ".jpeg", ".PNG", ".JPG", ".JPEG"):
         if (member_dir / (img_stem + ext)).exists():
             return f"/static/settlements/{member_name}/{img_stem}{ext}"
@@ -92,8 +98,10 @@ def _resolve_img_ext(member_name: str, img_stem: str) -> str | None:
 async def seed() -> None:
     await init_db()
 
-    roster = load_roster()
-    settlement_rows = load_settlements()
+    excel_dir, roster_path, settlement_path = _resolve_seed_paths()
+
+    roster = load_roster(roster_path)
+    settlement_rows = load_settlements(settlement_path)
 
     print(f"명부 회원 수: {len(roster)}명")
     print(f"결산 항목 수: {len(settlement_rows)}개\n")
@@ -122,7 +130,6 @@ async def seed() -> None:
                 user = User(
                     username=username,
                     name=m["name"],
-                    student_id=m["student_id"],
                     nickname=m["nickname"],
                     gender=m["gender"],
                 )
@@ -187,7 +194,7 @@ async def seed() -> None:
             img_stems = [x.strip() for x in s["img_name"].split(",")] if s["img_name"] else []
 
             for stem in img_stems:
-                img_url = _resolve_img_ext(s["name"], stem)
+                img_url = _resolve_img_ext(excel_dir, s["name"], stem)
                 exists = await db.execute(
                     select(Settlement.id).where(
                         Settlement.character_id == char.id,
