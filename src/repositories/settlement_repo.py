@@ -28,7 +28,7 @@ async def get_by_character_id_paginated(
         .offset(skip)
         .limit(limit)
     )
-    return list(result.scalars().all())
+    return result.scalars().all()
 
 
 async def count_by_character_id(db: AsyncSession, character_id: int) -> int:
