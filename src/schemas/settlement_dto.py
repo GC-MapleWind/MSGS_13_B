@@ -19,3 +19,10 @@ class SettlementResponse(SettlementBase):
 
 class SettlementDetailResponse(SettlementResponse):
     pass
+
+
+class SettlementsPaginationResponse(BaseModel):
+    items: list[SettlementResponse]
+    total: int
+    page: int
+    limit: int
