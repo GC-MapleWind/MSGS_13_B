@@ -125,15 +125,14 @@ jobs:
         env:
           SERVER_HOST: ${{ secrets.SERVER_HOST }}
           SERVER_USER: ${{ secrets.SERVER_USER }}
+          BACKEND_PATH: ~/dpbr_deploy/dpbr_backend
         run: |
-          BACKEND_PATH="$HOME/dpbr_deploy/dpbr_backend"
-
           # docker-compose.yml을 서버로 복사
           scp -i ~/.ssh/deploy_key docker-compose.yml "${SERVER_USER}@${SERVER_HOST}:${BACKEND_PATH}/docker-compose.yml"
 
           ssh -i ~/.ssh/deploy_key "${SERVER_USER}@${SERVER_HOST}" << ENDSSH
             set -e
-            cd "$BACKEND_PATH"
+            cd ${BACKEND_PATH}
 
             if [ ! -f ".env" ]; then
               echo "❌ Missing .env file at $BACKEND_PATH/.env"
