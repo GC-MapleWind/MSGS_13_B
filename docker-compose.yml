@@ -6,21 +6,18 @@ services:
     container_name: dpbr-backend
     restart: unless-stopped
     ports:
-      - "127.0.0.1:8000:8000"
+      - "127.0.0.1:8013:8000"
     volumes:
-      # SQLite DB 영속성: 컨테이너 재시작 후에도 데이터 유지
-      - ./data:/app/data
-      # 초기화 데이터: 이 폴더를 마운트하면 앱 시작 시 자동으로 실제 데이터 삽입
-      # 포함 내용: 25-2 단풍바람 명부.xlsx, 메생결산시트.xlsx, 회원별 이미지 폴더
-      - ./13기 메생결산:/app/init.d:ro
+      - ./maplewind.db:/app/maplewind.db
+      - ./seed_real_data.py:/app/seed_real_data.py
+      - ./13기 메생결산:/app/13기 메생결산:ro
+      - ./avatars:/app/avatars
     env_file:
       - .env
     environment:
       - ENVIRONMENT=production
       - HOST=0.0.0.0
       - PORT=8000
-      - DATABASE_URL=sqlite+aiosqlite:////app/data/maplewind.db
-      - INIT_DATA_DIR=/app/init.d
       - JWT_SECRET_KEY=${JWT_SECRET_KEY:?JWT_SECRET_KEY is required}
       - API_V1_PREFIX=${API_V1_PREFIX:-/api/v1}
       - API_ROOT_PATH=${API_ROOT_PATH:-}
@@ -33,3 +30,4 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
+
