@@ -124,14 +124,14 @@ class TeamMemberAdmin(ModelView, model=TeamMember):
     icon = "fa-solid fa-users"
     category = "Content"
 
-    column_list = [
+    column_list = (
         TeamMember.id,
         TeamMember.name,
         TeamMember.role,
         TeamMember.profile_img_url,
-    ]
-    column_searchable_list = [TeamMember.name, TeamMember.role]
-    column_sortable_list = [TeamMember.id, TeamMember.name]
+    )
+    column_searchable_list = (TeamMember.name, TeamMember.role)
+    column_sortable_list = (TeamMember.id, TeamMember.name)
 
 
 class TeamMessageAdmin(ModelView, model=TeamMessage):
@@ -140,15 +140,15 @@ class TeamMessageAdmin(ModelView, model=TeamMessage):
     icon = "fa-solid fa-envelope"
     category = "Content"
 
-    column_list = [
+    column_list = (
         TeamMessage.id,
         TeamMessage.member_id,
         TeamMessage.title,
         TeamMessage.content,
         TeamMessage.detail_img_url,
-    ]
-    column_searchable_list = [TeamMessage.title, TeamMessage.content]
-    column_sortable_list = [TeamMessage.id, TeamMessage.member_id]
+    )
+    column_searchable_list = (TeamMessage.title, TeamMessage.content)
+    column_sortable_list = (TeamMessage.id, TeamMessage.member_id)
 
 
 def setup_admin(app: FastAPI, engine: AsyncEngine) -> Admin:
