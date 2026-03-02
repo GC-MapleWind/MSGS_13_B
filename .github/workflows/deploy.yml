@@ -339,6 +339,18 @@ jobs:
             docker stop dpbr-backend-dev 2>/dev/null || true
             docker rm -f dpbr-backend-dev 2>/dev/null || true
 
+            echo "🗂️ Preparing writable SQLite path..."
+            mkdir -p data
+            if [ -f maplewind.db ] && [ ! -f data/maplewind.db ]; then
+              cp maplewind.db data/maplewind.db
+            fi
+            if [ -d maplewind.db ]; then
+              rm -rf maplewind.db
+            fi
+            touch data/maplewind.db
+            chmod 777 data
+            chmod 666 data/maplewind.db
+
             echo "🔄 Starting dev services..."
             docker compose up -d --remove-orphans --force-recreate || {
               echo "❌ Dev service restart failed"

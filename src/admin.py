@@ -10,6 +10,7 @@ from starlette.requests import Request
 from src.models.character import Character
 from src.models.comment import Comment
 from src.models.settlement import Settlement
+from src.models.team import TeamMember, TeamMessage
 from src.models.user import User
 
 
@@ -117,6 +118,39 @@ class CommentAdmin(ModelView, model=Comment):
     column_default_sort = (Comment.created_at, True)
 
 
+class TeamMemberAdmin(ModelView, model=TeamMember):
+    name = "Team Member"
+    name_plural = "Team Members"
+    icon = "fa-solid fa-users"
+    category = "Content"
+
+    column_list = (
+        TeamMember.id,
+        TeamMember.name,
+        TeamMember.role,
+        TeamMember.profile_img_url,
+    )
+    column_searchable_list = (TeamMember.name, TeamMember.role)
+    column_sortable_list = (TeamMember.id, TeamMember.name)
+
+
+class TeamMessageAdmin(ModelView, model=TeamMessage):
+    name = "Team Message"
+    name_plural = "Team Messages"
+    icon = "fa-solid fa-envelope"
+    category = "Content"
+
+    column_list = (
+        TeamMessage.id,
+        TeamMessage.member_id,
+        TeamMessage.title,
+        TeamMessage.content,
+        TeamMessage.detail_img_url,
+    )
+    column_searchable_list = (TeamMessage.title, TeamMessage.content)
+    column_sortable_list = (TeamMessage.id, TeamMessage.member_id)
+
+
 def setup_admin(app: FastAPI, engine: AsyncEngine) -> Admin:
     session_secret = os.getenv("ADMIN_SESSION_SECRET")
     if not session_secret:
@@ -132,4 +166,6 @@ def setup_admin(app: FastAPI, engine: AsyncEngine) -> Admin:
     admin.add_view(CharacterAdmin)
     admin.add_view(SettlementAdmin)
     admin.add_view(CommentAdmin)
+    admin.add_view(TeamMemberAdmin)
+    admin.add_view(TeamMessageAdmin)
     return admin

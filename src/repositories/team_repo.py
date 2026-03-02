@@ -20,7 +20,9 @@ async def get_all_members(db: AsyncSession) -> list[TeamMember]:
     )
 
     result = await db.execute(
-        select(TeamMember).order_by(role_priority.asc(), TeamMember.name.asc())
+        select(TeamMember)
+        .options(joinedload(TeamMember.message))
+        .order_by(role_priority.asc(), TeamMember.name.asc())
     )
     return list(result.scalars().all())
 
