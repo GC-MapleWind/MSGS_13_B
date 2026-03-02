@@ -348,8 +348,14 @@ jobs:
               rm -rf maplewind.db
             fi
             touch data/maplewind.db
-            chmod 777 data
-            chmod 666 data/maplewind.db
+
+            docker run --rm --user root \
+              -v "$(pwd)/data:/app/data" \
+              --entrypoint sh \
+              ghcr.io/gc-maplewind/msgs_13_b-backend:dev \
+              -c "chown appuser:appuser /app/data /app/data/maplewind.db" || true
+            chmod 750 data
+            chmod 640 data/maplewind.db
 
             echo "🔄 Starting dev services..."
             docker compose up -d --remove-orphans --force-recreate || {
