@@ -8,17 +8,24 @@ services:
     ports:
       - "127.0.0.1:8013:8000"
     volumes:
-      - ./maplewind.db:/app/maplewind.db
-      - ./seed_real_data.py:/app/seed_real_data.py
-      - ./13기 메생결산:/app/13기 메생결산:ro
+      # SQLite DB 영속성: 컨테이너 재시작 후에도 데이터 유지
+      - ./data:/app/data
+      # 포함 내용: 25-2 단풍바람 명부.xlsx, 메생결산시트.xlsx, 회원별 이미지 폴더
+      # ASCII 폴더명 사용 (macOS/Linux NFC/NFD 인코딩 차이 방지)
+      - ./init_data:/app/init.d:ro
+      # 아바타 이미지 (1~105 폴더)
       - ./avatars:/app/avatars
+    command: ["uv", "run", "uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000"]
     env_file:
       - .env
     environment:
       - ENVIRONMENT=production
       - HOST=0.0.0.0
       - PORT=8000
+      - DATABASE_URL=sqlite+aiosqlite:////app/data/maplewind.db
+      - INIT_DATA_DIR=/app/init.d
       - JWT_SECRET_KEY=${JWT_SECRET_KEY:?JWT_SECRET_KEY is required}
+      - ADMIN_SESSION_SECRET=${ADMIN_SESSION_SECRET:?ADMIN_SESSION_SECRET is required}
       - API_V1_PREFIX=${API_V1_PREFIX:-/api/v1}
       - API_ROOT_PATH=${API_ROOT_PATH:-}
       - API_DOCS_URL=${API_DOCS_URL:-/docs}
@@ -30,4 +37,3 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
-
