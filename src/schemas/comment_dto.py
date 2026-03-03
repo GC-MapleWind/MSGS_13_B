@@ -6,7 +6,7 @@ class CommentCreate(BaseModel):
 
 class CommentResponse(BaseModel):
     id: int
-    user_id: int | None
+    user_id: int
     author: str
     content: str
     created_at: datetime.datetime
