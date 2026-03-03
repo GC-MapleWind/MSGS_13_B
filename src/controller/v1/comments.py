@@ -14,7 +14,7 @@ async def get_comments(
     page: int = 1,
     limit: int = 20,
     db: AsyncSession = Depends(get_db),
-):
+) -> list[CommentResponse]:
     return await comment_service.get_comments(db, page=page, limit=limit)
 
 
@@ -23,7 +23,7 @@ async def create_comment(
     data: CommentCreate,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
-):
+) -> CommentResponse:
     """
     새 댓글을 생성하고 생성된 댓글을 반환합니다.
 
@@ -36,12 +36,16 @@ async def create_comment(
     """
     return await comment_service.create_comment(db, data, current_user)
 
-@router.delete("/{comment_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete(
+    "/{comment_id}",
+    response_model=None,
+    status_code=status.HTTP_204_NO_CONTENT,
+)
 async def delete_comment(
-        comment_id: int,
-        db: AsyncSession = Depends(get_db),
-        current_user: User = Depends(get_current_user),
-):
+    comment_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> Response:
     await comment_service.delete_comment(
         db,
         comment_id,

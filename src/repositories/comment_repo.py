@@ -8,7 +8,7 @@ from src.models.comment import Comment
 async def get_all(db: AsyncSession, skip: int = 0, limit: int = 20) -> list[Comment]:
     result = await db.execute(
         select(Comment)
-        .where(Comment.is_deleted == False)
+        .where(Comment.is_deleted.is_(False))
         .order_by(Comment.created_at.desc())
         .offset(skip)
         .limit(limit)
@@ -18,7 +18,7 @@ async def get_all(db: AsyncSession, skip: int = 0, limit: int = 20) -> list[Comm
 
 async def get_total_count(db: AsyncSession) -> int:
     result = await db.execute(
-        select(func.count(Comment.id)).where(Comment.is_deleted == False)
+        select(func.count(Comment.id)).where(Comment.is_deleted.is_(False))
     )
     return result.scalar_one()
 
@@ -27,7 +27,7 @@ async def get_by_id(db: AsyncSession, comment_id: int) -> Comment | None:
     result = await db.execute(
         select(Comment)
         .where(Comment.id == comment_id)
-        .where(Comment.is_deleted == False)
+        .where(Comment.is_deleted.is_(False))
     )
     return result.scalar_one_or_none()
 
