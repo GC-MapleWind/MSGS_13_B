@@ -10,6 +10,7 @@ from src.controller.v1.comments import router as comments_router
 from src.controller.v1.settlements import router as settlements_router
 from src.controller.v1.system import router as system_router
 from src.controller.v1.users import router as users_router
+from src.controller.v1.chatbot import router as chatbot_router
 from starlette.middleware.sessions import SessionMiddleware
 from starlette.responses import PlainTextResponse, Response
 from starlette.types import Scope
@@ -18,6 +19,7 @@ from sqlalchemy import text
 
 from src.admin import setup_admin
 from src.database import async_session, engine, init_db
+from src.database_chatbot import init_chatbot_db
 
 # 환경 변수 로드
 load_dotenv()
@@ -132,6 +134,7 @@ async def migrate_user_student_id_to_username() -> None:
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await init_db()
+    await init_chatbot_db()
     await migrate_user_student_id_to_username()
     yield
 
@@ -195,6 +198,7 @@ app.include_router(settlements_router, prefix=API_V1_PREFIX)
 app.include_router(comments_router, prefix=API_V1_PREFIX)
 app.include_router(system_router, prefix=API_V1_PREFIX)
 app.include_router(users_router, prefix=API_V1_PREFIX)
+app.include_router(chatbot_router, prefix=API_V1_PREFIX)
 
 
 @app.get("/health")
