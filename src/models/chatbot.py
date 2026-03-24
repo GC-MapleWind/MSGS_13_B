@@ -12,6 +12,18 @@ class InfoList(ChatbotBase):
     step_order: Mapped[int] = mapped_column(Integer, unique=True) # 질문 순서 (1, 2, 3...)
     field_name: Mapped[str] = mapped_column(String, unique=True) # 저장될 필드명 (name, student_id...)
     question_text: Mapped[str] = mapped_column(String)           # 사용자에게 던질 질문
+    event_name: Mapped[str | None] = mapped_column(String, nullable=True) # 이벤트 이름
+
+class EventInfo(ChatbotBase):
+    """
+    이벤트 정보를 저장하는 테이블
+    """
+    __tablename__ = "eventinfo"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    name: Mapped[str] = mapped_column(String, unique=True)
+    start_day: Mapped[str] = mapped_column(String)
+    end_day: Mapped[str] = mapped_column(String)
 
 class TemporaryImage(ChatbotBase):
     """

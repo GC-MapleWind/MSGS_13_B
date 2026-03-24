@@ -1,13 +1,34 @@
 from typing import Any
 from sqlalchemy import select, delete
 from sqlalchemy.ext.asyncio import AsyncSession
-from src.models.chatbot import TemporaryImage, InfoList
+from src.models.chatbot import TemporaryImage, InfoList, EventInfo
 
 
 class ChatbotRepository:
+    async def get_event_info(self, db: AsyncSession, event_name: str) -> EventInfo | None:
+        """특정 이벤트 정보를 가져옵니다."""
+        result = await db.execute(
+            select(EventInfo).where(EventInfo.name == event_name)
+        )
+        return result.scalars().first()
+
+    async def get_all_events(self, db: AsyncSession) -> list[EventInfo]:
+        """모든 이벤트 정보를 가져옵니다."""
+        result = await db.execute(select(EventInfo))
+        return list(result.scalars().all())
+
     async def get_steps(self, db: AsyncSession) -> list[InfoList]:
         """질문 항목 목록을 순서대로 가져옵니다."""
         result = await db.execute(select(InfoList).order_by(InfoList.step_order))
+        return list(result.scalars().all())
+
+    async def get_steps_by_event(self, db: AsyncSession, event_name: str) -> list[InfoList]:
+        """특정 이벤트에 속한 질문 항목 목록을 순서대로 가져옵니다."""
+        result = await db.execute(
+            select(InfoList)
+            .where(InfoList.event_name == event_name)
+            .order_by(InfoList.step_order)
+        )
         return list(result.scalars().all())
 
     async def get_session(self, db: AsyncSession, user_key: str) -> TemporaryImage | None:

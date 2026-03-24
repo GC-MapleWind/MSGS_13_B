@@ -54,6 +54,23 @@ async def handle_chatbot_info(
         
     return await chatbot_service.process_chatbot_info(db, request_data)
 
+@router.post("/chat", response_model=ChatbotResponse)
+async def handle_chatbot_chat(
+    request_data: ChatbotRequest,
+    is_authorized: bool = Depends(verify_authorization),
+    db: AsyncSession = Depends(get_chatbot_db)
+):
+    """
+    카카오 챗봇 채팅 요청 처리 (이벤트 조회 등)
+    """
+    if not is_authorized:
+        return ChatbotResponse(
+            version="2.0", 
+            template={"outputs": [{"simpleText": {"text": "인증되지 않은 요청이담!"}}]}
+        )
+        
+    return await chatbot_service.process_chatbot_chat(db, request_data)
+
 @router.post("/image/delete", response_model=ChatbotResponse)
 async def handle_delete_images(
     request_data: ChatbotRequest,

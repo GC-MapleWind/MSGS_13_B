@@ -44,24 +44,75 @@ class ChatbotService:
         await db.commit()
         return self._build_empty_response("보냈던 사진과 정보를 모두 삭제했담! 다시 보내달람.")
 
+    async def process_chatbot_chat(self, db: AsyncSession, request_data: ChatbotRequest) -> ChatbotResponse:
+        """
+        /chat 요청 처리: 
+        1. 진행 중인 이벤트가 있다면 답변 저장 및 다음 질문 진행
+        2. 진행 중인 이벤트가 없다면 이벤트 선택 목록 반환
+        """
+        user_key = request_data.userRequest.get("user", {}).get("id", "unknown_user")
+        utterance = request_data.userRequest.get("utterance", "").strip()
+        
+        session = await chatbot_repo.get_or_create_session(db, user_key)
+        current_data = session.data or {}
+        active_event = current_data.get("active_event")
+
+        # 1. 이미 진행 중인 이벤트가 있는 경우 -> 질문 답변 처리로 넘김
+        if active_event and current_data.get("__started__"):
+            return await self.process_chatbot_info(db, request_data)
+
+        # 2. 새로운 이벤트 선택인지 확인
+        event = await chatbot_repo.get_event_info(db, utterance)
+        if event:
+            # 이벤트를 새로 선택한 경우
+            await chatbot_repo.update_data(db, user_key, "active_event", event.name)
+            await chatbot_repo.update_data(db, user_key, "__started__", "true")
+            
+            steps = await chatbot_repo.get_steps_by_event(db, event.name)
+            if not steps:
+                await db.commit()
+                return self._build_empty_response(f"'{event.name}' 이벤트에 등록된 질문이 없담!")
+            
+            await db.commit()
+            return self._build_empty_response(
+                f"알겠담! **{event.name}** 참여를 시작하겠담.\n\n{steps[0].question_text}",
+                contexts=[{"name": "infolist", "lifeSpan": 10}]
+            )
+
+        # 3. 아무것도 해당하지 않으면 이벤트 목록 반환
+        events = await chatbot_repo.get_all_events(db)
+        if not events:
+            return self._build_empty_response("현재 진행 중인 이벤트가 없담! 다음에 다시 확인해달람.")
+
+        quick_replies = [{"label": e.name, "action": "message", "messageText": e.name} for e in events]
+        return self._build_empty_response(
+            "참여할 이벤트를 아래의 버튼을 눌러 선택해달람!",
+            quick_replies=quick_replies
+        )
+
     async def process_chatbot_info(self, db: AsyncSession, request_data: ChatbotRequest) -> ChatbotResponse:
         """
-        백엔드 주도형 질문 시스템: infolist 테이블의 질문을 순차적으로 던집니다.
+        백엔드 주도형 질문 시스템: 세션의 active_event에 따른 질문을 순차적으로 던집니다.
         """
         user_key = request_data.userRequest.get("user", {}).get("id", "unknown_user")
         utterance = request_data.userRequest.get("utterance", "").strip()
         
         # 1. 사용자의 세션 및 질문 목록 조회
         session = await chatbot_repo.get_or_create_session(db, user_key)
-        steps = await chatbot_repo.get_steps(db)
+        current_data = session.data or {}
+        active_event = current_data.get("active_event")
+
+        # 활성 이벤트가 있으면 해당 이벤트 질문만, 없으면 전체 질문 조회
+        if active_event:
+            steps = await chatbot_repo.get_steps_by_event(db, active_event)
+        else:
+            steps = await chatbot_repo.get_steps(db)
         
         if not steps:
             return self._build_empty_response("질문 목록이 비어있담!")
 
-        current_data = session.data or {}
-
-        # 2. 첫 진입 처리 (아직 질문을 시작하지 않은 경우)
-        if not current_data:
+        # 2. 첫 진입 처리
+        if not current_data.get("__started__"):
             # 시작 흔적만 남기고 첫 번째 질문 던짐
             await chatbot_repo.update_data(db, user_key, "__started__", "true")
             await db.commit()
@@ -101,7 +152,18 @@ class ChatbotService:
         else:
             # 모든 질문 완료 시 문맥 삭제 및 요약
             img_list = [url for url in (updated_session.image_urls or "").split(",") if url.strip()]
-            summary = "\n".join([f"- {s.field_name}: {updated_data.get(s.field_name)}" for s in steps if s.field_name != "__started__"])
+            
+            summary_parts = []
+            if active_event:
+                summary_parts.append(f"**[{active_event} 참여 정보]**")
+            
+            for s in steps:
+                if s.field_name == "__started__" or s.field_name == "active_event":
+                    continue
+                val = updated_data.get(s.field_name, "미입력")
+                summary_parts.append(f"- {s.field_name}: {val}")
+            
+            summary = "\n".join(summary_parts)
             text = (f"모든 정보를 받았담!\n{summary}\n\n현재까지 총 {len(img_list)}장의 사진이 있담. 등록을 완료해달람!")
             return self._build_final_response(text, contexts=[{"name": "infolist", "lifeSpan": 0}])
 
