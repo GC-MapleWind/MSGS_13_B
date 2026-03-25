@@ -59,6 +59,18 @@ class ChatbotRepository:
         await db.flush()
         return session
 
+    async def delete_data(self, db: AsyncSession, user_key: str, field_name: str) -> TemporaryImage:
+        """JSON 데이터 필드에서 특정 정보를 삭제합니다."""
+        session = await self.get_or_create_session(db, user_key)
+        
+        new_data = dict(session.data or {})
+        if field_name in new_data:
+            del new_data[field_name]
+        session.data = new_data
+        
+        await db.flush()
+        return session
+
     async def add_image_url(self, db: AsyncSession, user_key: str, image_url: str) -> TemporaryImage:
         """이미지 URL을 기존 목록에 추가합니다."""
         session = await self.get_or_create_session(db, user_key)
@@ -66,6 +78,24 @@ class ChatbotRepository:
             session.image_urls += f",{image_url}"
         else:
             session.image_urls = image_url
+        await db.flush()
+        return session
+
+    async def delete_image_url(self, db: AsyncSession, user_key: str, image_url: str) -> TemporaryImage:
+        """이미지 URL 목록에서 특정 URL 하나를 찾아 삭제합니다."""
+        session = await self.get_or_create_session(db, user_key)
+        if session.image_urls:
+            urls = [url.strip() for url in session.image_urls.split(",") if url.strip()]
+            if image_url in urls:
+                urls.remove(image_url)
+                session.image_urls = ",".join(urls)
+                await db.flush()
+        return session
+
+    async def clear_image_urls(self, db: AsyncSession, user_key: str) -> TemporaryImage:
+        """사용자의 모든 이미지 URL을 삭제합니다. (정보는 유지)"""
+        session = await self.get_or_create_session(db, user_key)
+        session.image_urls = ""
         await db.flush()
         return session
 
