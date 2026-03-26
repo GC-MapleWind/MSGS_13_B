@@ -38,9 +38,9 @@ async def seed_registration_steps() -> None:
             result = await db.execute(text("SELECT COUNT(*) FROM infolist"))
             if result.scalar() == 0:
                 steps = [
-                    InfoList(step_order=1, field_name="name", question_text="본인의 **실명**을 입력해달람."),
-                    InfoList(step_order=2, field_name="student_id", question_text="이제 **학번**을 입력해달람. (예: 20241234)"),
-                    InfoList(step_order=3, field_name="comment", question_text="마지막으로 사진과 함께 들어갈 **한마디**를 입력해달람.")
+                    InfoList(step_order=1, field_name="이름", question_text="이름을 알려달람!", event_name="메생결산"),
+                    InfoList(step_order=2, field_name="학번", question_text="이제 학번을 입력해 줘야 한담 (예: 202612345)", event_name="메생결산"),
+                    InfoList(step_order=3, field_name="한마디", question_text="마지막으로 사진과 함께 들어갈 한마디를 남겨달람! 혹시 사진이 많으면 1. 반갑담 2. 졸리담 처럼 입력해 주면 좋겠담!", event_name="메생결산")
                 ]
                 db.add_all(steps)
                 await db.commit()

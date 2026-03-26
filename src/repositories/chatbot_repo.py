@@ -99,29 +99,28 @@ class ChatbotRepository:
         await db.flush()
         return session
 
+    async def clear_data(self, db: AsyncSession, user_key: str) -> TemporaryImage:
+        """사용자의 모든 데이터(정보)를 초기화합니다. (이미지는 유지)"""
+        session = await self.get_or_create_session(db, user_key)
+        
+        # 이벤트 정보와 시작 플래그는 유지하여 바로 질문으로 넘어가게 함
+        new_data = {}
+        if session.data:
+            if "active_event" in session.data:
+                new_data["active_event"] = session.data["active_event"]
+            if "__started__" in session.data:
+                new_data["__started__"] = session.data["__started__"]
+        
+        session.data = new_data
+        await db.flush()
+        return session
+
     async def delete_session(self, db: AsyncSession, user_key: str) -> bool:
         """사용자의 세션 정보를 완전히 삭제합니다."""
         result = await db.execute(
             delete(TemporaryImage).where(TemporaryImage.user_key == user_key)
         )
         return result.rowcount > 0
-
-    # 기존 호환성 유지
-    async def add_image(self, db: AsyncSession, user_key: str, image_url: str) -> TemporaryImage:
-        return await self.add_image_url(db, user_key, image_url)
-
-    async def get_all_by_user(self, db: AsyncSession, user_key: str) -> list[Any]:
-        session = await self.get_session(db, user_key)
-        if not session or not session.image_urls:
-            return []
-        from dataclasses import dataclass
-        @dataclass
-        class MockImage:
-            image_url: str
-        return [MockImage(url.strip()) for url in session.image_urls.split(",") if url.strip()]
-
-    async def delete_all_by_user(self, db: AsyncSession, user_key: str) -> int:
-        return 1 if await self.delete_session(db, user_key) else 0
 
 
 chatbot_repo = ChatbotRepository()

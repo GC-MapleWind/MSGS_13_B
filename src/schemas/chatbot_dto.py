@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import Any
+from typing import Any, Optional
 
 
 class ChatbotRequest(BaseModel):
@@ -16,5 +16,4 @@ class ChatbotResponse(BaseModel):
     """카카오 챗봇으로 보낼 응답 스키마"""
     version: str = "2.0"
     template: dict[str, Any]
-    # 카카오 규격에 맞게 camelCase 필드명을 직접 정의
-    contextControl: dict[str, Any] | None = None
+    useCallback: Optional[bool] = None # 콜백 사용 여부 (AI 챗봇 콜백 가이드)

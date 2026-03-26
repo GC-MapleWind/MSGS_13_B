@@ -1,5 +1,5 @@
 import os
-from fastapi import APIRouter, Header, Depends
+from fastapi import APIRouter, Header, Depends, BackgroundTasks
 from sqlalchemy.ext.asyncio import AsyncSession
 from src.schemas.chatbot_dto import ChatbotRequest, ChatbotResponse
 from src.services.chatbot_service import chatbot_service
@@ -14,76 +14,27 @@ def verify_authorization(
     HTTP 헤더에서 Authorization 값을 가져와 검증합니다.
     """
     expected_key = os.getenv("CHATBOT_AUTHORIZATION_KEY")
-    
     if not expected_key:
         return True
-        
     return authorization == expected_key
 
-@router.post("/image", response_model=ChatbotResponse)
-async def handle_chatbot_image(
-    request_data: ChatbotRequest,
-    is_authorized: bool = Depends(verify_authorization),
-    db: AsyncSession = Depends(get_chatbot_db)
-):
-    """
-    카카오 챗봇 이미지 요청 처리 (저장 및 Carousel 응답)
-    """
-    if not is_authorized:
-        return ChatbotResponse(
-            version="2.0", 
-            template={"outputs": [{"simpleText": {"text": "인증되지 않은 요청이담!"}}]}
-        )
-        
-    return await chatbot_service.process_chatbot_image(db, request_data)
-
-@router.post("/info", response_model=ChatbotResponse)
-async def handle_chatbot_info(
-    request_data: ChatbotRequest,
-    is_authorized: bool = Depends(verify_authorization),
-    db: AsyncSession = Depends(get_chatbot_db)
-):
-    """
-    카카오 챗봇 사용자 정보(이름, 학번, 한마디) 입력 처리
-    """
-    if not is_authorized:
-        return ChatbotResponse(
-            version="2.0", 
-            template={"outputs": [{"simpleText": {"text": "인증되지 않은 요청이담!"}}]}
-        )
-        
-    return await chatbot_service.process_chatbot_info(db, request_data)
+def _unauthorized_response() -> ChatbotResponse:
+    return ChatbotResponse(
+        version="2.0", 
+        template={"outputs": [{"simpleText": {"text": "인증되지 않은 요청이담!"}}]}
+    )
 
 @router.post("/chat", response_model=ChatbotResponse)
 async def handle_chatbot_chat(
     request_data: ChatbotRequest,
+    background_tasks: BackgroundTasks,
     is_authorized: bool = Depends(verify_authorization),
     db: AsyncSession = Depends(get_chatbot_db)
 ):
     """
-    카카오 챗봇 채팅 요청 처리 (이벤트 조회 등)
+    카카오 챗봇의 모든 요청을 처리하는 통합 엔드포인트
     """
     if not is_authorized:
-        return ChatbotResponse(
-            version="2.0", 
-            template={"outputs": [{"simpleText": {"text": "인증되지 않은 요청이담!"}}]}
-        )
+        return _unauthorized_response()
         
-    return await chatbot_service.process_chatbot_chat(db, request_data)
-
-@router.post("/image/delete", response_model=ChatbotResponse)
-async def handle_delete_images(
-    request_data: ChatbotRequest,
-    is_authorized: bool = Depends(verify_authorization),
-    db: AsyncSession = Depends(get_chatbot_db)
-):
-    """
-    사용자의 모든 임시 이미지 및 정보 삭제 요청 처리
-    """
-    if not is_authorized:
-        return ChatbotResponse(
-            version="2.0", 
-            template={"outputs": [{"simpleText": {"text": "인증되지 않은 요청이담!"}}]}
-        )
-        
-    return await chatbot_service.delete_all_images(db, request_data)
+    return await chatbot_service.process_chatbot_chat(db, request_data, background_tasks)
