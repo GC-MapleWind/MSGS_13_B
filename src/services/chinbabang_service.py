@@ -25,15 +25,15 @@ STEP_EXISTING_MANUAL = "existing_manual"
 STEP_CONFIRM = "confirm"
 
 ACTIVITY_TYPES = [
-    "밥/술 먹기",
-    "등산하기",
-    "피시방 가기",
-    "노래방 가기",
-    "도서관에서 공부하기",
-    "놀이공원 가기",
-    "방탈출카페 가기",
-    "보드게임카페 가기",
-    "관광명소 방문하기",
+    "밥/술",
+    "등산",
+    "피시방",
+    "노래방",
+    "도서관",
+    "놀이공원",
+    "방탈출",
+    "보드게임",
+    "나들이",
     "기타",
 ]
 MEMBER_TYPES = ["기존 회원", "신입"]
@@ -62,9 +62,9 @@ class ChinbabangService:
                 quick_replies=quick_replies,
             )
         else:
-            await chatbot_repo.update_data(db, user_key, "__step__", STEP_INPUT_NAME)
+            await chatbot_repo.update_data(db, user_key, "__step__", STEP_INPUT_MEMBER_TYPE)
             await db.commit()
-            return self._build_response("처음이담! 이름을 알려달람 😊")
+            return self._ask_member_type("처음이담! 먼저 기존 회원인담, 신입인담?\n\n")
 
     async def process(
         self,
@@ -164,20 +164,31 @@ class ChinbabangService:
         session = await chatbot_repo.get_session(db, user_key)
         data = session.data or {}
         name = data.get("_name_tmp", "")
+        member_type = data.get("_member_type_tmp")
 
-        await chatbot_repo.upsert_submitter_profile(db, user_key, name, utterance)
-        await chatbot_repo.update_data(db, user_key, "__step__", STEP_INPUT_MEMBER_TYPE)
+        await chatbot_repo.upsert_submitter_profile(db, user_key, name, utterance, member_type)
+        await chatbot_repo.update_data(db, user_key, "__step__", STEP_PHOTO)
         await db.commit()
-        return self._ask_member_type(f"이름: {name} / 학번: {utterance} 저장했담!\n\n기존 회원인담, 신입인담?\n\n")
+        mt_label = f" [{member_type}]" if member_type else ""
+        return self._ask_photo(f"저장했담! {name}({utterance}){mt_label}\n\n")
 
     async def _handle_input_member_type(self, db, user_key, utterance):
         if utterance not in MEMBER_TYPES:
             return self._ask_member_type("버튼으로 선택해달람!")
 
-        await chatbot_repo.update_member_type(db, user_key, utterance)
-        await chatbot_repo.update_data(db, user_key, "__step__", STEP_PHOTO)
-        await db.commit()
-        return self._ask_photo(f"[{utterance}]으로 등록했담!\n\n")
+        profile = await chatbot_repo.get_submitter_profile(db, user_key)
+        if profile:
+            # 기존 프로필 업데이트 (수정 시 흐름)
+            await chatbot_repo.update_member_type(db, user_key, utterance)
+            await chatbot_repo.update_data(db, user_key, "__step__", STEP_PHOTO)
+            await db.commit()
+            return self._ask_photo(f"[{utterance}]으로 업데이트했담!\n\n")
+        else:
+            # 최초 등록 - tmp 저장 후 이름 입력으로
+            await chatbot_repo.update_data(db, user_key, "_member_type_tmp", utterance)
+            await chatbot_repo.update_data(db, user_key, "__step__", STEP_INPUT_NAME)
+            await db.commit()
+            return self._build_response(f"[{utterance}]! 이름을 알려달람 😊")
 
     async def _handle_photo(self, db, user_key, utterance, params, session):
         image_url_raw = params.get("kakaobot_image", "")
