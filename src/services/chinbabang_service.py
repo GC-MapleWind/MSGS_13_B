@@ -39,6 +39,22 @@ ACTIVITY_TYPES = [
 MEMBER_TYPES = ["기존 회원", "신입"]
 COUNT_LABELS = ["0", "1", "2", "3", "4+"]
 
+NAME_MIN_LEN = 2
+NAME_MAX_LEN = 20
+NAME_PATTERN = re.compile(r"^[가-힣a-zA-Z\s]+$")
+
+STUDENT_ID_LEN = 9
+STUDENT_ID_YEAR_MIN = 2000
+STUDENT_ID_YEAR_MAX = 2030
+
+MANUAL_COUNT_MAX = 50
+
+
+def _kst_today() -> datetime.date:
+    """KST 기준 오늘 날짜를 반환합니다."""
+    kst_now = datetime.datetime.utcnow() + datetime.timedelta(hours=9)
+    return kst_now.date()
+
 
 class ChinbabangService:
     async def start(self, db: AsyncSession, user_key: str) -> ChatbotResponse:
@@ -166,14 +182,96 @@ class ChinbabangService:
         """수식 인젝션 및 특수 명령 입력 여부를 검사합니다."""
         if not value or not value.strip():
             return False
-        return value.strip()[0] not in ("=", "+", "-", "@", "\t", "\r", "|", "\\")
+        return value.strip()[0] not in (
+            "=", "+", "-", "@", "\t", "\r", "|", "\\"
+        )
+
+    @staticmethod
+    def _validate_name(name: str) -> str | None:
+        """이름 정합성 검사. 오류가 있으면 안내 메시지를 반환합니다."""
+        if len(name) < NAME_MIN_LEN:
+            return (
+                f"이름이 너무 짧담! "
+                f"{NAME_MIN_LEN}자 이상 입력해달람 😊"
+            )
+        if len(name) > NAME_MAX_LEN:
+            return (
+                f"이름이 너무 길담! "
+                f"{NAME_MAX_LEN}자 이하로 입력해달람 😊"
+            )
+        if not NAME_PATTERN.match(name):
+            return (
+                "이름에는 한글 또는 영문만 사용할 수 있담! "
+                "다시 입력해달람 😊"
+            )
+        return None
+
+    @staticmethod
+    def _validate_student_id(sid: str) -> str | None:
+        """학번 정합성 검사. 오류가 있으면 안내 메시지를 반환합니다."""
+        if not sid.isdigit():
+            return "학번은 숫자만 입력해달람! (예: 202400001)"
+        if len(sid) != STUDENT_ID_LEN:
+            return (
+                f"학번은 {STUDENT_ID_LEN}자리 숫자여야 한담! "
+                f"(예: 202400001)"
+            )
+        year = int(sid[:4])
+        if year < STUDENT_ID_YEAR_MIN or year > STUDENT_ID_YEAR_MAX:
+            return (
+                f"학번 앞 4자리(입학연도)가 올바르지 않담! "
+                f"{STUDENT_ID_YEAR_MIN}~{STUDENT_ID_YEAR_MAX} "
+                f"범위여야 한담 (예: 202400001)"
+            )
+        return None
+
+    @staticmethod
+    def _validate_date_not_future(date_str: str) -> str | None:
+        """미래 날짜 검사. 오류가 있으면 안내 메시지를 반환합니다."""
+        try:
+            parsed = datetime.date.fromisoformat(date_str)
+        except ValueError:
+            return "날짜 형식이 맞지 않담!"
+        today = _kst_today()
+        if parsed > today:
+            return (
+                f"미래 날짜는 선택할 수 없담! "
+                f"오늘({today.strftime('%Y-%m-%d')}) 이전 "
+                f"날짜를 입력해달람 😊"
+            )
+        return None
+
+    @staticmethod
+    def _validate_manual_count(value: str) -> str | None:
+        """수동 입력 인원수 정합성 검사. 오류가 있으면 안내 메시지를 반환합니다."""
+        if not value.isdigit():
+            return "숫자만 입력해달람!"
+        count = int(value)
+        if count < 0:
+            return "인원 수는 0 이상이어야 한담!"
+        if count > MANUAL_COUNT_MAX:
+            return (
+                f"인원 수가 너무 크담! "
+                f"{MANUAL_COUNT_MAX}명 이하로 입력해달람 😊"
+            )
+        return None
 
     async def _handle_input_name(self, db, user_key, utterance):
         if not self._is_safe_input(utterance):
-            return self._build_response("이름에 사용할 수 없는 문자가 포함돼 있담! 이름만 입력해달람 😊")
+            return self._build_response(
+                "이름에 사용할 수 없는 문자가 포함돼 있담! "
+                "이름만 입력해달람 😊"
+            )
         name = utterance.strip()
+
+        name_error = self._validate_name(name)
+        if name_error:
+            return self._build_response(name_error)
+
         await chatbot_repo.update_data(db, user_key, "_name_tmp", name)
-        await chatbot_repo.update_data(db, user_key, "__step__", STEP_INPUT_ID)
+        await chatbot_repo.update_data(
+            db, user_key, "__step__", STEP_INPUT_ID
+        )
         await db.commit()
         return self._build_response(
             f"'{name}'님, 반갑담! 학번을 입력해달람\n(예: 202400001)"
@@ -181,8 +279,11 @@ class ChinbabangService:
 
     async def _handle_input_id(self, db, user_key, utterance):
         sid = utterance.strip()
-        if not sid.isdigit():
-            return self._build_response("학번은 숫자만 입력해달람! (예: 202400001)")
+
+        sid_error = self._validate_student_id(sid)
+        if sid_error:
+            return self._build_response(sid_error)
+
         session = await chatbot_repo.get_session(db, user_key)
         data = session.data or {}
         name = data.get("_name_tmp", "")
@@ -259,8 +360,16 @@ class ChinbabangService:
                 "날짜 형식이 맞지 않담!\n(예: 2026-03-29 또는 3/29)"
             )
 
-        await chatbot_repo.update_data(db, user_key, "activity_date", date_str)
-        await chatbot_repo.update_data(db, user_key, "__step__", STEP_TYPE)
+        future_error = self._validate_date_not_future(date_str)
+        if future_error:
+            return self._build_response(future_error)
+
+        await chatbot_repo.update_data(
+            db, user_key, "activity_date", date_str
+        )
+        await chatbot_repo.update_data(
+            db, user_key, "__step__", STEP_TYPE
+        )
         await db.commit()
         return self._ask_type(f"날짜: {date_str}\n\n어떤 활동이었담?")
 
@@ -288,11 +397,16 @@ class ChinbabangService:
         return self._ask_count("버튼으로 신입 인원을 선택해달람!")
 
     async def _handle_newbie_manual(self, db, user_key, utterance):
-        if not utterance.isdigit():
-            return self._build_response("숫자만 입력해달람!")
+        count_error = self._validate_manual_count(utterance)
+        if count_error:
+            return self._build_response(count_error)
 
-        await chatbot_repo.update_data(db, user_key, "newbie_count", utterance)
-        await chatbot_repo.update_data(db, user_key, "__step__", STEP_EXISTING)
+        await chatbot_repo.update_data(
+            db, user_key, "newbie_count", utterance
+        )
+        await chatbot_repo.update_data(
+            db, user_key, "__step__", STEP_EXISTING
+        )
         await db.commit()
         return self._ask_count("기존 회원이 몇 명이었담?")
 
@@ -313,11 +427,16 @@ class ChinbabangService:
         return self._ask_count("버튼으로 기존 회원 수를 선택해달람!")
 
     async def _handle_existing_manual(self, db, user_key, utterance):
-        if not utterance.isdigit():
-            return self._build_response("숫자만 입력해달람!")
+        count_error = self._validate_manual_count(utterance)
+        if count_error:
+            return self._build_response(count_error)
 
-        await chatbot_repo.update_data(db, user_key, "existing_count", utterance)
-        await chatbot_repo.update_data(db, user_key, "__step__", STEP_CONFIRM)
+        await chatbot_repo.update_data(
+            db, user_key, "existing_count", utterance
+        )
+        await chatbot_repo.update_data(
+            db, user_key, "__step__", STEP_CONFIRM
+        )
         await db.commit()
         return await self._build_confirm_response(db, user_key)
 
