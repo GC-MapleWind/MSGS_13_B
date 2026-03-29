@@ -199,6 +199,14 @@ class ChatbotRepository:
         )
         return list(result.scalars().all())
 
+    async def get_total_score(self, db: AsyncSession, user_key: str) -> int:
+        from sqlalchemy import func as sqlfunc
+        result = await db.execute(
+            select(sqlfunc.coalesce(sqlfunc.sum(ActivitySubmission.score), 0))
+            .where(ActivitySubmission.user_key == user_key)
+        )
+        return int(result.scalar())
+
     async def update_submission_photo_urls(self, db: AsyncSession, submission_id: int, photo_urls: str) -> None:
         result = await db.execute(
             select(ActivitySubmission).where(ActivitySubmission.id == submission_id)
