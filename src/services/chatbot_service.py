@@ -18,7 +18,9 @@ class ChatbotService:
         1. 진행 중인 이벤트가 있다면 답변 저장 및 다음 질문 진행
         2. 진행 중인 이벤트가 없다면 이벤트 선택 목록 반환
         """
-        user_key = request_data.userRequest.get("user", {}).get("id", "unknown_user")
+        user_key = request_data.userRequest.get("user", {}).get("id")
+        if not user_key:
+            return self._build_empty_response("사용자 정보를 확인할 수 없담! 카카오 앱에서 다시 시도해달람")
         utterance = request_data.userRequest.get("utterance", "").strip()
         
         session = await chatbot_repo.get_or_create_session(db, user_key)
@@ -58,7 +60,9 @@ class ChatbotService:
         """
         질문 답변 시스템: 세션 정보를 바탕으로 질문을 순차적으로 던지고 답변을 저장함.
         """
-        user_key = request_data.userRequest.get("user", {}).get("id", "unknown_user")
+        user_key = request_data.userRequest.get("user", {}).get("id")
+        if not user_key:
+            return self._build_empty_response("사용자 정보를 확인할 수 없담! 카카오 앱에서 다시 시도해달람")
         utterance = request_data.userRequest.get("utterance", "").strip()
         params = request_data.action.get("params", {})
         

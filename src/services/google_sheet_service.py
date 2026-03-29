@@ -1,4 +1,5 @@
 import os
+import asyncio
 import httpx
 import io
 import re
@@ -33,24 +34,35 @@ class GoogleSheetService:
             self.drive_service = build('drive', 'v3', credentials=self.creds)
         else:
             self.creds = None
+            self.gc = None
+            self.drive_service = None
             print(f"Warning: Service account key not found at {self.credentials_path}.")
 
         # 사용자님의 공유 폴더 ID (공유 드라이브 루트 ID 가능)
         self.root_folder_id = os.getenv("GOOGLE_DRIVE_ROOT_FOLDER_ID", "")
 
-    def _get_or_create_folder(self, parent_id: str, folder_name: str) -> str:
+    @staticmethod
+    def _escape_query_string(value: str) -> str:
+        """Drive API 쿼리 문자열의 특수문자를 이스케이프합니다."""
+        return value.replace("\\", "\\\\").replace("'", "\\'")
+
+    async def _get_or_create_folder(self, parent_id: str, folder_name: str) -> str:
         """폴더를 찾거나 생성합니다 (공유 드라이브 지원)."""
         if not self.drive_service:
             raise Exception("Google Drive Service not initialized (check credentials).")
 
-        # 공유 드라이브 검색을 위해 supportsAllDrives, includeItemsFromAllDrives 옵션 사용
-        query = f"name = '{folder_name}' and '{parent_id}' in parents and mimeType = 'application/vnd.google-apps.folder' and trashed = false"
-        results = self.drive_service.files().list(
-            q=query, 
-            fields="files(id)",
-            supportsAllDrives=True,
-            includeItemsFromAllDrives=True
-        ).execute()
+        safe_name = self._escape_query_string(folder_name)
+        safe_parent = self._escape_query_string(parent_id)
+        query = f"name = '{safe_name}' and '{safe_parent}' in parents and mimeType = 'application/vnd.google-apps.folder' and trashed = false"
+
+        results = await asyncio.to_thread(
+            self.drive_service.files().list(
+                q=query,
+                fields="files(id)",
+                supportsAllDrives=True,
+                includeItemsFromAllDrives=True
+            ).execute
+        )
         files = results.get('files', [])
         
         if files:
@@ -61,48 +73,53 @@ class GoogleSheetService:
             'mimeType': 'application/vnd.google-apps.folder',
             'parents': [parent_id]
         }
-        folder = self.drive_service.files().create(
-            body=file_metadata, 
-            fields='id',
-            supportsAllDrives=True
-        ).execute()
+        folder = await asyncio.to_thread(
+            self.drive_service.files().create(
+                body=file_metadata,
+                fields='id',
+                supportsAllDrives=True
+            ).execute
+        )
         return folder.get('id')
 
-    def _get_or_create_spreadsheet(self, folder_id: str, sheet_name: str, headers: list[str]) -> gspread.Worksheet:
+    async def _get_or_create_spreadsheet(self, folder_id: str, sheet_name: str, headers: list[str]) -> gspread.Worksheet:
         """폴더 내에 시트를 찾거나 생성합니다 (공유 드라이브 지원)."""
         if not self.drive_service or not self.gc:
             raise Exception("Google Services not initialized.")
 
-        query = f"name = '{sheet_name}' and '{folder_id}' in parents and mimeType = 'application/vnd.google-apps.spreadsheet' and trashed = false"
-        results = self.drive_service.files().list(
-            q=query, 
-            fields="files(id)",
-            supportsAllDrives=True,
-            includeItemsFromAllDrives=True
-        ).execute()
+        safe_name = self._escape_query_string(sheet_name)
+        safe_folder = self._escape_query_string(folder_id)
+        query = f"name = '{safe_name}' and '{safe_folder}' in parents and mimeType = 'application/vnd.google-apps.spreadsheet' and trashed = false"
+
+        results = await asyncio.to_thread(
+            self.drive_service.files().list(
+                q=query,
+                fields="files(id)",
+                supportsAllDrives=True,
+                includeItemsFromAllDrives=True
+            ).execute
+        )
         files = results.get('files', [])
         
         if files:
-            # gspread는 파일 ID(Key)로 시트를 엽니다.
-            sh = self.gc.open_by_key(files[0]['id'])
-            return sh.get_worksheet(0)
+            sh = await asyncio.to_thread(self.gc.open_by_key, files[0]['id'])
+            return await asyncio.to_thread(sh.get_worksheet, 0)
         
-        # 시트가 없으면 생성
         file_metadata = {
             'name': sheet_name,
             'mimeType': 'application/vnd.google-apps.spreadsheet',
             'parents': [folder_id]
         }
-        
-        file = self.drive_service.files().create(
-            body=file_metadata,
-            fields='id',
-            supportsAllDrives=True
-        ).execute()
-        
-        sh = self.gc.open_by_key(file.get('id'))
-        worksheet = sh.get_worksheet(0)
-        worksheet.append_row(headers)
+        file = await asyncio.to_thread(
+            self.drive_service.files().create(
+                body=file_metadata,
+                fields='id',
+                supportsAllDrives=True
+            ).execute
+        )
+        sh = await asyncio.to_thread(self.gc.open_by_key, file.get('id'))
+        worksheet = await asyncio.to_thread(sh.get_worksheet, 0)
+        await asyncio.to_thread(worksheet.append_row, headers)
         return worksheet
 
     async def _upload_image(self, folder_id: str, image_url: str, filename: str) -> str:
@@ -119,27 +136,33 @@ class GoogleSheetService:
             file_metadata = {'name': filename, 'parents': [folder_id]}
             media = MediaIoBaseUpload(image_data, mimetype='image/jpeg', resumable=True)
             
-            file = self.drive_service.files().create(
-                body=file_metadata, 
-                media_body=media, 
-                fields='id, webViewLink',
-                supportsAllDrives=True
-            ).execute()
-            
+            file = await asyncio.to_thread(
+                self.drive_service.files().create(
+                    body=file_metadata,
+                    media_body=media,
+                    fields='id, webViewLink',
+                    supportsAllDrives=True
+                ).execute
+            )
             return file.get('webViewLink')
 
-    def _get_next_image_index(self, folder_id: str, prefix: str) -> int:
+    async def _get_next_image_index(self, folder_id: str, prefix: str) -> int:
         """다음 파일 번호 결정 (공유 드라이브 지원)."""
         if not self.drive_service:
             raise Exception("Google Drive Service not initialized.")
 
-        query = f"'{folder_id}' in parents and name contains '{prefix}' and trashed = false"
-        results = self.drive_service.files().list(
-            q=query, 
-            fields="files(name)",
-            supportsAllDrives=True,
-            includeItemsFromAllDrives=True
-        ).execute()
+        safe_folder = self._escape_query_string(folder_id)
+        safe_prefix = self._escape_query_string(prefix)
+        query = f"'{safe_folder}' in parents and name contains '{safe_prefix}' and trashed = false"
+
+        results = await asyncio.to_thread(
+            self.drive_service.files().list(
+                q=query,
+                fields="files(name)",
+                supportsAllDrives=True,
+                includeItemsFromAllDrives=True
+            ).execute
+        )
         files = results.get('files', [])
         
         max_index = 0
@@ -158,18 +181,18 @@ class GoogleSheetService:
             raise Exception("Google Service Account credentials not found.")
 
         # 1. 이벤트 폴더 찾기/생성
-        event_folder_id = self._get_or_create_folder(self.root_folder_id, event_name)
+        event_folder_id = await self._get_or_create_folder(self.root_folder_id, event_name)
         
         # 2. 메인 스프레드시트 찾기/생성
         headers = field_names + ["이미지 링크"]
-        worksheet = self._get_or_create_spreadsheet(event_folder_id, event_name, headers)
+        worksheet = await self._get_or_create_spreadsheet(event_folder_id, event_name, headers)
 
         # 3. 사용자별 폴더 생성 (이미지 보관용)
         user_display_name = data.get("이름") or data.get("닉네임") or data.get("name") or "user"
-        user_folder_id = self._get_or_create_folder(event_folder_id, user_display_name)
+        user_folder_id = await self._get_or_create_folder(event_folder_id, user_display_name)
         
         # 4. 이미지 업로드
-        start_index = self._get_next_image_index(user_folder_id, user_display_name)
+        start_index = await self._get_next_image_index(user_folder_id, user_display_name)
         drive_links = []
         for i, url in enumerate(image_urls):
             filename = f"{user_display_name}{start_index + i}.jpg"
@@ -183,6 +206,6 @@ class GoogleSheetService:
                 row.append("\n".join(drive_links))
             else:
                 row.append(data.get(header, ""))
-        worksheet.append_row(row)
+        await asyncio.to_thread(worksheet.append_row, row)
 
 google_sheet_service = GoogleSheetService()

@@ -15,7 +15,7 @@ def verify_authorization(
     """
     expected_key = os.getenv("CHATBOT_AUTHORIZATION_KEY")
     if not expected_key:
-        return True
+        return False
     return authorization == expected_key
 
 def _unauthorized_response() -> ChatbotResponse:
