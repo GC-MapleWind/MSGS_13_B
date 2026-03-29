@@ -1,5 +1,7 @@
+import datetime
+
 from sqlalchemy.orm import Mapped, mapped_column
-from sqlalchemy import String, Text, Integer, JSON
+from sqlalchemy import DateTime, String, Text, Integer, JSON, func
 from src.database_chatbot import ChatbotBase
 
 class InfoList(ChatbotBase):
@@ -39,3 +41,37 @@ class TemporaryImage(ChatbotBase):
     
     # 이미지 목록
     image_urls: Mapped[str | None] = mapped_column(Text, nullable=True, default="")
+
+
+class SubmitterProfile(ChatbotBase):
+    """
+    친바방 제출자 프로필 - 카카오 user_key 기반 최초 1회 저장 후 자동 불러오기
+    """
+    __tablename__ = "submitter_profiles"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    user_key: Mapped[str] = mapped_column(String, unique=True, index=True)
+    name: Mapped[str] = mapped_column(String)
+    student_id: Mapped[str] = mapped_column(String)
+    member_type: Mapped[str | None] = mapped_column(String, nullable=True)  # "기존" or "신입"
+
+
+class ActivitySubmission(ChatbotBase):
+    """
+    친바방 제출 내역
+    """
+    __tablename__ = "activity_submissions"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    user_key: Mapped[str] = mapped_column(String, index=True)
+    submitter_name: Mapped[str] = mapped_column(String)
+    submitter_student_id: Mapped[str] = mapped_column(String)
+    photo_urls: Mapped[str | None] = mapped_column(Text, nullable=True)
+    activity_date: Mapped[str] = mapped_column(String)
+    activity_type: Mapped[str] = mapped_column(String)
+    newbie_count: Mapped[int] = mapped_column(Integer, default=0)
+    existing_count: Mapped[int] = mapped_column(Integer, default=0)
+    score: Mapped[int] = mapped_column(Integer, default=0)
+    submitted_at: Mapped[datetime.datetime] = mapped_column(
+        DateTime, server_default=func.now(), nullable=False
+    )

@@ -1,0 +1,629 @@
+import datetime
+import os
+import re
+
+import httpx
+from fastapi import BackgroundTasks
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from src.database_chatbot import get_chatbot_db
+from src.repositories.chatbot_repo import chatbot_repo
+from src.schemas.chatbot_dto import ChatbotRequest, ChatbotResponse
+
+STEP_CONFIRM_SUBMITTER = "confirm_submitter"
+STEP_INPUT_NAME = "input_name"
+STEP_INPUT_ID = "input_id"
+STEP_INPUT_MEMBER_TYPE = "input_member_type"
+STEP_PHOTO = "photo"
+STEP_DATE = "date"
+STEP_DATE_MANUAL = "date_manual"
+STEP_TYPE = "type"
+STEP_NEWBIE = "newbie"
+STEP_NEWBIE_MANUAL = "newbie_manual"
+STEP_EXISTING = "existing"
+STEP_EXISTING_MANUAL = "existing_manual"
+STEP_CONFIRM = "confirm"
+
+ACTIVITY_TYPES = [
+    "밥/술 먹기",
+    "등산하기",
+    "피시방 가기",
+    "노래방 가기",
+    "도서관에서 공부하기",
+    "놀이공원 가기",
+    "방탈출카페 가기",
+    "보드게임카페 가기",
+    "관광명소 방문하기",
+    "기타",
+]
+MEMBER_TYPES = ["기존 회원", "신입"]
+COUNT_LABELS = ["0", "1", "2", "3", "4+"]
+
+
+class ChinbabangService:
+    async def start(self, db: AsyncSession, user_key: str) -> ChatbotResponse:
+        """친바방 제출 플로우 시작 - 제출자 프로필 유무에 따라 분기"""
+        profile = await chatbot_repo.get_submitter_profile(db, user_key)
+
+        if profile:
+            await chatbot_repo.update_data(
+                db, user_key, "__step__", STEP_CONFIRM_SUBMITTER
+            )
+            await db.commit()
+            quick_replies = [
+                {"label": "맞아요", "action": "message", "messageText": "맞아요"},
+                {"label": "수정", "action": "message", "messageText": "수정"},
+            ]
+            member_label = f" [{profile.member_type}]" if profile.member_type else ""
+            return self._build_response(
+                f"제출자 정보를 확인하겠담!\n\n"
+                f"이름: {profile.name}{member_label}\n"
+                f"학번: {profile.student_id}\n\n"
+                f"맞으면 바로 사진 업로드로 넘어가겠담",
+                quick_replies=quick_replies,
+            )
+        else:
+            await chatbot_repo.update_data(db, user_key, "__step__", STEP_INPUT_NAME)
+            await db.commit()
+            return self._build_response("처음이담! 이름을 알려달람 😊")
+
+    async def process(
+        self,
+        db: AsyncSession,
+        request_data: ChatbotRequest,
+        background_tasks: BackgroundTasks,
+    ) -> ChatbotResponse:
+        user_key = request_data.userRequest.get("user", {}).get("id")
+        if not user_key:
+            return self._build_response("사용자 정보를 확인할 수 없담!")
+
+        utterance = request_data.userRequest.get("utterance", "").strip()
+        params = request_data.action.get("params", {})
+
+        session = await chatbot_repo.get_or_create_session(db, user_key)
+        data = session.data or {}
+        step = data.get("__step__", STEP_INPUT_NAME)
+
+        if utterance == "취소":
+            await chatbot_repo.delete_session(db, user_key)
+            await db.commit()
+            return self._build_response(
+                "제출을 취소했담!\n'친바방 제출'을 눌러 다시 시작할 수 있담!"
+            )
+
+        if step == STEP_CONFIRM_SUBMITTER:
+            return await self._handle_confirm_submitter(db, user_key, utterance)
+        elif step == STEP_INPUT_NAME:
+            return await self._handle_input_name(db, user_key, utterance)
+        elif step == STEP_INPUT_ID:
+            return await self._handle_input_id(db, user_key, utterance)
+        elif step == STEP_INPUT_MEMBER_TYPE:
+            return await self._handle_input_member_type(db, user_key, utterance)
+        elif step == STEP_PHOTO:
+            return await self._handle_photo(db, user_key, utterance, params, session)
+        elif step == STEP_DATE:
+            return await self._handle_date(db, user_key, utterance)
+        elif step == STEP_DATE_MANUAL:
+            return await self._handle_date_manual(db, user_key, utterance)
+        elif step == STEP_TYPE:
+            return await self._handle_type(db, user_key, utterance)
+        elif step == STEP_NEWBIE:
+            return await self._handle_newbie(db, user_key, utterance)
+        elif step == STEP_NEWBIE_MANUAL:
+            return await self._handle_newbie_manual(db, user_key, utterance)
+        elif step == STEP_EXISTING:
+            return await self._handle_existing(db, user_key, utterance)
+        elif step == STEP_EXISTING_MANUAL:
+            return await self._handle_existing_manual(db, user_key, utterance)
+        elif step == STEP_CONFIRM:
+            return await self._handle_confirm(
+                db, user_key, utterance, data, session, background_tasks, request_data
+            )
+
+        return self._build_response(
+            "알 수 없는 단계담! '친바방 제출'로 다시 시작해달람!"
+        )
+
+    # ------------------------------------------------------------------ steps
+
+    async def _handle_confirm_submitter(self, db, user_key, utterance):
+        if utterance == "맞아요":
+            profile = await chatbot_repo.get_submitter_profile(db, user_key)
+            if not profile or not profile.member_type:
+                await chatbot_repo.update_data(
+                    db, user_key, "__step__", STEP_INPUT_MEMBER_TYPE
+                )
+                await db.commit()
+                return self._ask_member_type(
+                    "기존 회원인담, 신입인담? 처음 한 번만 알려달람!\n\n"
+                )
+            await chatbot_repo.update_data(db, user_key, "__step__", STEP_PHOTO)
+            await db.commit()
+            return self._ask_photo()
+
+        if utterance == "수정":
+            await chatbot_repo.update_data(db, user_key, "__step__", STEP_INPUT_NAME)
+            await db.commit()
+            return self._build_response("이름을 다시 입력해달람!")
+
+        profile = await chatbot_repo.get_submitter_profile(db, user_key)
+        quick_replies = [
+            {"label": "맞아요", "action": "message", "messageText": "맞아요"},
+            {"label": "수정", "action": "message", "messageText": "수정"},
+        ]
+        name = profile.name if profile else "?"
+        sid = profile.student_id if profile else "?"
+        member_label = (
+            f" [{profile.member_type}]" if profile and profile.member_type else ""
+        )
+        return self._build_response(
+            f"버튼으로 답해달람!\n\n이름: {name}{member_label}\n학번: {sid}",
+            quick_replies=quick_replies,
+        )
+
+    @staticmethod
+    def _is_safe_input(value: str) -> bool:
+        """수식 인젝션 및 특수 명령 입력 여부를 검사합니다."""
+        if not value or not value.strip():
+            return False
+        return value.strip()[0] not in ("=", "+", "-", "@", "\t", "\r", "|", "\\")
+
+    async def _handle_input_name(self, db, user_key, utterance):
+        if not self._is_safe_input(utterance):
+            return self._build_response("이름에 사용할 수 없는 문자가 포함돼 있담! 이름만 입력해달람 😊")
+        name = utterance.strip()
+        await chatbot_repo.update_data(db, user_key, "_name_tmp", name)
+        await chatbot_repo.update_data(db, user_key, "__step__", STEP_INPUT_ID)
+        await db.commit()
+        return self._build_response(
+            f"'{name}'님, 반갑담! 학번을 입력해달람\n(예: 202400001)"
+        )
+
+    async def _handle_input_id(self, db, user_key, utterance):
+        sid = utterance.strip()
+        if not sid.isdigit():
+            return self._build_response("학번은 숫자만 입력해달람! (예: 202400001)")
+        session = await chatbot_repo.get_session(db, user_key)
+        data = session.data or {}
+        name = data.get("_name_tmp", "")
+
+        await chatbot_repo.upsert_submitter_profile(db, user_key, name, sid)
+        await chatbot_repo.update_data(db, user_key, "__step__", STEP_INPUT_MEMBER_TYPE)
+        await db.commit()
+        return self._ask_member_type(f"이름: {name} / 학번: {sid} 저장했담!\n\n")
+
+    async def _handle_input_member_type(self, db, user_key, utterance):
+        if utterance not in MEMBER_TYPES:
+            return self._ask_member_type("버튼으로 선택해달람!")
+
+        await chatbot_repo.update_member_type(db, user_key, utterance)
+        await chatbot_repo.update_data(db, user_key, "__step__", STEP_PHOTO)
+        await db.commit()
+        return self._ask_photo(f"[{utterance}]으로 등록했담!\n\n")
+
+    async def _handle_photo(self, db, user_key, utterance, params, session):
+        image_url_raw = params.get("kakaobot_image", "")
+        if not image_url_raw and utterance.startswith("https://talk.kakaocdn.net/"):
+            image_url_raw = utterance
+
+        if image_url_raw:
+            match = re.search(r"List\((.*?)\)", image_url_raw)
+            if match:
+                urls = [u.strip() for u in match.group(1).split(",") if u.strip()]
+            else:
+                urls = [image_url_raw.strip()]
+
+            prev_count = len(
+                [u.strip() for u in (session.image_urls or "").split(",") if u.strip()]
+            )
+
+            for url in urls:
+                if url:
+                    await chatbot_repo.add_image_url(db, user_key, url)
+
+            await chatbot_repo.update_data(db, user_key, "__step__", STEP_DATE)
+            await db.commit()
+
+            total = prev_count + len(urls)
+            return self._ask_date(
+                f"사진 {total}장을 받았담! 📸\n\n활동 날짜를 선택해달람."
+            )
+
+        return self._ask_photo()
+
+    async def _handle_date(self, db, user_key, utterance):
+        kst_today = datetime.datetime.utcnow() + datetime.timedelta(hours=9)
+
+        if utterance == "오늘":
+            date_str = kst_today.strftime("%Y-%m-%d")
+        elif utterance == "어제":
+            date_str = (kst_today - datetime.timedelta(days=1)).strftime("%Y-%m-%d")
+        elif utterance == "직접 입력":
+            await chatbot_repo.update_data(db, user_key, "__step__", STEP_DATE_MANUAL)
+            await db.commit()
+            return self._build_response(
+                "날짜를 입력해달람!\n(예: 2026-03-29 또는 3/29)"
+            )
+        else:
+            return self._ask_date("버튼으로 날짜를 선택해달람!")
+
+        await chatbot_repo.update_data(db, user_key, "activity_date", date_str)
+        await chatbot_repo.update_data(db, user_key, "__step__", STEP_TYPE)
+        await db.commit()
+        return self._ask_type(f"날짜: {date_str}\n\n어떤 활동이었담?")
+
+    async def _handle_date_manual(self, db, user_key, utterance):
+        date_str = self._parse_date(utterance.strip())
+        if not date_str:
+            return self._build_response(
+                "날짜 형식이 맞지 않담!\n(예: 2026-03-29 또는 3/29)"
+            )
+
+        await chatbot_repo.update_data(db, user_key, "activity_date", date_str)
+        await chatbot_repo.update_data(db, user_key, "__step__", STEP_TYPE)
+        await db.commit()
+        return self._ask_type(f"날짜: {date_str}\n\n어떤 활동이었담?")
+
+    async def _handle_type(self, db, user_key, utterance):
+        if utterance not in ACTIVITY_TYPES:
+            return self._ask_type("버튼으로 활동 종류를 선택해달람!")
+
+        await chatbot_repo.update_data(db, user_key, "activity_type", utterance)
+        await chatbot_repo.update_data(db, user_key, "__step__", STEP_NEWBIE)
+        await db.commit()
+        return self._ask_count("신입 인원이 몇 명이었담?")
+
+    async def _handle_newbie(self, db, user_key, utterance):
+        if utterance == "4+":
+            await chatbot_repo.update_data(db, user_key, "__step__", STEP_NEWBIE_MANUAL)
+            await db.commit()
+            return self._build_response("신입 인원 수를 직접 입력해달람 (숫자만)")
+
+        if utterance in ["0", "1", "2", "3"]:
+            await chatbot_repo.update_data(db, user_key, "newbie_count", utterance)
+            await chatbot_repo.update_data(db, user_key, "__step__", STEP_EXISTING)
+            await db.commit()
+            return self._ask_count("기존 회원이 몇 명이었담?")
+
+        return self._ask_count("버튼으로 신입 인원을 선택해달람!")
+
+    async def _handle_newbie_manual(self, db, user_key, utterance):
+        if not utterance.isdigit():
+            return self._build_response("숫자만 입력해달람!")
+
+        await chatbot_repo.update_data(db, user_key, "newbie_count", utterance)
+        await chatbot_repo.update_data(db, user_key, "__step__", STEP_EXISTING)
+        await db.commit()
+        return self._ask_count("기존 회원이 몇 명이었담?")
+
+    async def _handle_existing(self, db, user_key, utterance):
+        if utterance == "4+":
+            await chatbot_repo.update_data(
+                db, user_key, "__step__", STEP_EXISTING_MANUAL
+            )
+            await db.commit()
+            return self._build_response("기존 회원 수를 직접 입력해달람 (숫자만)")
+
+        if utterance in ["0", "1", "2", "3"]:
+            await chatbot_repo.update_data(db, user_key, "existing_count", utterance)
+            await chatbot_repo.update_data(db, user_key, "__step__", STEP_CONFIRM)
+            await db.commit()
+            return await self._build_confirm_response(db, user_key)
+
+        return self._ask_count("버튼으로 기존 회원 수를 선택해달람!")
+
+    async def _handle_existing_manual(self, db, user_key, utterance):
+        if not utterance.isdigit():
+            return self._build_response("숫자만 입력해달람!")
+
+        await chatbot_repo.update_data(db, user_key, "existing_count", utterance)
+        await chatbot_repo.update_data(db, user_key, "__step__", STEP_CONFIRM)
+        await db.commit()
+        return await self._build_confirm_response(db, user_key)
+
+    async def _handle_confirm(
+        self, db, user_key, utterance, data, session, background_tasks, request_data
+    ):
+        if utterance == "✅ 제출":
+            profile = await chatbot_repo.get_submitter_profile(db, user_key)
+            photo_urls = [
+                u.strip() for u in (session.image_urls or "").split(",") if u.strip()
+            ]
+            callback_url = request_data.userRequest.get("callbackUrl")
+
+            newbie_count = int(data.get("newbie_count", 0))
+            existing_count = int(data.get("existing_count", 0))
+            member_type = profile.member_type if profile else "기존 회원"
+            if member_type == "신입":
+                score = newbie_count + existing_count
+            else:
+                score = newbie_count
+
+            submission_data = {
+                "user_key": user_key,
+                "submitter_name": profile.name if profile else "?",
+                "submitter_student_id": profile.student_id if profile else "?",
+                "photo_urls": ",".join(photo_urls),
+                "activity_date": data.get("activity_date", ""),
+                "activity_type": data.get("activity_type", ""),
+                "newbie_count": newbie_count,
+                "existing_count": existing_count,
+                "score": score,
+            }
+
+            submission = await chatbot_repo.create_submission(db, **submission_data)
+            submission_id = submission.id
+            await chatbot_repo.delete_session(db, user_key)
+            await db.commit()
+
+            background_tasks.add_task(
+                self._process_submission_task,
+                submission_id,
+                submission_data,
+                photo_urls,
+                callback_url,
+            )
+
+            return ChatbotResponse(
+                version="2.0",
+                template={"outputs": [], "quickReplies": []},
+                useCallback=True,
+            )
+
+        if utterance == "수정하기":
+            await chatbot_repo.update_data(db, user_key, "__step__", STEP_PHOTO)
+            session.image_urls = ""
+            await db.commit()
+            return self._ask_photo("수정할게담!\n\n")
+
+        if utterance == "취소":
+            await chatbot_repo.delete_session(db, user_key)
+            await db.commit()
+            return self._build_response("제출을 취소했담.")
+
+        return await self._build_confirm_response(db, user_key)
+
+    # ------------------------------------------------------------------ helpers
+
+    async def _build_confirm_response(self, db, user_key) -> ChatbotResponse:
+        session = await chatbot_repo.get_session(db, user_key)
+        data = session.data or {}
+        profile = await chatbot_repo.get_submitter_profile(db, user_key)
+
+        photo_count = len(
+            [u for u in (session.image_urls or "").split(",") if u.strip()]
+        )
+        sid_suffix = profile.student_id if profile else "?"
+
+        newbie_count = int(data.get("newbie_count", 0))
+        existing_count = int(data.get("existing_count", 0))
+        member_type = profile.member_type if profile else "기존 회원"
+        if member_type == "신입":
+            score = newbie_count + existing_count
+        else:
+            score = newbie_count
+
+        past_total = await chatbot_repo.get_total_score(db, user_key)
+
+        summary = (
+            f"아래 내용으로 제출하겠담?\n\n"
+            f"👤 제출자: {profile.name if profile else '?'}({sid_suffix}) [{member_type}]\n"
+            f"📸 사진: {photo_count}장\n"
+            f"📅 날짜: {data.get('activity_date', '?')}\n"
+            f"🎯 활동: {data.get('activity_type', '?')}\n"
+            f"🌱 신입: {newbie_count}명\n"
+            f"👥 기존회원: {existing_count}명\n"
+            f"⭐ 이번 점수: {score}점\n"
+            f"📊 제출 후 누적: {past_total + score}점"
+        )
+
+        quick_replies = [
+            {"label": "✅ 제출", "action": "message", "messageText": "✅ 제출"},
+            {"label": "수정하기", "action": "message", "messageText": "수정하기"},
+            {"label": "취소", "action": "message", "messageText": "취소"},
+        ]
+        return self._build_response(summary, quick_replies=quick_replies)
+
+    async def show_history(self, db: AsyncSession, user_key: str) -> ChatbotResponse:
+        submissions = await chatbot_repo.get_submissions_by_user(db, user_key, limit=5)
+
+        quick_replies = [
+            {"label": "친바방 제출", "action": "message", "messageText": "친바방 제출"}
+        ]
+
+        if not submissions:
+            return self._build_response(
+                "아직 제출 내역이 없담!\n'친바방 제출'로 첫 제출을 해달람 😊",
+                quick_replies=quick_replies,
+            )
+
+        total_score = await chatbot_repo.get_total_score(db, user_key)
+
+        lines = [f"📊 누적 점수: {total_score}점\n", "📋 최근 제출 내역 (최대 5건)\n"]
+        for s in submissions:
+            lines.append(
+                f"• {s.activity_date} | {s.activity_type} | "
+                f"신입 {s.newbie_count}+기존 {s.existing_count} → {s.score}점"
+            )
+
+        return self._build_response("\n".join(lines), quick_replies=quick_replies)
+
+    async def _process_submission_task(
+        self,
+        submission_id: int,
+        submission_data: dict,
+        photo_urls: list[str],
+        callback_url: str | None,
+    ):
+        try:
+            # 1. CDN에서 다운로드 → 서버 로컬 저장
+            local_paths = await self._download_photos_locally(
+                photo_urls,
+                submission_data.get("activity_date", "unknown"),
+                submission_data.get("submitter_name", "unknown"),
+            )
+
+            # 2. DB의 photo_urls를 로컬 경로로 업데이트 + 누적 점수 조회
+            total_score = 0
+            async for db in get_chatbot_db():
+                await chatbot_repo.update_submission_photo_urls(
+                    db, submission_id, ",".join(local_paths)
+                )
+                await db.commit()
+                total_score = await chatbot_repo.get_total_score(db, submission_data["user_key"])
+                break
+
+            # 3. Google Drive 동기화 (열람용, 실패해도 제출 완료 처리)
+            try:
+                from src.services.google_sheet_service import google_sheet_service
+
+                if google_sheet_service.creds:
+                    await google_sheet_service.register_chinbabang_submission(
+                        submission_data, local_paths, submission_id=submission_id
+                    )
+            except Exception as drive_err:
+                print(
+                    f"[WARN] Google Drive sync failed (submission saved locally): {drive_err}"
+                )
+
+            msg = (
+                f"✅ 제출 완료!\n\n"
+                f"⭐ 이번 점수: {submission_data.get('score', 0)}점\n"
+                f"📊 누적 점수: {total_score}점\n\n"
+                f"다음부터는 제출자 정보를 다시 입력하지 않아도 된담 😊"
+            )
+            await self._send_callback(callback_url, msg)
+        except Exception as e:
+            print(f"[ERROR] Chinbabang submission task failed: {e}")
+            await self._send_callback(
+                callback_url,
+                "앗! 제출은 완료됐지만 사진 저장 중 오류가 발생했담! 운영진에게 문의해달람!",
+            )
+
+    async def _download_photos_locally(
+        self,
+        photo_urls: list[str],
+        activity_date: str,
+        submitter_name: str,
+    ) -> list[str]:
+        """CDN URL에서 사진을 다운로드해 서버 로컬에 저장합니다."""
+        base_dir = os.path.dirname(
+            os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        )
+        timestamp = int(datetime.datetime.utcnow().timestamp())
+        save_dir = os.path.join(
+            base_dir,
+            "media",
+            "chinbabang",
+            activity_date,
+            f"{submitter_name}_{timestamp}",
+        )
+        os.makedirs(save_dir, exist_ok=True)
+
+        local_paths: list[str] = []
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            for i, url in enumerate(photo_urls):
+                try:
+                    resp = await client.get(url)
+                    if resp.status_code == 200:
+                        filename = f"photo_{i + 1:03d}.jpg"
+                        path = os.path.join(save_dir, filename)
+                        with open(path, "wb") as f:
+                            f.write(resp.content)
+                        local_paths.append(path)
+                    else:
+                        print(
+                            f"[WARN] Photo download failed (HTTP {resp.status_code}): {url}"
+                        )
+                except Exception as e:
+                    print(f"[ERROR] Photo download error: {e}")
+        return local_paths
+
+    async def _send_callback(self, callback_url: str | None, text: str):
+        if not callback_url:
+            return
+        payload = {
+            "version": "2.0",
+            "template": {"outputs": [{"simpleText": {"text": text}}]},
+        }
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            try:
+                await client.post(callback_url, json=payload)
+            except Exception as e:
+                print(f"[ERROR] Callback failed: {e}")
+
+    # ------------------------------------------------------------------ builders
+
+    def _ask_photo(self, prefix: str = "") -> ChatbotResponse:
+        text = (
+            f"{prefix}📸 인증 사진을 올려달람!\n"
+            "1장 이상 올리면 자동으로 다음 단계로 넘어가겠담!"
+        )
+        return self._build_response(
+            text,
+            quick_replies=[
+                {"label": "취소", "action": "message", "messageText": "취소"}
+            ],
+        )
+
+    def _ask_member_type(self, prefix: str = "") -> ChatbotResponse:
+        text = f"{prefix}기존 회원인담, 신입인담?"
+        quick_replies = [
+            {"label": t, "action": "message", "messageText": t} for t in MEMBER_TYPES
+        ]
+        return self._build_response(text, quick_replies=quick_replies)
+
+    def _ask_date(self, text: str = "활동 날짜를 선택해달람.") -> ChatbotResponse:
+        quick_replies = [
+            {"label": "오늘", "action": "message", "messageText": "오늘"},
+            {"label": "어제", "action": "message", "messageText": "어제"},
+            {"label": "직접 입력", "action": "message", "messageText": "직접 입력"},
+        ]
+        return self._build_response(text, quick_replies=quick_replies)
+
+    def _ask_type(self, text: str = "어떤 활동이었담?") -> ChatbotResponse:
+        quick_replies = [
+            {"label": t, "action": "message", "messageText": t} for t in ACTIVITY_TYPES
+        ]
+        return self._build_response(text, quick_replies=quick_replies)
+
+    def _ask_count(self, text: str) -> ChatbotResponse:
+        quick_replies = [
+            {"label": c, "action": "message", "messageText": c} for c in COUNT_LABELS
+        ]
+        return self._build_response(text, quick_replies=quick_replies)
+
+    def _build_response(
+        self, text: str, quick_replies: list | None = None
+    ) -> ChatbotResponse:
+        return ChatbotResponse(
+            version="2.0",
+            template={
+                "outputs": [{"simpleText": {"text": text}}],
+                "quickReplies": quick_replies or [],
+            },
+        )
+
+    @staticmethod
+    def _parse_date(s: str) -> str | None:
+        if re.match(r"^\d{4}-\d{1,2}-\d{1,2}$", s):
+            parts = s.split("-")
+            try:
+                return datetime.date(
+                    int(parts[0]), int(parts[1]), int(parts[2])
+                ).strftime("%Y-%m-%d")
+            except ValueError:
+                return None
+        if re.match(r"^\d{1,2}/\d{1,2}$", s):
+            parts = s.split("/")
+            try:
+                year = (datetime.datetime.utcnow() + datetime.timedelta(hours=9)).year
+                return datetime.date(year, int(parts[0]), int(parts[1])).strftime(
+                    "%Y-%m-%d"
+                )
+            except ValueError:
+                return None
+        return None
+
+
+chinbabang_service = ChinbabangService()
