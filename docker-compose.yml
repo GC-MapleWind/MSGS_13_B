@@ -23,6 +23,7 @@ services:
       - HOST=0.0.0.0
       - PORT=8000
       - DATABASE_URL=sqlite+aiosqlite:////app/data/maplewind.db
+      - DATA_DIR=/app/data
       - INIT_DATA_DIR=/app/init.d
       - JWT_SECRET_KEY=${JWT_SECRET_KEY:?JWT_SECRET_KEY is required}
       - ADMIN_SESSION_SECRET=${ADMIN_SESSION_SECRET:?ADMIN_SESSION_SECRET is required}

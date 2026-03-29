@@ -6,8 +6,12 @@ from sqlalchemy.engine import Engine
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase
 
-# 챗봇 전용 DB 경로 설정
-CHATBOT_DATABASE_URL = "sqlite+aiosqlite:///./chatbot.db"
+# 챗봇 전용 DB 경로 설정 (data/ 디렉토리에 저장 → 볼륨 마운트로 영속성 보장)
+_chatbot_db_path = os.path.join(
+    os.getenv("DATA_DIR", os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data")),
+    "chatbot.db"
+)
+CHATBOT_DATABASE_URL = f"sqlite+aiosqlite:///{_chatbot_db_path}"
 
 chatbot_engine = create_async_engine(CHATBOT_DATABASE_URL, echo=False)
 
