@@ -96,10 +96,12 @@ backend/
 | 필드명 | 타입 | 제약조건 | 설명 |
 | :--- | :--- | :--- | :--- |
 | `id` | Integer | PK, Auto Increment | 댓글 ID |
-| `user_id` | Integer | FK(`users.id`) | 작성자 User ID |
+| `user_id` | Integer | FK(`users.id`), Not Null | 작성자 User ID |
 | `author` | String | Not Null | 작성자 닉네임 (Snapshot) |
 | `content` | Text | Not Null | 댓글 내용 |
+| `is_deleted` | Integer | Default: 0 | 삭제 여부 (0: 정상, 1: 삭제됨) |
 | `created_at` | DateTime | Default: Now | 작성 일시 |
+| `deleted_at` | DateTime | Nullable | 삭제 일시 |
 
 ### 3.4. User (사용자)
 서비스 이용자 및 관리자 계정입니다. 로컬 로그인과 카카오 소셜 로그인을 모두 지원합니다.
@@ -153,10 +155,11 @@ backend/
     *   `GET /comments`
     *   **Query Params:** `page` (default=1), `limit` (default=20)
     *   **Response:** `List[CommentResponse]`
-    *   **Logic:** 작성일시 내림차순 조회.
+    *   **Logic:** 삭제되지 않은(`is_deleted=0`) 댓글만 작성일시 내림차순 조회.
 
 2.  **댓글 작성**
     *   `POST /comments`
+    *   **Authentication:** JWT 필수
     *   **Request Body:**
         ```json
         {
@@ -164,6 +167,12 @@ backend/
         }
         ```
     *   **Response:** `CommentResponse` (생성된 객체)
+
+3.  **댓글 삭제 (Soft Delete)**
+    *   `DELETE /comments/{comment_id}`
+    *   **Authentication:** JWT 필수 (작성자 본인만 가능)
+    *   **Response:** 204 No Content
+    *   **Logic:** `is_deleted`를 `1`로 업데이트하고 `deleted_at` 기록. (물리적 삭제 없음)
 
 ### 4.3. 시스템/기타 (System Domain)
 

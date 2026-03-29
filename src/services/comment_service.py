@@ -45,3 +45,19 @@ async def create_comment(db: AsyncSession, data: CommentCreate, user: User) -> C
         content=data.content,
     )
     return await comment_repo.create(db, comment)
+
+async def delete_comment(
+        db: AsyncSession,
+        comment_id: int,
+        user: User,
+) -> None:
+    comment = await comment_repo.get_by_id(db, comment_id)
+    if not comment:
+        raise HTTPException(status_code=404, detail="댓글을 찾을 수 없습니다.")
+
+    if comment.user_id != user.id:
+        raise HTTPException(
+            status_code=403, detail="본인 댓글만 삭제할 수 있습니다."
+        )
+
+    await comment_repo.delete(db, comment)
