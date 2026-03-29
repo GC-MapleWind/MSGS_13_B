@@ -12,6 +12,8 @@ from src.models.comment import Comment
 from src.models.settlement import Settlement
 from src.models.team import TeamMember, TeamMessage
 from src.models.user import User
+from src.models.chatbot import InfoList, EventInfo, TemporaryImage
+from src.database_chatbot import chatbot_async_session
 
 
 class AdminAuth(AuthenticationBackend):
@@ -151,6 +153,44 @@ class TeamMessageAdmin(ModelView, model=TeamMessage):
     column_sortable_list = (TeamMessage.id, TeamMessage.member_id)
 
 
+class EventInfoAdmin(ModelView, model=EventInfo):
+    name = "Event"
+    name_plural = "Events"
+    icon = "fa-solid fa-calendar"
+    category = "Chatbot"
+    sessionmaker = chatbot_async_session
+
+    column_list = [EventInfo.id, EventInfo.name, EventInfo.start_day, EventInfo.end_day]
+    column_searchable_list = [EventInfo.name]
+    column_sortable_list = [EventInfo.id, EventInfo.name, EventInfo.start_day]
+
+
+class InfoListAdmin(ModelView, model=InfoList):
+    name = "Question"
+    name_plural = "Questions"
+    icon = "fa-solid fa-list-ol"
+    category = "Chatbot"
+    sessionmaker = chatbot_async_session
+
+    column_list = [InfoList.id, InfoList.step_order, InfoList.event_name, InfoList.field_name, InfoList.question_text]
+    column_searchable_list = [InfoList.field_name, InfoList.event_name, InfoList.question_text]
+    column_sortable_list = [InfoList.id, InfoList.step_order, InfoList.event_name]
+    column_default_sort = (InfoList.step_order, False)
+
+
+class TemporaryImageAdmin(ModelView, model=TemporaryImage):
+    name = "Session"
+    name_plural = "Sessions"
+    icon = "fa-solid fa-clock"
+    category = "Chatbot"
+    sessionmaker = chatbot_async_session
+    can_create = False
+
+    column_list = [TemporaryImage.id, TemporaryImage.user_key, TemporaryImage.data, TemporaryImage.image_urls]
+    column_searchable_list = [TemporaryImage.user_key]
+    column_sortable_list = [TemporaryImage.id]
+
+
 def setup_admin(app: FastAPI, engine: AsyncEngine) -> Admin:
     session_secret = os.getenv("ADMIN_SESSION_SECRET")
     if not session_secret:
@@ -168,4 +208,7 @@ def setup_admin(app: FastAPI, engine: AsyncEngine) -> Admin:
     admin.add_view(CommentAdmin)
     admin.add_view(TeamMemberAdmin)
     admin.add_view(TeamMessageAdmin)
+    admin.add_view(EventInfoAdmin)
+    admin.add_view(InfoListAdmin)
+    admin.add_view(TemporaryImageAdmin)
     return admin
