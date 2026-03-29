@@ -129,7 +129,7 @@ class GoogleSheetService:
         )
         sh = await asyncio.to_thread(self.gc.open_by_key, file.get('id'))
         worksheet = await asyncio.to_thread(sh.get_worksheet, 0)
-        await asyncio.to_thread(worksheet.append_row, headers)
+        await asyncio.to_thread(worksheet.append_row, headers, value_input_option='RAW')
         return worksheet
 
     async def _upload_image(self, folder_id: str, image_url: str, filename: str) -> str:
@@ -235,7 +235,7 @@ class GoogleSheetService:
                 row.append("\n".join(drive_links))
             else:
                 row.append(self._sanitize_cell(data.get(header, "")))
-        await asyncio.to_thread(worksheet.append_row, row)
+        await asyncio.to_thread(worksheet.append_row, row, value_input_option='RAW')
 
     async def register_chinbabang_submission(
         self, submission_data: dict, local_paths: list[str], submission_id: int | None = None
@@ -284,6 +284,6 @@ class GoogleSheetService:
             submitted_at.strftime("%Y-%m-%d %H:%M"),
             "\n".join(drive_links),
         ]
-        await asyncio.to_thread(worksheet.append_row, row)
+        await asyncio.to_thread(worksheet.append_row, row, value_input_option='RAW')
 
 google_sheet_service = GoogleSheetService()
