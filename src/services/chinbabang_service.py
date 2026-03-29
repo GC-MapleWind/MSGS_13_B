@@ -158,6 +158,10 @@ class ChinbabangService:
             else:
                 urls = [image_url_raw.strip()]
 
+            prev_count = len(
+                [u.strip() for u in (session.image_urls or "").split(",") if u.strip()]
+            )
+
             for url in urls:
                 if url:
                     await chatbot_repo.add_image_url(db, user_key, url)
@@ -165,10 +169,7 @@ class ChinbabangService:
             await chatbot_repo.update_data(db, user_key, "__step__", STEP_DATE)
             await db.commit()
 
-            current_urls = [
-                u.strip() for u in (session.image_urls or "").split(",") if u.strip()
-            ]
-            total = len(current_urls) + len(urls)
+            total = prev_count + len(urls)
             return self._ask_date(f"사진 {total}장을 받았담! 📸\n\n활동 날짜를 선택해달람.")
 
         return self._ask_photo()
@@ -402,7 +403,7 @@ class ChinbabangService:
     def _ask_photo(self, prefix: str = "") -> ChatbotResponse:
         text = (
             f"{prefix}📸 인증 사진을 올려달람!\n"
-            "1장 이상 올리면 자동으로 다음 단계로 넘어갈담."
+            "1장 이상 올리면 자동으로 다음 단계로 넘어가겠담!"
         )
         return self._build_response(
             text,
