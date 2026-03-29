@@ -24,6 +24,11 @@ def _unauthorized_response() -> ChatbotResponse:
         template={"outputs": [{"simpleText": {"text": "인증되지 않은 요청이담!"}}]}
     )
 
+@router.get("/chat")
+async def health_check():
+    """카카오 오픈빌더 스킬 URL 검증용 헬스체크"""
+    return {"status": "ok"}
+
 @router.post("/chat", response_model=ChatbotResponse)
 async def handle_chatbot_chat(
     request_data: ChatbotRequest,
