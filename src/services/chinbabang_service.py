@@ -190,9 +190,7 @@ class ChinbabangService:
         await chatbot_repo.upsert_submitter_profile(db, user_key, name, sid)
         await chatbot_repo.update_data(db, user_key, "__step__", STEP_INPUT_MEMBER_TYPE)
         await db.commit()
-        return self._ask_member_type(
-            f"이름: {name} / 학번: {sid} 저장했담!\n\n기존 회원인담, 신입인담?\n\n"
-        )
+        return self._ask_member_type(f"이름: {name} / 학번: {sid} 저장했담!\n\n")
 
     async def _handle_input_member_type(self, db, user_key, utterance):
         if utterance not in MEMBER_TYPES:
