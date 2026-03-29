@@ -468,7 +468,7 @@ class ChinbabangService:
 
                 if google_sheet_service.creds:
                     await google_sheet_service.register_chinbabang_submission(
-                        submission_data, local_paths
+                        submission_data, local_paths, submission_id=submission_id
                     )
             except Exception as drive_err:
                 print(

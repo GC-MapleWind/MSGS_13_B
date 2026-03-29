@@ -228,14 +228,14 @@ class GoogleSheetService:
         await asyncio.to_thread(worksheet.append_row, row)
 
     async def register_chinbabang_submission(
-        self, submission_data: dict, local_paths: list[str]
+        self, submission_data: dict, local_paths: list[str], submission_id: int | None = None
     ):
         """친바방 제출 데이터를 구글 드라이브/시트에 동기화합니다. (로컬 파일 기반)"""
         if not self.creds:
             raise Exception("Google Service Account credentials not found.")
 
         sheet_name = "친바방제출"
-        headers = ["제출자", "학번", "날짜", "활동유형", "신입수", "기존회원수", "사진수", "제출일시", "사진링크"]
+        headers = ["제출번호(DB)", "제출자", "학번", "날짜", "활동유형", "신입수", "기존회원수", "점수", "사진수", "제출일시", "사진링크"]
 
         # 1. 루트 폴더 하위에 친바방제출 폴더 생성/조회
         folder_id = await self._get_or_create_folder(self.root_folder_id, sheet_name)
@@ -262,12 +262,14 @@ class GoogleSheetService:
         import datetime as _dt
         submitted_at = _dt.datetime.utcnow() + _dt.timedelta(hours=9)
         row = [
+            submission_id if submission_id is not None else "",
             submitter_name,
             submission_data.get("submitter_student_id", ""),
             activity_date,
             submission_data.get("activity_type", ""),
             submission_data.get("newbie_count", 0),
             submission_data.get("existing_count", 0),
+            submission_data.get("score", 0),
             len(local_paths),
             submitted_at.strftime("%Y-%m-%d %H:%M"),
             "\n".join(drive_links),
