@@ -21,6 +21,7 @@ maplewind.db
 id_rsa
 id_rsa.pub
 ssh-key-*
+google-credentials.json
 
 # Environment variables
 .env
