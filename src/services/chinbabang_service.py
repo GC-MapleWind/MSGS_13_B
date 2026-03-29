@@ -161,24 +161,37 @@ class ChinbabangService:
             quick_replies=quick_replies,
         )
 
+    @staticmethod
+    def _is_safe_input(value: str) -> bool:
+        """수식 인젝션 및 특수 명령 입력 여부를 검사합니다."""
+        if not value or not value.strip():
+            return False
+        return value.strip()[0] not in ("=", "+", "-", "@", "\t", "\r", "|", "\\")
+
     async def _handle_input_name(self, db, user_key, utterance):
-        await chatbot_repo.update_data(db, user_key, "_name_tmp", utterance)
+        if not self._is_safe_input(utterance):
+            return self._build_response("이름에 사용할 수 없는 문자가 포함돼 있담! 이름만 입력해달람 😊")
+        name = utterance.strip()
+        await chatbot_repo.update_data(db, user_key, "_name_tmp", name)
         await chatbot_repo.update_data(db, user_key, "__step__", STEP_INPUT_ID)
         await db.commit()
         return self._build_response(
-            f"'{utterance}'님, 반갑담! 학번을 입력해달람\n(예: 202400001)"
+            f"'{name}'님, 반갑담! 학번을 입력해달람\n(예: 202400001)"
         )
 
     async def _handle_input_id(self, db, user_key, utterance):
+        sid = utterance.strip()
+        if not sid.isdigit():
+            return self._build_response("학번은 숫자만 입력해달람! (예: 202400001)")
         session = await chatbot_repo.get_session(db, user_key)
         data = session.data or {}
         name = data.get("_name_tmp", "")
 
-        await chatbot_repo.upsert_submitter_profile(db, user_key, name, utterance)
+        await chatbot_repo.upsert_submitter_profile(db, user_key, name, sid)
         await chatbot_repo.update_data(db, user_key, "__step__", STEP_INPUT_MEMBER_TYPE)
         await db.commit()
         return self._ask_member_type(
-            f"이름: {name} / 학번: {utterance} 저장했담!\n\n기존 회원인담, 신입인담?\n\n"
+            f"이름: {name} / 학번: {sid} 저장했담!\n\n기존 회원인담, 신입인담?\n\n"
         )
 
     async def _handle_input_member_type(self, db, user_key, utterance):

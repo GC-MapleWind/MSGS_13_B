@@ -46,6 +46,16 @@ class GoogleSheetService:
         """Drive API 쿼리 문자열의 특수문자를 이스케이프합니다."""
         return value.replace("\\", "\\\\").replace("'", "\\'")
 
+    @staticmethod
+    def _sanitize_cell(value: Any) -> Any:
+        """구글 시트 수식 인젝션 방지: 문자열이 수식 트리거 문자로 시작하면 앞에 작은따옴표를 붙입니다."""
+        if not isinstance(value, str):
+            return value
+        # =, +, -, @, \t, \r 로 시작하는 값은 수식으로 해석될 수 있음
+        if value and value[0] in ("=", "+", "-", "@", "\t", "\r"):
+            return "'" + value
+        return value
+
     async def _get_or_create_folder(self, parent_id: str, folder_name: str) -> str:
         """폴더를 찾거나 생성합니다 (공유 드라이브 지원)."""
         if not self.drive_service:
@@ -224,7 +234,7 @@ class GoogleSheetService:
             if header == "이미지 링크":
                 row.append("\n".join(drive_links))
             else:
-                row.append(data.get(header, ""))
+                row.append(self._sanitize_cell(data.get(header, "")))
         await asyncio.to_thread(worksheet.append_row, row)
 
     async def register_chinbabang_submission(
@@ -263,10 +273,10 @@ class GoogleSheetService:
         submitted_at = _dt.datetime.utcnow() + _dt.timedelta(hours=9)
         row = [
             submission_id if submission_id is not None else "",
-            submitter_name,
-            submission_data.get("submitter_student_id", ""),
-            activity_date,
-            submission_data.get("activity_type", ""),
+            self._sanitize_cell(submitter_name),
+            self._sanitize_cell(submission_data.get("submitter_student_id", "")),
+            self._sanitize_cell(activity_date),
+            self._sanitize_cell(submission_data.get("activity_type", "")),
             submission_data.get("newbie_count", 0),
             submission_data.get("existing_count", 0),
             submission_data.get("score", 0),
