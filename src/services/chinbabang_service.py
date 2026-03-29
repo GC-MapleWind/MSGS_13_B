@@ -237,7 +237,7 @@ class ChinbabangService:
         await chatbot_repo.update_data(db, user_key, "newbie_count", utterance)
         await chatbot_repo.update_data(db, user_key, "__step__", STEP_EXISTING)
         await db.commit()
-        return self._ask_count("기존 회원이 몇 명이었나요?")
+        return self._ask_count("기존 회원이 몇 명이었담?")
 
     async def _handle_existing(self, db, user_key, utterance):
         if utterance == "4+":
@@ -323,7 +323,7 @@ class ChinbabangService:
         photo_count = len(
             [u for u in (session.image_urls or "").split(",") if u.strip()]
         )
-        sid_suffix = profile.student_id[-2:] if profile and len(profile.student_id) >= 2 else (profile.student_id if profile else "?")
+        sid_suffix = profile.student_id if profile else "?"
 
         summary = (
             f"아래 내용으로 제출하겠담?\n\n"
