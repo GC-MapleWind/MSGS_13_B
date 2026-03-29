@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.controller.dependencies import get_db, get_current_user
@@ -14,7 +14,7 @@ async def get_comments(
     page: int = 1,
     limit: int = 20,
     db: AsyncSession = Depends(get_db),
-):
+) -> list[CommentResponse]:
     return await comment_service.get_comments(db, page=page, limit=limit)
 
 
@@ -23,15 +23,32 @@ async def create_comment(
     data: CommentCreate,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
-):
+) -> CommentResponse:
     """
     새 댓글을 생성하고 생성된 댓글을 반환합니다.
-    
+
     Parameters:
         data (CommentCreate): 생성할 댓글의 내용과 관련 메타데이터.
         current_user (User): 댓글 작성자(현재 인증된 사용자).
-    
+
     Returns:
         CommentResponse: 생성된 댓글 객체.
     """
     return await comment_service.create_comment(db, data, current_user)
+
+@router.delete(
+    "/{comment_id}",
+    response_model=None,
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+async def delete_comment(
+    comment_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> Response:
+    await comment_service.delete_comment(
+        db,
+        comment_id,
+        current_user,
+    )
+    return Response(status_code=status.HTTP_204_NO_CONTENT)

@@ -1,3 +1,4 @@
+import datetime
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -6,14 +7,29 @@ from src.models.comment import Comment
 
 async def get_all(db: AsyncSession, skip: int = 0, limit: int = 20) -> list[Comment]:
     result = await db.execute(
-        select(Comment).order_by(Comment.created_at.desc()).offset(skip).limit(limit)
+        select(Comment)
+        .where(Comment.is_deleted.is_(False))
+        .order_by(Comment.created_at.desc())
+        .offset(skip)
+        .limit(limit)
     )
     return list(result.scalars().all())
 
 
 async def get_total_count(db: AsyncSession) -> int:
-    result = await db.execute(select(func.count(Comment.id)))
+    result = await db.execute(
+        select(func.count(Comment.id)).where(Comment.is_deleted.is_(False))
+    )
     return result.scalar_one()
+
+
+async def get_by_id(db: AsyncSession, comment_id: int) -> Comment | None:
+    result = await db.execute(
+        select(Comment)
+        .where(Comment.id == comment_id)
+        .where(Comment.is_deleted.is_(False))
+    )
+    return result.scalar_one_or_none()
 
 
 async def create(db: AsyncSession, comment: Comment) -> Comment:
@@ -21,3 +37,9 @@ async def create(db: AsyncSession, comment: Comment) -> Comment:
     await db.commit()
     await db.refresh(comment)
     return comment
+
+
+async def delete(db: AsyncSession, comment: Comment) -> None:
+    comment.is_deleted = True
+    comment.deleted_at = datetime.datetime.now(datetime.UTC)
+    await db.commit()
