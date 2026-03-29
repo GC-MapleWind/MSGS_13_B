@@ -208,4 +208,50 @@ class GoogleSheetService:
                 row.append(data.get(header, ""))
         await asyncio.to_thread(worksheet.append_row, row)
 
+    async def register_chinbabang_submission(
+        self, submission_data: dict, photo_urls: list[str]
+    ):
+        """친바방 제출 데이터를 구글 드라이브/시트에 등록합니다."""
+        if not self.creds:
+            raise Exception("Google Service Account credentials not found.")
+
+        sheet_name = "친바방제출"
+        headers = ["제출자", "학번", "날짜", "활동유형", "신입수", "기존회원수", "사진수", "제출일시", "사진링크"]
+
+        # 1. 루트 폴더 하위에 친바방제출 폴더 생성/조회
+        folder_id = await self._get_or_create_folder(self.root_folder_id, sheet_name)
+
+        # 2. 스프레드시트 생성/조회
+        worksheet = await self._get_or_create_spreadsheet(folder_id, sheet_name, headers)
+
+        # 3. 날짜별 사진 폴더 생성
+        activity_date = submission_data.get("activity_date", "unknown")
+        submitter_name = submission_data.get("submitter_name", "user")
+        date_folder_id = await self._get_or_create_folder(folder_id, activity_date)
+        user_folder_id = await self._get_or_create_folder(date_folder_id, submitter_name)
+
+        # 4. 사진 업로드
+        start_index = await self._get_next_image_index(user_folder_id, submitter_name)
+        drive_links = []
+        for i, url in enumerate(photo_urls):
+            filename = f"{submitter_name}{start_index + i}.jpg"
+            link = await self._upload_image(user_folder_id, url, filename)
+            drive_links.append(link)
+
+        # 5. 시트 행 추가
+        import datetime as _dt
+        submitted_at = _dt.datetime.utcnow() + _dt.timedelta(hours=9)
+        row = [
+            submitter_name,
+            submission_data.get("submitter_student_id", ""),
+            activity_date,
+            submission_data.get("activity_type", ""),
+            submission_data.get("newbie_count", 0),
+            submission_data.get("existing_count", 0),
+            len(photo_urls),
+            submitted_at.strftime("%Y-%m-%d %H:%M"),
+            "\n".join(drive_links),
+        ]
+        await asyncio.to_thread(worksheet.append_row, row)
+
 google_sheet_service = GoogleSheetService()

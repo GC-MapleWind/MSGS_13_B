@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.schemas.chatbot_dto import ChatbotRequest, ChatbotResponse
 from src.repositories.chatbot_repo import chatbot_repo
 from src.services.google_sheet_service import google_sheet_service
+from src.services.chinbabang_service import chinbabang_service
 from src.database_chatbot import get_chatbot_db
 
 
@@ -22,10 +23,27 @@ class ChatbotService:
         if not user_key:
             return self._build_empty_response("사용자 정보를 확인할 수 없담! 카카오 앱에서 다시 시도해달람")
         utterance = request_data.userRequest.get("utterance", "").strip()
-        
+
         session = await chatbot_repo.get_or_create_session(db, user_key)
         current_data = session.data or {}
         active_event = current_data.get("active_event")
+
+        # 0-a. 친바방 제출 트리거
+        if utterance == "친바방 제출":
+            await chatbot_repo.delete_session(db, user_key)
+            await chatbot_repo.get_or_create_session(db, user_key)
+            await chatbot_repo.update_data(db, user_key, "active_event", "친바방제출")
+            await chatbot_repo.update_data(db, user_key, "__started__", "true")
+            await db.commit()
+            return await chinbabang_service.start(db, user_key)
+
+        # 0-b. 제출 내역 조회
+        if utterance == "제출 내역":
+            return await chinbabang_service.show_history(db, user_key)
+
+        # 0-c. 친바방 플로우 진행 중
+        if active_event == "친바방제출" and current_data.get("__started__"):
+            return await chinbabang_service.process(db, request_data, background_tasks)
 
         # 1. 이미 진행 중인 이벤트가 있는 경우 -> 질문 답변 처리로 넘김
         if active_event and current_data.get("__started__"):
@@ -36,24 +54,27 @@ class ChatbotService:
         if event:
             await chatbot_repo.update_data(db, user_key, "active_event", event.name)
             await chatbot_repo.update_data(db, user_key, "__started__", "true")
-            
+
             steps = await chatbot_repo.get_steps_by_event(db, event.name)
             if not steps:
                 await db.commit()
                 return self._build_empty_response(f"{event.name}에 등록된 질문이 없담! 운영진에게 문의해 주면 좋겠담..")
-            
+
             await db.commit()
             return self._build_empty_response(f"알겠담! {event.name} 참여를 시작하겠담\n\n{steps[0].question_text}")
 
-        # 3. 아무것도 해당하지 않으면 이벤트 목록 반환
+        # 3. 아무것도 해당하지 않으면 메뉴 반환
         events = await chatbot_repo.get_all_events(db)
-        if not events:
-            return self._build_empty_response("현재 진행 중인 이벤트가 없담! 다음에 다시 확인해 달람")
+        quick_replies = [
+            {"label": "친바방 제출", "action": "message", "messageText": "친바방 제출"},
+            {"label": "제출 내역", "action": "message", "messageText": "제출 내역"},
+        ]
+        for e in events:
+            quick_replies.append({"label": e.name, "action": "message", "messageText": e.name})
 
-        quick_replies = [{"label": e.name, "action": "message", "messageText": e.name} for e in events]
         return self._build_empty_response(
-            "아래의 버튼을 눌러 참여할 이벤트를 선택해 달람!",
-            quick_replies=quick_replies
+            "무엇을 도와드릴까요? 아래 버튼을 눌러주세요!",
+            quick_replies=quick_replies,
         )
 
     async def process_chatbot_info(self, db: AsyncSession, request_data: ChatbotRequest, background_tasks: BackgroundTasks) -> ChatbotResponse:

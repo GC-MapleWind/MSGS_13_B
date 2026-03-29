@@ -1,7 +1,8 @@
+import datetime
 from typing import Any
 from sqlalchemy import select, delete
 from sqlalchemy.ext.asyncio import AsyncSession
-from src.models.chatbot import TemporaryImage, InfoList, EventInfo
+from src.models.chatbot import ActivitySubmission, SubmitterProfile, TemporaryImage, InfoList, EventInfo
 
 
 class ChatbotRepository:
@@ -121,6 +122,63 @@ class ChatbotRepository:
             delete(TemporaryImage).where(TemporaryImage.user_key == user_key)
         )
         return result.rowcount > 0
+
+    # --- SubmitterProfile ---
+
+    async def get_submitter_profile(self, db: AsyncSession, user_key: str) -> SubmitterProfile | None:
+        result = await db.execute(
+            select(SubmitterProfile).where(SubmitterProfile.user_key == user_key)
+        )
+        return result.scalars().first()
+
+    async def upsert_submitter_profile(self, db: AsyncSession, user_key: str, name: str, student_id: str) -> SubmitterProfile:
+        profile = await self.get_submitter_profile(db, user_key)
+        if profile:
+            profile.name = name
+            profile.student_id = student_id
+        else:
+            profile = SubmitterProfile(user_key=user_key, name=name, student_id=student_id)
+            db.add(profile)
+        await db.flush()
+        return profile
+
+    # --- ActivitySubmission ---
+
+    async def create_submission(
+        self,
+        db: AsyncSession,
+        user_key: str,
+        submitter_name: str,
+        submitter_student_id: str,
+        photo_urls: str,
+        activity_date: str,
+        activity_type: str,
+        newbie_count: int,
+        existing_count: int,
+    ) -> ActivitySubmission:
+        submission = ActivitySubmission(
+            user_key=user_key,
+            submitter_name=submitter_name,
+            submitter_student_id=submitter_student_id,
+            photo_urls=photo_urls,
+            activity_date=activity_date,
+            activity_type=activity_type,
+            newbie_count=newbie_count,
+            existing_count=existing_count,
+            submitted_at=datetime.datetime.utcnow(),
+        )
+        db.add(submission)
+        await db.flush()
+        return submission
+
+    async def get_submissions_by_user(self, db: AsyncSession, user_key: str, limit: int = 5) -> list[ActivitySubmission]:
+        result = await db.execute(
+            select(ActivitySubmission)
+            .where(ActivitySubmission.user_key == user_key)
+            .order_by(ActivitySubmission.submitted_at.desc())
+            .limit(limit)
+        )
+        return list(result.scalars().all())
 
 
 chatbot_repo = ChatbotRepository()
