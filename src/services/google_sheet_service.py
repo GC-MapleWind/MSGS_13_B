@@ -146,6 +146,25 @@ class GoogleSheetService:
             )
             return file.get('webViewLink')
 
+    async def _upload_local_file(self, folder_id: str, file_path: str, filename: str) -> str:
+        """로컬 파일을 드라이브에 업로드합니다."""
+        if not self.drive_service:
+            raise Exception("Google Drive Service not initialized.")
+
+        from googleapiclient.http import MediaFileUpload
+        file_metadata = {'name': filename, 'parents': [folder_id]}
+        media = MediaFileUpload(file_path, mimetype='image/jpeg', resumable=True)
+
+        file = await asyncio.to_thread(
+            self.drive_service.files().create(
+                body=file_metadata,
+                media_body=media,
+                fields='id, webViewLink',
+                supportsAllDrives=True
+            ).execute
+        )
+        return file.get('webViewLink', '')
+
     async def _get_next_image_index(self, folder_id: str, prefix: str) -> int:
         """다음 파일 번호 결정 (공유 드라이브 지원)."""
         if not self.drive_service:
@@ -209,9 +228,9 @@ class GoogleSheetService:
         await asyncio.to_thread(worksheet.append_row, row)
 
     async def register_chinbabang_submission(
-        self, submission_data: dict, photo_urls: list[str]
+        self, submission_data: dict, local_paths: list[str]
     ):
-        """친바방 제출 데이터를 구글 드라이브/시트에 등록합니다."""
+        """친바방 제출 데이터를 구글 드라이브/시트에 동기화합니다. (로컬 파일 기반)"""
         if not self.creds:
             raise Exception("Google Service Account credentials not found.")
 
@@ -230,13 +249,14 @@ class GoogleSheetService:
         date_folder_id = await self._get_or_create_folder(folder_id, activity_date)
         user_folder_id = await self._get_or_create_folder(date_folder_id, submitter_name)
 
-        # 4. 사진 업로드
+        # 4. 로컬 파일 → Drive 업로드
         start_index = await self._get_next_image_index(user_folder_id, submitter_name)
         drive_links = []
-        for i, url in enumerate(photo_urls):
-            filename = f"{submitter_name}{start_index + i}.jpg"
-            link = await self._upload_image(user_folder_id, url, filename)
-            drive_links.append(link)
+        for i, path in enumerate(local_paths):
+            if os.path.exists(path):
+                filename = f"{submitter_name}{start_index + i}.jpg"
+                link = await self._upload_local_file(user_folder_id, path, filename)
+                drive_links.append(link)
 
         # 5. 시트 행 추가
         import datetime as _dt
@@ -248,7 +268,7 @@ class GoogleSheetService:
             submission_data.get("activity_type", ""),
             submission_data.get("newbie_count", 0),
             submission_data.get("existing_count", 0),
-            len(photo_urls),
+            len(local_paths),
             submitted_at.strftime("%Y-%m-%d %H:%M"),
             "\n".join(drive_links),
         ]

@@ -1,3 +1,4 @@
+import os
 import re
 import datetime
 
@@ -7,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.schemas.chatbot_dto import ChatbotRequest, ChatbotResponse
 from src.repositories.chatbot_repo import chatbot_repo
+from src.database_chatbot import get_chatbot_db
 
 STEP_CONFIRM_SUBMITTER = "confirm_submitter"
 STEP_INPUT_NAME = "input_name"
@@ -283,12 +285,14 @@ class ChinbabangService:
                 "existing_count": int(data.get("existing_count", 0)),
             }
 
-            await chatbot_repo.create_submission(db, **submission_data)
+            submission = await chatbot_repo.create_submission(db, **submission_data)
+            submission_id = submission.id
             await chatbot_repo.delete_session(db, user_key)
             await db.commit()
 
             background_tasks.add_task(
                 self._process_submission_task,
+                submission_id,
                 submission_data,
                 photo_urls,
                 callback_url,
@@ -366,24 +370,76 @@ class ChinbabangService:
 
     async def _process_submission_task(
         self,
+        submission_id: int,
         submission_data: dict,
         photo_urls: list[str],
         callback_url: str | None,
     ):
         try:
-            from src.services.google_sheet_service import google_sheet_service
-
-            await google_sheet_service.register_chinbabang_submission(
-                submission_data, photo_urls
+            # 1. CDN에서 다운로드 → 서버 로컬 저장
+            local_paths = await self._download_photos_locally(
+                photo_urls,
+                submission_data.get("activity_date", "unknown"),
+                submission_data.get("submitter_name", "unknown"),
             )
+
+            # 2. DB의 photo_urls를 로컬 경로로 업데이트
+            async for db in get_chatbot_db():
+                await chatbot_repo.update_submission_photo_urls(
+                    db, submission_id, ",".join(local_paths)
+                )
+                await db.commit()
+                break
+
+            # 3. Google Drive 동기화 (열람용, 실패해도 제출 완료 처리)
+            try:
+                from src.services.google_sheet_service import google_sheet_service
+                if google_sheet_service.creds:
+                    await google_sheet_service.register_chinbabang_submission(
+                        submission_data, local_paths
+                    )
+            except Exception as drive_err:
+                print(f"[WARN] Google Drive sync failed (submission saved locally): {drive_err}")
+
             msg = "✅ 제출 완료!\n\n다음부터는 제출자 정보를 다시 입력하지 않아도 된담 😊"
             await self._send_callback(callback_url, msg)
         except Exception as e:
             print(f"[ERROR] Chinbabang submission task failed: {e}")
             await self._send_callback(
                 callback_url,
-                "앗! 제출은 완료됐지만 시트 저장 중 오류가 발생했담! 운영진에게 문의해달람!",
+                "앗! 제출은 완료됐지만 사진 저장 중 오류가 발생했담! 운영진에게 문의해달람!",
             )
+
+    async def _download_photos_locally(
+        self,
+        photo_urls: list[str],
+        activity_date: str,
+        submitter_name: str,
+    ) -> list[str]:
+        """CDN URL에서 사진을 다운로드해 서버 로컬에 저장합니다."""
+        base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        timestamp = int(datetime.datetime.utcnow().timestamp())
+        save_dir = os.path.join(
+            base_dir, "media", "chinbabang", activity_date, f"{submitter_name}_{timestamp}"
+        )
+        os.makedirs(save_dir, exist_ok=True)
+
+        local_paths: list[str] = []
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            for i, url in enumerate(photo_urls):
+                try:
+                    resp = await client.get(url)
+                    if resp.status_code == 200:
+                        filename = f"photo_{i + 1:03d}.jpg"
+                        path = os.path.join(save_dir, filename)
+                        with open(path, "wb") as f:
+                            f.write(resp.content)
+                        local_paths.append(path)
+                    else:
+                        print(f"[WARN] Photo download failed (HTTP {resp.status_code}): {url}")
+                except Exception as e:
+                    print(f"[ERROR] Photo download error: {e}")
+        return local_paths
 
     async def _send_callback(self, callback_url: str | None, text: str):
         if not callback_url:

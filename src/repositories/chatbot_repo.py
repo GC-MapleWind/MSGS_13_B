@@ -180,5 +180,14 @@ class ChatbotRepository:
         )
         return list(result.scalars().all())
 
+    async def update_submission_photo_urls(self, db: AsyncSession, submission_id: int, photo_urls: str) -> None:
+        result = await db.execute(
+            select(ActivitySubmission).where(ActivitySubmission.id == submission_id)
+        )
+        submission = result.scalars().first()
+        if submission:
+            submission.photo_urls = photo_urls
+            await db.flush()
+
 
 chatbot_repo = ChatbotRepository()
