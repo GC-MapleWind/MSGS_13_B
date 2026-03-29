@@ -198,9 +198,9 @@ class SubmitterProfileAdmin(ModelView, model=SubmitterProfile):
     category = "친바방"
     sessionmaker = chatbot_async_session
 
-    column_list = [SubmitterProfile.id, SubmitterProfile.user_key, SubmitterProfile.name, SubmitterProfile.student_id]
-    column_searchable_list = [SubmitterProfile.name, SubmitterProfile.student_id]
-    column_sortable_list = [SubmitterProfile.id, SubmitterProfile.name]
+    column_list = [SubmitterProfile.id, SubmitterProfile.user_key, SubmitterProfile.name, SubmitterProfile.student_id, SubmitterProfile.member_type]
+    column_searchable_list = [SubmitterProfile.name, SubmitterProfile.student_id, SubmitterProfile.member_type]
+    column_sortable_list = [SubmitterProfile.id, SubmitterProfile.name, SubmitterProfile.member_type]
 
 
 class ActivitySubmissionAdmin(ModelView, model=ActivitySubmission):
@@ -219,10 +219,11 @@ class ActivitySubmissionAdmin(ModelView, model=ActivitySubmission):
         ActivitySubmission.activity_type,
         ActivitySubmission.newbie_count,
         ActivitySubmission.existing_count,
+        ActivitySubmission.score,
         ActivitySubmission.submitted_at,
     ]
     column_searchable_list = [ActivitySubmission.submitter_name, ActivitySubmission.activity_type]
-    column_sortable_list = [ActivitySubmission.id, ActivitySubmission.submitted_at, ActivitySubmission.activity_date]
+    column_sortable_list = [ActivitySubmission.id, ActivitySubmission.submitted_at, ActivitySubmission.activity_date, ActivitySubmission.score]
     column_default_sort = (ActivitySubmission.submitted_at, True)
 
 

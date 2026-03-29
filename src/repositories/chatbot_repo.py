@@ -131,16 +131,33 @@ class ChatbotRepository:
         )
         return result.scalars().first()
 
-    async def upsert_submitter_profile(self, db: AsyncSession, user_key: str, name: str, student_id: str) -> SubmitterProfile:
+    async def upsert_submitter_profile(
+        self,
+        db: AsyncSession,
+        user_key: str,
+        name: str,
+        student_id: str,
+        member_type: str | None = None,
+    ) -> SubmitterProfile:
         profile = await self.get_submitter_profile(db, user_key)
         if profile:
             profile.name = name
             profile.student_id = student_id
+            if member_type:
+                profile.member_type = member_type
         else:
-            profile = SubmitterProfile(user_key=user_key, name=name, student_id=student_id)
+            profile = SubmitterProfile(
+                user_key=user_key, name=name, student_id=student_id, member_type=member_type
+            )
             db.add(profile)
         await db.flush()
         return profile
+
+    async def update_member_type(self, db: AsyncSession, user_key: str, member_type: str) -> None:
+        profile = await self.get_submitter_profile(db, user_key)
+        if profile:
+            profile.member_type = member_type
+            await db.flush()
 
     # --- ActivitySubmission ---
 
@@ -155,6 +172,7 @@ class ChatbotRepository:
         activity_type: str,
         newbie_count: int,
         existing_count: int,
+        score: int = 0,
     ) -> ActivitySubmission:
         submission = ActivitySubmission(
             user_key=user_key,
@@ -165,6 +183,7 @@ class ChatbotRepository:
             activity_type=activity_type,
             newbie_count=newbie_count,
             existing_count=existing_count,
+            score=score,
             submitted_at=datetime.datetime.utcnow(),
         )
         db.add(submission)
