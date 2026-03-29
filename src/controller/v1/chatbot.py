@@ -1,4 +1,5 @@
 import os
+import secrets
 from fastapi import APIRouter, Header, Depends, BackgroundTasks
 from sqlalchemy.ext.asyncio import AsyncSession
 from src.schemas.chatbot_dto import ChatbotRequest, ChatbotResponse
@@ -16,7 +17,7 @@ def verify_authorization(
     expected_key = os.getenv("CHATBOT_AUTHORIZATION_KEY")
     if not expected_key:
         return False
-    return authorization == expected_key
+    return secrets.compare_digest(authorization, expected_key) if authorization else False
 
 def _unauthorized_response() -> ChatbotResponse:
     return ChatbotResponse(
