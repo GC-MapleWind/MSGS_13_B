@@ -78,6 +78,35 @@ def _kst_today() -> datetime.date:
     return kst_now.date()
 
 
+def _calc_score(
+    member_type: str,
+    submitter_name: str,
+    newbie_count: int,
+    existing_count: int,
+    newbie_names: str,
+    existing_names: str,
+) -> int:
+    """점수를 계산합니다. 제출자 본인이 이름 목록에 포함된 경우 제외합니다."""
+    name = submitter_name.strip()
+
+    def _names_list(raw: str) -> list[str]:
+        return [n.strip() for n in raw.split(",") if n.strip() and n.strip() != "없음"]
+
+    adj_newbie = newbie_count
+    adj_existing = existing_count
+
+    if member_type == "신입 회원":
+        if name and name in _names_list(newbie_names):
+            adj_newbie = max(0, adj_newbie - 1)
+        if name and name in _names_list(existing_names):
+            adj_existing = max(0, adj_existing - 1)
+        return adj_newbie + adj_existing
+    else:
+        if name and name in _names_list(existing_names):
+            adj_existing = max(0, adj_existing - 1)
+        return adj_newbie
+
+
 class ChinbabangService:
     async def start(self, db: AsyncSession, user_key: str) -> ChatbotResponse:
         """친바방 제출 플로우 시작 - 제출자 프로필 유무에 따라 분기"""
@@ -141,7 +170,8 @@ class ChinbabangService:
             "📋 빠른 제출 모드담!\n"
             "아래 양식을 복사해서 수정 후 보내달람!\n\n"
             f"📌 활동 종류:\n{activity_list}\n\n"
-            f"📌 유형: 기존 회원, 신입 회원"
+            f"📌 유형: 기존 회원, 신입 회원\n\n"
+            "⚠️ 신입/기존 이름은 본인 제외 후 입력해달람!"
         )
         return ChatbotResponse(
             version="2.0",
@@ -667,7 +697,7 @@ class ChinbabangService:
         await db.commit()
         return self._build_response(
             "함께한 신입 회원 이름을 입력해달람!\n"
-            "(콤마로 구분, 없으면 '없음')\n\n"
+            "(본인 이름은 빼고, 콤마로 구분, 없으면 '없음')\n\n"
             "예: 핑크빈, 예티, 주황버섯",
             quick_replies=[self._back_reply()],
         )
@@ -697,7 +727,7 @@ class ChinbabangService:
             prefix = "🌱 신입 0명\n\n"
         return self._build_response(
             f"{prefix}이번엔 함께한 기존 회원 이름을 입력해달람!\n"
-            "(콤마로 구분, 없으면 '없음')",
+            "(본인 이름은 빼고, 콤마로 구분, 없으면 '없음')",
             quick_replies=[self._back_reply()],
         )
 
@@ -798,10 +828,14 @@ class ChinbabangService:
             newbie_count = int(data.get("newbie_count", 0))
             existing_count = int(data.get("existing_count", 0))
             member_type = profile.member_type if profile else "기존 회원"
-            if member_type == "신입 회원":
-                score = newbie_count + existing_count
-            else:
-                score = newbie_count
+            submitter_name = profile.name if profile else ""
+            newbie_names = data.get("newbie_names", "")
+            existing_names = data.get("existing_names", "")
+            score = _calc_score(
+                member_type, submitter_name,
+                newbie_count, existing_count,
+                newbie_names, existing_names,
+            )
 
             submission_data = {
                 "user_key": user_key,
@@ -812,8 +846,8 @@ class ChinbabangService:
                 "activity_type": data.get("activity_type", ""),
                 "newbie_count": newbie_count,
                 "existing_count": existing_count,
-                "newbie_names": data.get("newbie_names", ""),
-                "existing_names": data.get("existing_names", ""),
+                "newbie_names": newbie_names,
+                "existing_names": existing_names,
                 "score": score,
             }
 
@@ -937,13 +971,14 @@ class ChinbabangService:
         if step == STEP_NEWBIE_NAMES:
             return self._build_response(
                 "함께한 신입 회원 이름을 입력해달람!\n"
-                "(콤마로 구분, 없으면 '없음')\n\n"
+                "(본인 이름은 빼고, 콤마로 구분, 없으면 '없음')\n\n"
                 "예: 김철수, 박영희, 이민수",
                 quick_replies=[self._back_reply()],
             )
         if step == STEP_EXISTING_NAMES:
             return self._build_response(
-                "함께한 기존 회원 이름을 입력해달람!\n(콤마로 구분, 없으면 '없음')",
+                "함께한 기존 회원 이름을 입력해달람!\n"
+                "(본인 이름은 빼고, 콤마로 구분, 없으면 '없음')",
                 quick_replies=[self._back_reply()],
             )
         if step == STEP_CONFIRM:
@@ -971,15 +1006,16 @@ class ChinbabangService:
         newbie_count = int(data.get("newbie_count", 0))
         existing_count = int(data.get("existing_count", 0))
         member_type = profile.member_type if profile else "기존 회원"
-        if member_type == "신입 회원":
-            score = newbie_count + existing_count
-        else:
-            score = newbie_count
-
-        past_total = await chatbot_repo.get_total_score(db, user_key)
-
         newbie_names = data.get("newbie_names", "")
         existing_names = data.get("existing_names", "")
+        submitter_name = profile.name if profile else ""
+        score = _calc_score(
+            member_type, submitter_name,
+            newbie_count, existing_count,
+            newbie_names, existing_names,
+        )
+
+        past_total = await chatbot_repo.get_total_score(db, user_key)
         newbie_label = (
             f"{newbie_count}명 ({newbie_names})"
             if newbie_names
