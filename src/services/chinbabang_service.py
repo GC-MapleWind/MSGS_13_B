@@ -170,7 +170,8 @@ class ChinbabangService:
             "📋 빠른 제출 모드담!\n"
             "아래 양식을 복사해서 수정 후 보내달람!\n\n"
             f"📌 활동 종류:\n{activity_list}\n\n"
-            f"📌 유형: 기존 회원, 신입 회원"
+            f"📌 유형: 기존 회원, 신입 회원\n\n"
+            "⚠️ 신입/기존 이름은 본인 제외 후 입력해달람!"
         )
         return ChatbotResponse(
             version="2.0",
@@ -696,7 +697,7 @@ class ChinbabangService:
         await db.commit()
         return self._build_response(
             "함께한 신입 회원 이름을 입력해달람!\n"
-            "(콤마로 구분, 없으면 '없음')\n\n"
+            "(본인 이름은 빼고, 콤마로 구분, 없으면 '없음')\n\n"
             "예: 핑크빈, 예티, 주황버섯",
             quick_replies=[self._back_reply()],
         )
@@ -726,7 +727,7 @@ class ChinbabangService:
             prefix = "🌱 신입 0명\n\n"
         return self._build_response(
             f"{prefix}이번엔 함께한 기존 회원 이름을 입력해달람!\n"
-            "(콤마로 구분, 없으면 '없음')",
+            "(본인 이름은 빼고, 콤마로 구분, 없으면 '없음')",
             quick_replies=[self._back_reply()],
         )
 
@@ -970,13 +971,14 @@ class ChinbabangService:
         if step == STEP_NEWBIE_NAMES:
             return self._build_response(
                 "함께한 신입 회원 이름을 입력해달람!\n"
-                "(콤마로 구분, 없으면 '없음')\n\n"
+                "(본인 이름은 빼고, 콤마로 구분, 없으면 '없음')\n\n"
                 "예: 김철수, 박영희, 이민수",
                 quick_replies=[self._back_reply()],
             )
         if step == STEP_EXISTING_NAMES:
             return self._build_response(
-                "함께한 기존 회원 이름을 입력해달람!\n(콤마로 구분, 없으면 '없음')",
+                "함께한 기존 회원 이름을 입력해달람!\n"
+                "(본인 이름은 빼고, 콤마로 구분, 없으면 '없음')",
                 quick_replies=[self._back_reply()],
             )
         if step == STEP_CONFIRM:
