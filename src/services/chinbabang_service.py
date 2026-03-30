@@ -61,6 +61,7 @@ STEP_BACK_MAP = {
     STEP_INPUT_ID: STEP_INPUT_NAME,
     STEP_INPUT_MEMBER_TYPE: STEP_INPUT_ID,
     STEP_SELECT_MODE: STEP_INPUT_MEMBER_TYPE,
+    STEP_QUICK_INPUT: STEP_SELECT_MODE,
     STEP_PHOTO: STEP_SELECT_MODE,
     STEP_DATE: STEP_PHOTO,
     STEP_DATE_MANUAL: STEP_DATE,
@@ -117,13 +118,14 @@ class ChinbabangService:
         )
         await db.commit()
 
+        today_str = _kst_today().strftime("%Y-%m-%d")
         if profile:
             member_label = profile.member_type or "기존 회원"
             example = (
                 f"이름: {profile.name}\n"
                 f"학번: {profile.student_id}\n"
                 f"유형: {member_label}\n"
-                f"날짜: 2026-03-29\n"
+                f"날짜: {today_str}\n"
                 f"활동: 밥/술 먹기\n"
                 f"신입: 핑크빈, 예티\n"
                 f"기존: 윌, 루시드"
@@ -133,7 +135,7 @@ class ChinbabangService:
                 "이름: 홍길동\n"
                 "학번: 202400001\n"
                 "유형: 신입\n"
-                "날짜: 2026-03-29\n"
+                f"날짜: {today_str}\n"
                 "활동: 밥/술 먹기\n"
                 "신입: 핑크빈, 예티, 주황버섯\n"
                 "기존: 윌, 루시드, 데미안"
@@ -155,6 +157,7 @@ class ChinbabangService:
                     {"simpleText": {"text": example}},
                 ],
                 "quickReplies": [
+                    self._back_reply(),
                     {"label": "취소", "action": "message", "messageText": "취소"},
                 ],
             },
@@ -197,6 +200,12 @@ class ChinbabangService:
             if late_urls:
                 total = await self._save_images(db, user_key, late_urls)
                 await db.commit()
+                if step == STEP_CONFIRM:
+                    return await self._build_confirm_response(
+                        db,
+                        user_key,
+                        prefix=f"📸 사진 추가 저장! (총 {total}장)\n\n",
+                    )
                 return self._build_response(
                     f"📸 사진 추가 저장! (총 {total}장)\n"
                     "이어서 진행해달람!",
@@ -985,11 +994,6 @@ class ChinbabangService:
             return self._build_response(
                 "더 이상 뒤로 갈 수 없담! 계속 진행해달람 😊"
             )
-
-        if prev_step == STEP_PHOTO:
-            session = await chatbot_repo.get_session(db, user_key)
-            if session:
-                session.image_urls = ""
 
         await chatbot_repo.update_data(
             db, user_key, "__step__", prev_step

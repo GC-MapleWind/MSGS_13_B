@@ -63,8 +63,11 @@ async def _migrate_chatbot_db() -> None:
                 await conn.execute(
                     text(f"ALTER TABLE {table} ADD COLUMN {column} {col_type}")
                 )
-            except Exception:
-                pass
+            except Exception as exc:
+                msg = str(exc).lower()
+                if "duplicate column name" in msg or "already exists" in msg:
+                    continue
+                raise
 
 async def init_chatbot_db() -> None:
     async with chatbot_engine.begin() as conn:

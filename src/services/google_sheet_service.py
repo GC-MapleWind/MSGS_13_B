@@ -245,7 +245,7 @@ class GoogleSheetService:
             raise Exception("Google Service Account credentials not found.")
 
         sheet_name = "친바방제출"
-        headers = ["제출번호(DB)", "제출자", "학번", "날짜", "활동유형", "신입수", "신입이름", "기존회원수", "기존이름", "점수", "사진수", "제출일시", "사진링크"]
+        headers = ["제출번호(DB)", "제출자", "학번", "날짜", "활동유형", "신입수", "기존회원수", "점수", "사진수", "제출일시", "사진링크", "신입이름", "기존이름"]
 
         # 1. 루트 폴더 하위에 친바방제출 폴더 생성/조회
         folder_id = await self._get_or_create_folder(self.root_folder_id, sheet_name)
@@ -278,13 +278,13 @@ class GoogleSheetService:
             self._sanitize_cell(activity_date),
             self._sanitize_cell(submission_data.get("activity_type", "")),
             submission_data.get("newbie_count", 0),
-            self._sanitize_cell(submission_data.get("newbie_names", "")),
             submission_data.get("existing_count", 0),
-            self._sanitize_cell(submission_data.get("existing_names", "")),
             submission_data.get("score", 0),
             len(local_paths),
             submitted_at.strftime("%Y-%m-%d %H:%M"),
             "\n".join(drive_links),
+            self._sanitize_cell(submission_data.get("newbie_names", "")),
+            self._sanitize_cell(submission_data.get("existing_names", "")),
         ]
         await asyncio.to_thread(worksheet.append_row, row, value_input_option='RAW')
 
