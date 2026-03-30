@@ -53,7 +53,7 @@ class SubmitterProfile(ChatbotBase):
     user_key: Mapped[str] = mapped_column(String, unique=True, index=True)
     name: Mapped[str] = mapped_column(String)
     student_id: Mapped[str] = mapped_column(String)
-    member_type: Mapped[str | None] = mapped_column(String, nullable=True)  # "기존" or "신입"
+    member_type: Mapped[str | None] = mapped_column(String, nullable=True)  # "기존 회원" or "신입 회원"
 
 
 class ActivitySubmission(ChatbotBase):
