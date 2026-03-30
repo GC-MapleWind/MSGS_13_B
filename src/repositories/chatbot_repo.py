@@ -181,6 +181,8 @@ class ChatbotRepository:
         activity_type: str,
         newbie_count: int,
         existing_count: int,
+        newbie_names: str = "",
+        existing_names: str = "",
         score: int = 0,
     ) -> ActivitySubmission:
         submission = ActivitySubmission(
@@ -192,6 +194,8 @@ class ChatbotRepository:
             activity_type=activity_type,
             newbie_count=newbie_count,
             existing_count=existing_count,
+            newbie_names=newbie_names,
+            existing_names=existing_names,
             score=score,
             submitted_at=datetime.datetime.utcnow(),
         )

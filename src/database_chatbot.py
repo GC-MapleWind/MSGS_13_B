@@ -51,7 +51,23 @@ async def seed_registration_steps() -> None:
         except Exception as e:
             print(f"Seeding Error: {e}")
 
+async def _migrate_chatbot_db() -> None:
+    """기존 테이블에 누락된 컬럼을 추가합니다."""
+    migrations = [
+        ("activity_submissions", "newbie_names", "TEXT DEFAULT ''"),
+        ("activity_submissions", "existing_names", "TEXT DEFAULT ''"),
+    ]
+    async with chatbot_engine.begin() as conn:
+        for table, column, col_type in migrations:
+            try:
+                await conn.execute(
+                    text(f"ALTER TABLE {table} ADD COLUMN {column} {col_type}")
+                )
+            except Exception:
+                pass
+
 async def init_chatbot_db() -> None:
     async with chatbot_engine.begin() as conn:
         await conn.run_sync(ChatbotBase.metadata.create_all)
+    await _migrate_chatbot_db()
     await seed_registration_steps()
