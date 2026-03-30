@@ -18,12 +18,16 @@ STEP_PHOTO = "photo"
 STEP_DATE = "date"
 STEP_DATE_MANUAL = "date_manual"
 STEP_TYPE = "type"
+STEP_NEWBIE_NAMES = "newbie_names"
+STEP_EXISTING_NAMES = "existing_names"
+STEP_CONFIRM = "confirm"
+STEP_QUICK_INPUT = "quick_input"
+
+# [LEGACY] 인원수 기반 스텝 - 이름 기반으로 교체됨, 롤백 시 사용
 STEP_NEWBIE = "newbie"
 STEP_NEWBIE_MANUAL = "newbie_manual"
 STEP_EXISTING = "existing"
 STEP_EXISTING_MANUAL = "existing_manual"
-STEP_CONFIRM = "confirm"
-STEP_QUICK_INPUT = "quick_input"
 
 ACTIVITY_TYPES = [
     "밥/술 먹기",
@@ -59,11 +63,9 @@ STEP_BACK_MAP = {
     STEP_DATE: STEP_PHOTO,
     STEP_DATE_MANUAL: STEP_DATE,
     STEP_TYPE: STEP_DATE,
-    STEP_NEWBIE: STEP_TYPE,
-    STEP_NEWBIE_MANUAL: STEP_NEWBIE,
-    STEP_EXISTING: STEP_NEWBIE,
-    STEP_EXISTING_MANUAL: STEP_EXISTING,
-    STEP_CONFIRM: STEP_EXISTING,
+    STEP_NEWBIE_NAMES: STEP_TYPE,
+    STEP_EXISTING_NAMES: STEP_NEWBIE_NAMES,
+    STEP_CONFIRM: STEP_EXISTING_NAMES,
 }
 
 
@@ -121,8 +123,8 @@ class ChinbabangService:
                 f"유형: {member_label}\n"
                 f"날짜: 2026-03-29\n"
                 f"활동: 밥/술 먹기\n"
-                f"신입수: 0\n"
-                f"기존수: 0"
+                f"신입: 없음\n"
+                f"기존: 없음"
             )
         else:
             example = (
@@ -131,8 +133,8 @@ class ChinbabangService:
                 "유형: 신입\n"
                 "날짜: 2026-03-29\n"
                 "활동: 밥/술 먹기\n"
-                "신입수: 2\n"
-                "기존수: 3"
+                "신입: 김철수, 박영희\n"
+                "기존: 이민수, 정수진, 최다은"
             )
 
         activity_list = ", ".join(ACTIVITY_TYPES)
@@ -199,14 +201,10 @@ class ChinbabangService:
             return await self._handle_date_manual(db, user_key, utterance)
         elif step == STEP_TYPE:
             return await self._handle_type(db, user_key, utterance)
-        elif step == STEP_NEWBIE:
-            return await self._handle_newbie(db, user_key, utterance)
-        elif step == STEP_NEWBIE_MANUAL:
-            return await self._handle_newbie_manual(db, user_key, utterance)
-        elif step == STEP_EXISTING:
-            return await self._handle_existing(db, user_key, utterance)
-        elif step == STEP_EXISTING_MANUAL:
-            return await self._handle_existing_manual(db, user_key, utterance)
+        elif step == STEP_NEWBIE_NAMES:
+            return await self._handle_newbie_names(db, user_key, utterance)
+        elif step == STEP_EXISTING_NAMES:
+            return await self._handle_existing_names(db, user_key, utterance)
         elif step == STEP_CONFIRM:
             return await self._handle_confirm(
                 db, user_key, utterance, data, session, background_tasks, request_data
@@ -249,8 +247,11 @@ class ChinbabangService:
         member_type = parsed["유형"]
         date_str = parsed["날짜"]
         activity = parsed["활동"]
-        newbie = parsed["신입수"]
-        existing = parsed["기존수"]
+        newbie_names = parsed["신입"]
+        existing_names = parsed["기존"]
+
+        newbie_str = ", ".join(newbie_names) if newbie_names else ""
+        existing_str = ", ".join(existing_names) if existing_names else ""
 
         await chatbot_repo.upsert_submitter_profile(
             db, user_key, name, sid, member_type
@@ -262,28 +263,42 @@ class ChinbabangService:
             db, user_key, "activity_type", activity
         )
         await chatbot_repo.update_data(
-            db, user_key, "newbie_count", str(newbie)
+            db, user_key, "newbie_names", newbie_str
         )
         await chatbot_repo.update_data(
-            db, user_key, "existing_count", str(existing)
+            db, user_key, "newbie_count", str(len(newbie_names))
+        )
+        await chatbot_repo.update_data(
+            db, user_key, "existing_names", existing_str
+        )
+        await chatbot_repo.update_data(
+            db, user_key, "existing_count", str(len(existing_names))
         )
         await chatbot_repo.update_data(
             db, user_key, "__step__", STEP_PHOTO
         )
         await db.commit()
 
+        newbie_label = (
+            f"{len(newbie_names)}명 ({newbie_str})"
+            if newbie_names else "0명"
+        )
+        existing_label = (
+            f"{len(existing_names)}명 ({existing_str})"
+            if existing_names else "0명"
+        )
         return self._ask_photo(
             f"✅ 정보 입력 완료!\n\n"
             f"👤 {name}({sid}) [{member_type}]\n"
             f"📅 {date_str} | 🎯 {activity}\n"
-            f"🌱 신입 {newbie}명 | 👥 기존 {existing}명\n\n"
+            f"🌱 신입 {newbie_label} | 👥 기존 {existing_label}\n\n"
         )
 
     @staticmethod
     def _parse_quick_form(text: str) -> dict | str:
         """양식 텍스트를 파싱합니다. 실패 시 오류 메시지 문자열을 반환합니다."""
         required_keys = [
-            "이름", "학번", "유형", "날짜", "활동", "신입수", "기존수"
+            "이름", "학번", "유형", "날짜", "활동", "신입", "기존"
         ]
         result = {}
         for line in text.strip().splitlines():
@@ -334,19 +349,40 @@ class ChinbabangService:
                 errors.append(future_err)
 
         if fields["활동"] not in ACTIVITY_TYPES:
-            errors.append(
-                f"활동 종류가 올바르지 않담"
-            )
+            errors.append("활동 종류가 올바르지 않담")
 
-        for count_key in ("신입수", "기존수"):
-            val = fields[count_key]
-            count_err = self._validate_manual_count(val)
-            if count_err:
-                errors.append(f"{count_key}: {count_err}")
+        for name_key in ("신입", "기존"):
+            raw = fields[name_key]
+            names, name_err = self._parse_name_list_static(raw)
+            if name_err:
+                errors.append(f"{name_key}: {name_err}")
             else:
-                fields[count_key] = int(val)
+                fields[name_key] = names
 
         return errors
+
+    @staticmethod
+    def _parse_name_list_static(text: str) -> tuple[list[str], str | None]:
+        """콤마로 구분된 이름 목록을 파싱합니다 (static 버전)."""
+        stripped = text.strip()
+        if stripped in ("없음", "0", "0명"):
+            return [], None
+
+        raw_names = [n.strip() for n in stripped.split(",") if n.strip()]
+        if not raw_names:
+            return [], None
+
+        for name in raw_names:
+            if name and name[0] in ("=", "+", "-", "@", "\t", "\r", "|", "\\"):
+                return [], f"'{name}'에 사용할 수 없는 문자가 있담"
+            if len(name) < NAME_MIN_LEN:
+                return [], f"'{name}'이(가) 너무 짧담 ({NAME_MIN_LEN}자 이상)"
+            if len(name) > NAME_MAX_LEN:
+                return [], f"'{name}'이(가) 너무 길담 ({NAME_MAX_LEN}자 이하)"
+            if not NAME_PATTERN.match(name):
+                return [], f"'{name}'에 한글/영문 외 문자가 있담"
+
+        return raw_names, None
 
     async def _handle_confirm_submitter(self, db, user_key, utterance):
         if utterance == "맞아요":
@@ -603,12 +639,90 @@ class ChinbabangService:
         if utterance not in ACTIVITY_TYPES:
             return self._ask_type("버튼으로 활동 종류를 선택해달람!")
 
-        await chatbot_repo.update_data(db, user_key, "activity_type", utterance)
-        await chatbot_repo.update_data(db, user_key, "__step__", STEP_NEWBIE)
+        await chatbot_repo.update_data(
+            db, user_key, "activity_type", utterance
+        )
+        await chatbot_repo.update_data(
+            db, user_key, "__step__", STEP_NEWBIE_NAMES
+        )
         await db.commit()
-        return self._ask_count("신입 인원이 몇 명이었담?")
+        return self._build_response(
+            "함께한 신입 회원 이름을 입력해달람!\n"
+            "(콤마로 구분, 없으면 '없음')\n\n"
+            "예: 김철수, 박영희, 이민수",
+            quick_replies=[self._back_reply()],
+        )
 
-    async def _handle_newbie(self, db, user_key, utterance):
+    # ------------------------------------------------- name-based input
+
+    async def _handle_newbie_names(self, db, user_key, utterance):
+        names, error = self._parse_name_list(utterance)
+        if error:
+            return self._build_response(
+                f"❌ {error}\n\n"
+                "신입 회원 이름을 콤마(,)로 구분해서 입력해달람!\n"
+                "(없으면 '없음' 입력)",
+                quick_replies=[self._back_reply()],
+            )
+
+        count = len(names)
+        names_str = ", ".join(names) if names else ""
+        await chatbot_repo.update_data(
+            db, user_key, "newbie_names", names_str
+        )
+        await chatbot_repo.update_data(
+            db, user_key, "newbie_count", str(count)
+        )
+        await chatbot_repo.update_data(
+            db, user_key, "__step__", STEP_EXISTING_NAMES
+        )
+        await db.commit()
+
+        if names:
+            prefix = f"🌱 신입 {count}명: {names_str}\n\n"
+        else:
+            prefix = "🌱 신입 0명\n\n"
+        return self._build_response(
+            f"{prefix}이번엔 함께한 기존 회원 이름을 입력해달람!\n"
+            "(콤마로 구분, 없으면 '없음')",
+            quick_replies=[self._back_reply()],
+        )
+
+    async def _handle_existing_names(self, db, user_key, utterance):
+        names, error = self._parse_name_list(utterance)
+        if error:
+            return self._build_response(
+                f"❌ {error}\n\n"
+                "기존 회원 이름을 콤마(,)로 구분해서 입력해달람!\n"
+                "(없으면 '없음' 입력)",
+                quick_replies=[self._back_reply()],
+            )
+
+        count = len(names)
+        names_str = ", ".join(names) if names else ""
+        await chatbot_repo.update_data(
+            db, user_key, "existing_names", names_str
+        )
+        await chatbot_repo.update_data(
+            db, user_key, "existing_count", str(count)
+        )
+        await chatbot_repo.update_data(
+            db, user_key, "__step__", STEP_CONFIRM
+        )
+        await db.commit()
+        return await self._build_confirm_response(db, user_key)
+
+    def _parse_name_list(self, text: str) -> tuple[list[str], str | None]:
+        """콤마로 구분된 이름 목록을 파싱합니다. (names, error) 튜플 반환."""
+        return self._parse_name_list_static(text)
+
+    # ---------------------------------- [LEGACY] 인원수 기반 핸들러 (롤백 시 사용)
+    # 이름 기반 입력으로 교체됨.
+    # 롤백하려면: process()에서 STEP_NEWBIE_NAMES → STEP_NEWBIE,
+    #   STEP_EXISTING_NAMES → STEP_EXISTING 으로 변경하고
+    #   _handle_type에서 STEP_NEWBIE_NAMES → STEP_NEWBIE 로 변경
+
+    async def _legacy_handle_newbie(self, db, user_key, utterance):
         if utterance == "4+":
             await chatbot_repo.update_data(
                 db, user_key, "__step__", STEP_NEWBIE_MANUAL
@@ -627,7 +741,7 @@ class ChinbabangService:
 
         return self._ask_count("버튼으로 신입 인원을 선택해달람!")
 
-    async def _handle_newbie_manual(self, db, user_key, utterance):
+    async def _legacy_handle_newbie_manual(self, db, user_key, utterance):
         count_error = self._validate_manual_count(utterance)
         if count_error:
             return self._build_response(count_error)
@@ -641,7 +755,7 @@ class ChinbabangService:
         await db.commit()
         return self._ask_count("기존 회원이 몇 명이었담?")
 
-    async def _handle_existing(self, db, user_key, utterance):
+    async def _legacy_handle_existing(self, db, user_key, utterance):
         if utterance == "4+":
             await chatbot_repo.update_data(
                 db, user_key, "__step__", STEP_EXISTING_MANUAL
@@ -660,7 +774,7 @@ class ChinbabangService:
 
         return self._ask_count("버튼으로 기존 회원 수를 선택해달람!")
 
-    async def _handle_existing_manual(self, db, user_key, utterance):
+    async def _legacy_handle_existing_manual(self, db, user_key, utterance):
         count_error = self._validate_manual_count(utterance)
         if count_error:
             return self._build_response(count_error)
@@ -701,6 +815,8 @@ class ChinbabangService:
                 "activity_type": data.get("activity_type", ""),
                 "newbie_count": newbie_count,
                 "existing_count": existing_count,
+                "newbie_names": data.get("newbie_names", ""),
+                "existing_names": data.get("existing_names", ""),
                 "score": score,
             }
 
@@ -828,18 +944,17 @@ class ChinbabangService:
             )
         if step == STEP_TYPE:
             return self._ask_type()
-        if step == STEP_NEWBIE:
-            return self._ask_count("신입 인원이 몇 명이었담?")
-        if step == STEP_NEWBIE_MANUAL:
+        if step == STEP_NEWBIE_NAMES:
             return self._build_response(
-                "신입 인원 수를 직접 입력해달람 (숫자만)",
+                "함께한 신입 회원 이름을 입력해달람!\n"
+                "(콤마로 구분, 없으면 '없음')\n\n"
+                "예: 김철수, 박영희, 이민수",
                 quick_replies=[self._back_reply()],
             )
-        if step == STEP_EXISTING:
-            return self._ask_count("기존 회원이 몇 명이었담?")
-        if step == STEP_EXISTING_MANUAL:
+        if step == STEP_EXISTING_NAMES:
             return self._build_response(
-                "기존 회원 수를 직접 입력해달람 (숫자만)",
+                "함께한 기존 회원 이름을 입력해달람!\n"
+                "(콤마로 구분, 없으면 '없음')",
                 quick_replies=[self._back_reply()],
             )
         if step == STEP_CONFIRM:
@@ -874,14 +989,25 @@ class ChinbabangService:
 
         past_total = await chatbot_repo.get_total_score(db, user_key)
 
+        newbie_names = data.get("newbie_names", "")
+        existing_names = data.get("existing_names", "")
+        newbie_label = (
+            f"{newbie_count}명 ({newbie_names})"
+            if newbie_names else f"{newbie_count}명"
+        )
+        existing_label = (
+            f"{existing_count}명 ({existing_names})"
+            if existing_names else f"{existing_count}명"
+        )
+
         summary = (
             f"{prefix}아래 내용으로 제출하겠담?\n\n"
             f"👤 제출자: {profile.name if profile else '?'}({sid_suffix}) [{member_type}]\n"
             f"📸 사진: {photo_count}장\n"
             f"📅 날짜: {data.get('activity_date', '?')}\n"
             f"🎯 활동: {data.get('activity_type', '?')}\n"
-            f"🌱 신입: {newbie_count}명\n"
-            f"👥 기존회원: {existing_count}명\n"
+            f"🌱 신입: {newbie_label}\n"
+            f"👥 기존회원: {existing_label}\n"
             f"⭐ 이번 점수: {score}점\n"
             f"📊 제출 후 누적: {past_total + score}점"
         )
