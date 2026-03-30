@@ -916,11 +916,34 @@ class ChinbabangService:
                 useCallback=True,
             )
 
-        if utterance == "수정하기":
-            await chatbot_repo.update_data(db, user_key, "__step__", STEP_PHOTO)
+        is_quick = data.get("_quick_mode") == "true"
+
+        if utterance == "🔄 처음부터 다시" and not is_quick:
+            await chatbot_repo.delete_session(db, user_key)
+            await chatbot_repo.get_or_create_session(db, user_key)
+            await chatbot_repo.update_data(
+                db, user_key, "active_event", "친바방제출"
+            )
+            await chatbot_repo.update_data(
+                db, user_key, "__started__", "true"
+            )
+            await db.commit()
+            return await self.start(db, user_key)
+
+        if is_quick and utterance == "📝 양식 수정":
+            await chatbot_repo.update_data(
+                db, user_key, "__step__", STEP_QUICK_INPUT
+            )
+            await db.commit()
+            return await self.quick_start(db, user_key)
+
+        if is_quick and utterance == "📸 사진 수정":
+            await chatbot_repo.update_data(
+                db, user_key, "__step__", STEP_PHOTO
+            )
             session.image_urls = ""
             await db.commit()
-            return self._ask_photo("수정할게담!\n\n")
+            return self._ask_photo("사진을 다시 올려달람!\n\n")
 
         if utterance == "취소":
             await chatbot_repo.delete_session(db, user_key)
@@ -1084,11 +1107,20 @@ class ChinbabangService:
             f"📊 제출 후 누적: {past_total + score}점"
         )
 
-        quick_replies = [
-            {"label": "✅ 제출", "action": "message", "messageText": "✅ 제출"},
-            {"label": "수정하기", "action": "message", "messageText": "수정하기"},
-            {"label": "취소", "action": "message", "messageText": "취소"},
-        ]
+        is_quick = data.get("_quick_mode") == "true"
+        if is_quick:
+            quick_replies = [
+                {"label": "✅ 제출", "action": "message", "messageText": "✅ 제출"},
+                {"label": "📝 양식 수정", "action": "message", "messageText": "📝 양식 수정"},
+                {"label": "📸 사진 수정", "action": "message", "messageText": "📸 사진 수정"},
+                {"label": "취소", "action": "message", "messageText": "취소"},
+            ]
+        else:
+            quick_replies = [
+                {"label": "✅ 제출", "action": "message", "messageText": "✅ 제출"},
+                {"label": "🔄 처음부터 다시", "action": "message", "messageText": "🔄 처음부터 다시"},
+                {"label": "취소", "action": "message", "messageText": "취소"},
+            ]
         return self._build_response(summary, quick_replies=quick_replies)
 
     async def show_history(self, db: AsyncSession, user_key: str) -> ChatbotResponse:
