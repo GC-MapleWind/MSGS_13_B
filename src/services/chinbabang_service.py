@@ -235,7 +235,7 @@ class ChinbabangService:
             )
         elif step == STEP_QUICK_INPUT:
             return await self._handle_quick_input(
-                db, user_key, utterance
+                db, user_key, utterance, params, session
             )
 
         return self._build_response(
@@ -244,7 +244,21 @@ class ChinbabangService:
 
     # ------------------------------------------------------------------ steps
 
-    async def _handle_quick_input(self, db, user_key, utterance):
+    async def _handle_quick_input(self, db, user_key, utterance, params=None, session=None):
+        image_urls = self._extract_image_urls(utterance, params or {})
+        if image_urls:
+            if session is None:
+                session = await chatbot_repo.get_or_create_session(db, user_key)
+            total = await self._save_images(db, user_key, image_urls, session)
+            await db.commit()
+            return self._build_response(
+                f"📸 사진 {total}장 저장했담!\n"
+                "양식을 이어서 보내달람!",
+                quick_replies=[
+                    {"label": "취소", "action": "message", "messageText": "취소"},
+                ],
+            )
+
         parsed = self._parse_quick_form(utterance)
         if isinstance(parsed, str):
             return self._build_response(
@@ -298,11 +312,6 @@ class ChinbabangService:
         await chatbot_repo.update_data(
             db, user_key, "existing_count", str(len(existing_names))
         )
-        await chatbot_repo.update_data(
-            db, user_key, "__step__", STEP_PHOTO
-        )
-        await db.commit()
-
         newbie_label = (
             f"{len(newbie_names)}명 ({newbie_str})"
             if newbie_names else "0명"
@@ -311,12 +320,32 @@ class ChinbabangService:
             f"{len(existing_names)}명 ({existing_str})"
             if existing_names else "0명"
         )
-        return self._ask_photo(
+        info_summary = (
             f"✅ 정보 입력 완료!\n\n"
             f"👤 {name}({sid}) [{member_type}]\n"
             f"📅 {date_str} | 🎯 {activity}\n"
             f"🌱 신입 {newbie_label} | 👥 기존 {existing_label}\n\n"
         )
+
+        session = await chatbot_repo.get_session(db, user_key)
+        photo_count = len(
+            [u.strip() for u in (session.image_urls or "").split(",") if u.strip()]
+        )
+        if photo_count > 0:
+            await chatbot_repo.update_data(
+                db, user_key, "__step__", STEP_CONFIRM
+            )
+            await db.commit()
+            return await self._build_confirm_response(
+                db, user_key,
+                prefix=f"{info_summary}📸 사진 {photo_count}장 확인!\n\n",
+            )
+
+        await chatbot_repo.update_data(
+            db, user_key, "__step__", STEP_PHOTO
+        )
+        await db.commit()
+        return self._ask_photo(info_summary)
 
     @staticmethod
     def _parse_quick_form(text: str) -> dict | str:
@@ -371,9 +400,6 @@ class ChinbabangService:
             future_err = self._validate_date_not_future(date_str)
             if future_err:
                 errors.append(future_err)
-
-        if fields["활동"] not in ACTIVITY_TYPES:
-            errors.append("활동 종류가 올바르지 않담")
 
         for name_key in ("신입", "기존"):
             raw = fields[name_key]
@@ -695,8 +721,8 @@ class ChinbabangService:
         return self._ask_type(f"날짜: {date_str}\n\n어떤 활동이었담?")
 
     async def _handle_type(self, db, user_key, utterance):
-        if utterance not in ACTIVITY_TYPES:
-            return self._ask_type("버튼으로 활동 종류를 선택해달람!")
+        if not utterance.strip():
+            return self._ask_type("활동 종류를 입력해달람!")
 
         await chatbot_repo.update_data(
             db, user_key, "activity_type", utterance
@@ -1250,7 +1276,7 @@ class ChinbabangService:
         return self._build_response(text, quick_replies=quick_replies)
 
     def _ask_type(
-        self, text: str = "어떤 활동이었담?"
+        self, text: str = "어떤 활동이었담?\n버튼을 누르거나 직접 입력해도 된담!"
     ) -> ChatbotResponse:
         quick_replies = [
             {"label": t, "action": "message", "messageText": t}
