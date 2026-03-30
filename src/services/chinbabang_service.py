@@ -96,7 +96,7 @@ class ChinbabangService:
                 f"제출자 정보를 확인하겠담!\n\n"
                 f"이름: {profile.name}{member_label}\n"
                 f"학번: {profile.student_id}\n\n"
-                f"맞으면 바로 다음 단계로 넘어가겠담!",
+                f"맞으면 바로 넘어가겠담!",
                 quick_replies=quick_replies,
             )
         else:
@@ -245,7 +245,9 @@ class ChinbabangService:
             await db.commit()
             return self._build_response(
                 f"📸 사진 {total}장 저장했담!\n"
-                "양식을 이어서 보내달람!",
+                "양식을 이어서 보내달람!\n\n"
+                "⚠️ 묶어 보내기는 지원되지 않는담!\n"
+                "여러 장이면 한 장씩 따로 보내달람!",
                 quick_replies=[
                     {"label": "취소", "action": "message", "messageText": "취소"},
                 ],
@@ -437,7 +439,7 @@ class ChinbabangService:
             await db.commit()
             return self._ask_photo()
 
-        return self._ask_submit_mode("버튼으로 선택해달람!")
+        return self._ask_submit_mode("아래 버튼으로 선택해달람!")
 
     async def _handle_confirm_submitter(self, db, user_key, utterance):
         if utterance == "맞아요":
@@ -472,7 +474,7 @@ class ChinbabangService:
             f" [{profile.member_type}]" if profile and profile.member_type else ""
         )
         return self._build_response(
-            f"버튼으로 답해달람!\n\n이름: {name}{member_label}\n학번: {sid}",
+            f"아래 버튼으로 답해달람!\n\n이름: {name}{member_label}\n학번: {sid}",
             quick_replies=quick_replies,
         )
 
@@ -595,7 +597,7 @@ class ChinbabangService:
 
     async def _handle_input_member_type(self, db, user_key, utterance):
         if utterance not in MEMBER_TYPES:
-            return self._ask_member_type("버튼으로 선택해달람!")
+            return self._ask_member_type("아래 버튼으로 선택해달람!")
 
         await chatbot_repo.update_member_type(db, user_key, utterance)
         await chatbot_repo.update_data(
@@ -685,12 +687,12 @@ class ChinbabangService:
                 quick_replies=[self._back_reply()],
             )
         else:
-            return self._ask_date("버튼으로 날짜를 선택해달람!")
+            return self._ask_date("아래 버튼으로 날짜를 선택해달람!")
 
         await chatbot_repo.update_data(db, user_key, "activity_date", date_str)
         await chatbot_repo.update_data(db, user_key, "__step__", STEP_TYPE)
         await db.commit()
-        return self._ask_type(f"날짜: {date_str}\n\n어떤 활동이었담?")
+        return self._ask_type(f"📅 날짜: {date_str}\n\n어떤 활동이었남?")
 
     async def _handle_date_manual(self, db, user_key, utterance):
         date_str = self._parse_date(utterance.strip())
@@ -710,11 +712,11 @@ class ChinbabangService:
             db, user_key, "__step__", STEP_TYPE
         )
         await db.commit()
-        return self._ask_type(f"날짜: {date_str}\n\n어떤 활동이었담?")
+        return self._ask_type(f"📅 날짜: {date_str}\n\n어떤 활동이었남?")
 
     async def _handle_type(self, db, user_key, utterance):
         if not utterance.strip():
-            return self._ask_type("활동 종류를 입력해달람!")
+            return self._ask_type("활동 종류를 입력하거나 선택해달람!")
 
         await chatbot_repo.update_data(
             db, user_key, "activity_type", utterance
@@ -816,7 +818,7 @@ class ChinbabangService:
             await db.commit()
             return self._ask_count("기존 회원이 몇 명이었담?")
 
-        return self._ask_count("버튼으로 신입 인원을 선택해달람!")
+        return self._ask_count("아래 버튼으로 신입 인원을 선택해달람!")
 
     async def _legacy_handle_newbie_manual(self, db, user_key, utterance):
         count_error = self._validate_manual_count(utterance)
@@ -849,7 +851,7 @@ class ChinbabangService:
             await db.commit()
             return await self._build_confirm_response(db, user_key)
 
-        return self._ask_count("버튼으로 기존 회원 수를 선택해달람!")
+        return self._ask_count("아래 버튼으로 기존 회원 수를 선택해달람!")
 
     async def _legacy_handle_existing_manual(self, db, user_key, utterance):
         count_error = self._validate_manual_count(utterance)
@@ -1014,7 +1016,7 @@ class ChinbabangService:
                 f"제출자 정보를 확인하겠담!\n\n"
                 f"이름: {name}{member_label}\n"
                 f"학번: {sid}\n\n"
-                f"맞으면 바로 다음 단계로 넘어가겠담!",
+                f"맞으면 바로 넘어가겠담!",
                 quick_replies=quick_replies,
             )
         if step == STEP_INPUT_NAME:
@@ -1269,7 +1271,9 @@ class ChinbabangService:
     def _ask_photo(self, prefix: str = "") -> ChatbotResponse:
         text = (
             f"{prefix}📸 인증 사진을 올려달람!\n"
-            "1장 이상 올리면 자동으로 다음 단계로 넘어가겠담!"
+            "사진을 보내면 자동으로 다음 단계로 넘어가겠담!\n\n"
+            "⚠️ 묶어 보내기는 지원되지 않는담!\n"
+            "여러 장이면 한 장씩 따로 보내달람!"
         )
         return self._build_response(
             text,
