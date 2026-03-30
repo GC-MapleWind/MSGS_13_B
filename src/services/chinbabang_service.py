@@ -1123,6 +1123,7 @@ class ChinbabangService:
         else:
             quick_replies = [
                 {"label": "✅ 제출", "action": "message", "messageText": "✅ 제출"},
+                self._back_reply(),
                 {"label": "🔄 처음부터 다시", "action": "message", "messageText": "🔄 처음부터 다시"},
                 {"label": "취소", "action": "message", "messageText": "취소"},
             ]
