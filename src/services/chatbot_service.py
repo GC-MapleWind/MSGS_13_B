@@ -82,7 +82,7 @@ class ChatbotService:
             quick_replies.append({"label": e.name, "action": "message", "messageText": e.name})
 
         return self._build_empty_response(
-            "무엇을 도와드릴까요? 아래 버튼을 눌러주세요!",
+            "무엇을 도와드릴깜? 아래 버튼을 눌러달람!",
             quick_replies=quick_replies,
         )
 
