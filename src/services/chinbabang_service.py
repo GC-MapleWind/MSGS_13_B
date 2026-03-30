@@ -135,8 +135,8 @@ class ChinbabangService:
                 "유형: 신입\n"
                 "날짜: 2026-03-29\n"
                 "활동: 밥/술 먹기\n"
-                "신입: 김철수, 박영희\n"
-                "기존: 이민수, 정수진, 최다은"
+                "신입: 핑크빈, 예티, 주황버섯\n"
+                "기존: 윌, 루시드, 데미안"
             )
 
         activity_list = ", ".join(ACTIVITY_TYPES)
@@ -195,9 +195,12 @@ class ChinbabangService:
         if step in STEPS_AFTER_PHOTO:
             late_urls = self._extract_image_urls(utterance, params)
             if late_urls:
-                await self._save_images(db, user_key, late_urls)
+                total = await self._save_images(db, user_key, late_urls)
                 await db.commit()
-                return await self._prompt_for_step(db, user_key, step)
+                return self._build_response(
+                    f"📸 사진 추가 저장! (총 {total}장)\n"
+                    "이어서 진행해달람!",
+                )
 
         if step == STEP_CONFIRM_SUBMITTER:
             return await self._handle_confirm_submitter(db, user_key, utterance)
@@ -450,7 +453,7 @@ class ChinbabangService:
                 )
                 await db.commit()
                 return self._ask_member_type(
-                    "기존 회원인담, 신입인담? 처음 한 번만 알려달람!\n\n"
+                    "기존 회원인감, 신입인감? 처음 한 번만 알려달람!\n\n"
                 )
             await chatbot_repo.update_data(
                 db, user_key, "__step__", STEP_SELECT_MODE
@@ -728,7 +731,7 @@ class ChinbabangService:
         return self._build_response(
             "함께한 신입 회원 이름을 입력해달람!\n"
             "(콤마로 구분, 없으면 '없음')\n\n"
-            "예: 김철수, 박영희, 이민수",
+            "예: 핑크빈, 예티, 주황버섯",
             quick_replies=[self._back_reply()],
         )
 
