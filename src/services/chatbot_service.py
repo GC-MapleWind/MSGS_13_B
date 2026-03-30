@@ -37,6 +37,15 @@ class ChatbotService:
             await db.commit()
             return await chinbabang_service.start(db, user_key)
 
+        # 0-a2. 빠른 제출 트리거
+        if utterance == "빠른 제출":
+            await chatbot_repo.delete_session(db, user_key)
+            await chatbot_repo.get_or_create_session(db, user_key)
+            await chatbot_repo.update_data(db, user_key, "active_event", "친바방제출")
+            await chatbot_repo.update_data(db, user_key, "__started__", "true")
+            await db.commit()
+            return await chinbabang_service.quick_start(db, user_key)
+
         # 0-b. 제출 내역 조회
         if utterance == "제출 내역":
             return await chinbabang_service.show_history(db, user_key)

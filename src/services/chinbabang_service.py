@@ -23,6 +23,7 @@ STEP_NEWBIE_MANUAL = "newbie_manual"
 STEP_EXISTING = "existing"
 STEP_EXISTING_MANUAL = "existing_manual"
 STEP_CONFIRM = "confirm"
+STEP_QUICK_INPUT = "quick_input"
 
 ACTIVITY_TYPES = [
     "밥/술 먹기",
@@ -99,6 +100,62 @@ class ChinbabangService:
             await db.commit()
             return self._build_response("처음이담! 이름을 알려달람 😊")
 
+    async def quick_start(
+        self, db: AsyncSession, user_key: str
+    ) -> ChatbotResponse:
+        """빠른 제출 - 양식 한 번에 입력"""
+        profile = await chatbot_repo.get_submitter_profile(db, user_key)
+        await chatbot_repo.update_data(
+            db, user_key, "__step__", STEP_QUICK_INPUT
+        )
+        await chatbot_repo.update_data(
+            db, user_key, "_quick_mode", "true"
+        )
+        await db.commit()
+
+        if profile:
+            member_label = profile.member_type or "기존 회원"
+            example = (
+                f"이름: {profile.name}\n"
+                f"학번: {profile.student_id}\n"
+                f"유형: {member_label}\n"
+                f"날짜: 2026-03-29\n"
+                f"활동: 밥/술 먹기\n"
+                f"신입수: 0\n"
+                f"기존수: 0"
+            )
+        else:
+            example = (
+                "이름: 홍길동\n"
+                "학번: 202400001\n"
+                "유형: 신입\n"
+                "날짜: 2026-03-29\n"
+                "활동: 밥/술 먹기\n"
+                "신입수: 2\n"
+                "기존수: 3"
+            )
+
+        activity_list = ", ".join(ACTIVITY_TYPES)
+
+        guide = (
+            "📋 빠른 제출 모드담!\n"
+            "아래 양식을 복사해서 수정 후 보내달람!\n\n"
+            f"📌 활동 종류:\n{activity_list}\n\n"
+            f"📌 유형: 기존 회원, 신입"
+        )
+        return ChatbotResponse(
+            version="2.0",
+            template={
+                "outputs": [
+                    {"simpleText": {"text": guide}},
+                    {"simpleText": {"text": example}},
+                ],
+                "quickReplies": [
+                    {"label": "취소", "action": "message", "messageText": "취소"},
+                ],
+            },
+        )
+
     async def process(
         self,
         db: AsyncSession,
@@ -154,12 +211,142 @@ class ChinbabangService:
             return await self._handle_confirm(
                 db, user_key, utterance, data, session, background_tasks, request_data
             )
+        elif step == STEP_QUICK_INPUT:
+            return await self._handle_quick_input(
+                db, user_key, utterance
+            )
 
         return self._build_response(
             "알 수 없는 단계담! '친바방 제출'로 다시 시작해달람!"
         )
 
     # ------------------------------------------------------------------ steps
+
+    async def _handle_quick_input(self, db, user_key, utterance):
+        parsed = self._parse_quick_form(utterance)
+        if isinstance(parsed, str):
+            return self._build_response(
+                f"❌ {parsed}\n\n양식을 다시 확인해서 보내달람!",
+                quick_replies=[
+                    {"label": "취소", "action": "message", "messageText": "취소"},
+                ],
+            )
+
+        errors = self._validate_quick_fields(parsed)
+        if errors:
+            msg = "❌ 입력값에 문제가 있담!\n\n" + "\n".join(
+                f"• {e}" for e in errors
+            )
+            return self._build_response(
+                msg + "\n\n수정해서 다시 보내달람!",
+                quick_replies=[
+                    {"label": "취소", "action": "message", "messageText": "취소"},
+                ],
+            )
+
+        name = parsed["이름"]
+        sid = parsed["학번"]
+        member_type = parsed["유형"]
+        date_str = parsed["날짜"]
+        activity = parsed["활동"]
+        newbie = parsed["신입수"]
+        existing = parsed["기존수"]
+
+        await chatbot_repo.upsert_submitter_profile(
+            db, user_key, name, sid, member_type
+        )
+        await chatbot_repo.update_data(
+            db, user_key, "activity_date", date_str
+        )
+        await chatbot_repo.update_data(
+            db, user_key, "activity_type", activity
+        )
+        await chatbot_repo.update_data(
+            db, user_key, "newbie_count", str(newbie)
+        )
+        await chatbot_repo.update_data(
+            db, user_key, "existing_count", str(existing)
+        )
+        await chatbot_repo.update_data(
+            db, user_key, "__step__", STEP_PHOTO
+        )
+        await db.commit()
+
+        return self._ask_photo(
+            f"✅ 정보 입력 완료!\n\n"
+            f"👤 {name}({sid}) [{member_type}]\n"
+            f"📅 {date_str} | 🎯 {activity}\n"
+            f"🌱 신입 {newbie}명 | 👥 기존 {existing}명\n\n"
+        )
+
+    @staticmethod
+    def _parse_quick_form(text: str) -> dict | str:
+        """양식 텍스트를 파싱합니다. 실패 시 오류 메시지 문자열을 반환합니다."""
+        required_keys = [
+            "이름", "학번", "유형", "날짜", "활동", "신입수", "기존수"
+        ]
+        result = {}
+        for line in text.strip().splitlines():
+            line = line.strip()
+            if not line or "─" in line:
+                continue
+            if ":" in line:
+                key, _, value = line.partition(":")
+                key = key.strip()
+                value = value.strip()
+                if key in required_keys:
+                    result[key] = value
+
+        missing = [k for k in required_keys if k not in result]
+        if missing:
+            return f"다음 항목이 빠져 있담: {', '.join(missing)}"
+
+        empty = [k for k, v in result.items() if not v]
+        if empty:
+            return f"다음 항목이 비어 있담: {', '.join(empty)}"
+
+        return result
+
+    def _validate_quick_fields(self, fields: dict) -> list[str]:
+        """파싱된 양식 필드를 검증합니다. 오류 메시지 리스트를 반환합니다."""
+        errors: list[str] = []
+
+        name_err = self._validate_name(fields["이름"])
+        if name_err:
+            errors.append(name_err)
+
+        sid_err = self._validate_student_id(fields["학번"])
+        if sid_err:
+            errors.append(sid_err)
+
+        if fields["유형"] not in MEMBER_TYPES:
+            errors.append(
+                f"유형은 '{', '.join(MEMBER_TYPES)}' 중 하나여야 한담"
+            )
+
+        date_str = self._parse_date(fields["날짜"])
+        if not date_str:
+            errors.append("날짜 형식이 맞지 않담 (예: 2026-03-29 또는 3/29)")
+        else:
+            fields["날짜"] = date_str
+            future_err = self._validate_date_not_future(date_str)
+            if future_err:
+                errors.append(future_err)
+
+        if fields["활동"] not in ACTIVITY_TYPES:
+            errors.append(
+                f"활동 종류가 올바르지 않담"
+            )
+
+        for count_key in ("신입수", "기존수"):
+            val = fields[count_key]
+            count_err = self._validate_manual_count(val)
+            if count_err:
+                errors.append(f"{count_key}: {count_err}")
+            else:
+                fields[count_key] = int(val)
+
+        return errors
 
     async def _handle_confirm_submitter(self, db, user_key, utterance):
         if utterance == "맞아요":
@@ -342,7 +529,23 @@ class ChinbabangService:
                 if url:
                     await chatbot_repo.add_image_url(db, user_key, url)
 
-            await chatbot_repo.update_data(db, user_key, "__step__", STEP_DATE)
+            data = session.data or {}
+            is_quick = data.get("_quick_mode") == "true"
+
+            if is_quick:
+                await chatbot_repo.update_data(
+                    db, user_key, "__step__", STEP_CONFIRM
+                )
+                await db.commit()
+                total = prev_count + len(urls)
+                return await self._build_confirm_response(
+                    db, user_key,
+                    prefix=f"사진 {total}장을 받았담! 📸\n\n",
+                )
+
+            await chatbot_repo.update_data(
+                db, user_key, "__step__", STEP_DATE
+            )
             await db.commit()
 
             total = prev_count + len(urls)
@@ -546,13 +749,23 @@ class ChinbabangService:
     async def _go_back(
         self, db, user_key, current_step
     ) -> ChatbotResponse:
-        prev_step = STEP_BACK_MAP.get(current_step)
+        session = await chatbot_repo.get_session(db, user_key)
+        data = session.data or {} if session else {}
+        is_quick = data.get("_quick_mode") == "true"
+
+        if is_quick and current_step == STEP_PHOTO:
+            prev_step = STEP_QUICK_INPUT
+        elif is_quick and current_step == STEP_CONFIRM:
+            prev_step = STEP_PHOTO
+        else:
+            prev_step = STEP_BACK_MAP.get(current_step)
+
         if not prev_step:
             return self._build_response(
                 "더 이상 뒤로 갈 수 없담! 계속 진행해달람 😊"
             )
 
-        if current_step == STEP_PHOTO:
+        if not is_quick and current_step == STEP_PHOTO:
             profile = await chatbot_repo.get_submitter_profile(
                 db, user_key
             )
@@ -631,13 +844,17 @@ class ChinbabangService:
             )
         if step == STEP_CONFIRM:
             return await self._build_confirm_response(db, user_key)
+        if step == STEP_QUICK_INPUT:
+            return await self.quick_start(db, user_key)
         return self._build_response(
             "알 수 없는 단계담! '친바방 제출'로 다시 시작해달람!"
         )
 
     # ------------------------------------------------------------------ helpers
 
-    async def _build_confirm_response(self, db, user_key) -> ChatbotResponse:
+    async def _build_confirm_response(
+        self, db, user_key, prefix: str = ""
+    ) -> ChatbotResponse:
         session = await chatbot_repo.get_session(db, user_key)
         data = session.data or {}
         profile = await chatbot_repo.get_submitter_profile(db, user_key)
@@ -658,7 +875,7 @@ class ChinbabangService:
         past_total = await chatbot_repo.get_total_score(db, user_key)
 
         summary = (
-            f"아래 내용으로 제출하겠담?\n\n"
+            f"{prefix}아래 내용으로 제출하겠담?\n\n"
             f"👤 제출자: {profile.name if profile else '?'}({sid_suffix}) [{member_type}]\n"
             f"📸 사진: {photo_count}장\n"
             f"📅 날짜: {data.get('activity_date', '?')}\n"
