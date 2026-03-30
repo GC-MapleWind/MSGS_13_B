@@ -195,17 +195,9 @@ class ChinbabangService:
         if step in STEPS_AFTER_PHOTO:
             late_urls = self._extract_image_urls(utterance, params)
             if late_urls:
-                total = await self._save_images(
-                    db, user_key, late_urls, session
-                )
+                await self._save_images(db, user_key, late_urls)
                 await db.commit()
-                return self._build_response(
-                    f"📸 사진 추가 저장! (총 {total}장)\n"
-                    "이어서 진행해달람!",
-                    quick_replies=[
-                        {"label": "취소", "action": "message", "messageText": "취소"},
-                    ],
-                )
+                return await self._prompt_for_step(db, user_key, step)
 
         if step == STEP_CONFIRM_SUBMITTER:
             return await self._handle_confirm_submitter(db, user_key, utterance)
@@ -249,7 +241,7 @@ class ChinbabangService:
         if image_urls:
             if session is None:
                 session = await chatbot_repo.get_or_create_session(db, user_key)
-            total = await self._save_images(db, user_key, image_urls, session)
+            total = await self._save_images(db, user_key, image_urls)
             await db.commit()
             return self._build_response(
                 f"📸 사진 {total}장 저장했담!\n"
@@ -628,7 +620,7 @@ class ChinbabangService:
         return [raw.strip()] if raw.strip() else []
 
     async def _save_images(
-        self, db, user_key: str, urls: list[str], session
+        self, db, user_key: str, urls: list[str]
     ) -> int:
         """이미지 URL들을 세션에 저장하고 총 사진 수를 반환합니다."""
         for url in urls:
@@ -636,10 +628,10 @@ class ChinbabangService:
                 await chatbot_repo.add_image_url(db, user_key, url)
         await db.flush()
 
-        await db.refresh(session)
+        fresh = await chatbot_repo.get_session(db, user_key)
         all_urls = [
             u.strip()
-            for u in (session.image_urls or "").split(",")
+            for u in (fresh.image_urls or "").split(",")
             if u.strip()
         ]
         return len(all_urls)
@@ -649,7 +641,7 @@ class ChinbabangService:
 
         if image_urls:
             total = await self._save_images(
-                db, user_key, image_urls, session
+                db, user_key, image_urls
             )
 
             data = session.data or {}
