@@ -125,8 +125,8 @@ class ChinbabangService:
                 f"유형: {member_label}\n"
                 f"날짜: 2026-03-29\n"
                 f"활동: 밥/술 먹기\n"
-                f"신입: 없음\n"
-                f"기존: 없음"
+                f"신입: 핑크빈, 예티\n"
+                f"기존: 윌, 루시드"
             )
         else:
             example = (
