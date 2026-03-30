@@ -1,6 +1,6 @@
 import datetime
 from typing import Any
-from sqlalchemy import select, delete
+from sqlalchemy import case, select, delete, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from src.models.chatbot import ActivitySubmission, SubmitterProfile, TemporaryImage, InfoList, EventInfo
 
@@ -72,15 +72,24 @@ class ChatbotRepository:
         await db.flush()
         return session
 
-    async def add_image_url(self, db: AsyncSession, user_key: str, image_url: str) -> TemporaryImage:
-        """이미지 URL을 기존 목록에 추가합니다."""
-        session = await self.get_or_create_session(db, user_key)
-        if session.image_urls:
-            session.image_urls += f",{image_url}"
-        else:
-            session.image_urls = image_url
+    async def add_image_url(self, db: AsyncSession, user_key: str, image_url: str) -> None:
+        """이미지 URL을 기존 목록에 추가합니다. (SQL 레벨 atomic 연산)"""
+        await self.get_or_create_session(db, user_key)
+        await db.execute(
+            update(TemporaryImage)
+            .where(TemporaryImage.user_key == user_key)
+            .values(
+                image_urls=case(
+                    (
+                        TemporaryImage.image_urls.is_(None)
+                        | (TemporaryImage.image_urls == ""),
+                        image_url,
+                    ),
+                    else_=TemporaryImage.image_urls + "," + image_url,
+                )
+            )
+        )
         await db.flush()
-        return session
 
     async def delete_image_url(self, db: AsyncSession, user_key: str, image_url: str) -> TemporaryImage:
         """이미지 URL 목록에서 특정 URL 하나를 찾아 삭제합니다."""
@@ -172,6 +181,8 @@ class ChatbotRepository:
         activity_type: str,
         newbie_count: int,
         existing_count: int,
+        newbie_names: str = "",
+        existing_names: str = "",
         score: int = 0,
     ) -> ActivitySubmission:
         submission = ActivitySubmission(
@@ -183,6 +194,8 @@ class ChatbotRepository:
             activity_type=activity_type,
             newbie_count=newbie_count,
             existing_count=existing_count,
+            newbie_names=newbie_names,
+            existing_names=existing_names,
             score=score,
             submitted_at=datetime.datetime.utcnow(),
         )
