@@ -37,6 +37,15 @@ class ChatbotService:
             await db.commit()
             return await chinbabang_service.start(db, user_key)
 
+        # 0-a2. 빠른 제출 트리거
+        if utterance == "빠른 제출":
+            await chatbot_repo.delete_session(db, user_key)
+            await chatbot_repo.get_or_create_session(db, user_key)
+            await chatbot_repo.update_data(db, user_key, "active_event", "친바방제출")
+            await chatbot_repo.update_data(db, user_key, "__started__", "true")
+            await db.commit()
+            return await chinbabang_service.quick_start(db, user_key)
+
         # 0-b. 제출 내역 조회
         if utterance == "제출 내역":
             return await chinbabang_service.show_history(db, user_key)
@@ -67,13 +76,14 @@ class ChatbotService:
         events = await chatbot_repo.get_all_events(db)
         quick_replies = [
             {"label": "친바방 제출", "action": "message", "messageText": "친바방 제출"},
+            {"label": "빠른 제출", "action": "message", "messageText": "빠른 제출"},
             {"label": "제출 내역", "action": "message", "messageText": "제출 내역"},
         ]
         for e in events:
             quick_replies.append({"label": e.name, "action": "message", "messageText": e.name})
 
         return self._build_empty_response(
-            "무엇을 도와드릴까요? 아래 버튼을 눌러주세요!",
+            "무엇을 도와드릴깜? 아래 버튼을 눌러달람!",
             quick_replies=quick_replies,
         )
 

@@ -53,7 +53,7 @@ class SubmitterProfile(ChatbotBase):
     user_key: Mapped[str] = mapped_column(String, unique=True, index=True)
     name: Mapped[str] = mapped_column(String)
     student_id: Mapped[str] = mapped_column(String)
-    member_type: Mapped[str | None] = mapped_column(String, nullable=True)  # "기존" or "신입"
+    member_type: Mapped[str | None] = mapped_column(String, nullable=True)  # "기존 회원" or "신입 회원"
 
 
 class ActivitySubmission(ChatbotBase):
@@ -71,6 +71,8 @@ class ActivitySubmission(ChatbotBase):
     activity_type: Mapped[str] = mapped_column(String)
     newbie_count: Mapped[int] = mapped_column(Integer, default=0)
     existing_count: Mapped[int] = mapped_column(Integer, default=0)
+    newbie_names: Mapped[str | None] = mapped_column(String, nullable=True, default="")
+    existing_names: Mapped[str | None] = mapped_column(String, nullable=True, default="")
     score: Mapped[int] = mapped_column(Integer, default=0)
     submitted_at: Mapped[datetime.datetime] = mapped_column(
         DateTime, server_default=func.now(), nullable=False
