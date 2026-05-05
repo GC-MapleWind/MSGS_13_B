@@ -1,37 +1,81 @@
 name: dpbr-main
 
 services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: dpbr-postgres
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?POSTGRES_USER is required}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      POSTGRES_DB: postgres
+    volumes:
+      - ./data/pg:/var/lib/postgresql/data
+      - ./scripts/postgres-init.sql:/docker-entrypoint-initdb.d/01-create-databases.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
   backend:
     image: ghcr.io/gc-maplewind/msgs_13_b-backend:latest
     container_name: dpbr-backend
     restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
     ports:
       - "127.0.0.1:8013:8000"
     volumes:
-      # SQLite DB 영속성: 컨테이너 재시작 후에도 데이터 유지
-      - ./data:/app/data
-      # 포함 내용: 25-2 단풍바람 명부.xlsx, 메생결산시트.xlsx, 회원별 이미지 폴더
       - ./13기 메생결산:/app/init.d:ro
       - ./avatars:/app/avatars:ro
-      - ../google-credentials.json:/app/google-credentials.json:ro
       - ./media:/app/media
-    command: ["uv", "run", "uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000"]
+    command: ["sh", "-c", "uv run alembic upgrade head && uv run uvicorn src.main:app --host 0.0.0.0 --port 8000"]
     env_file:
       - .env
     environment:
-      - ENVIRONMENT=production
-      - HOST=0.0.0.0
-      - PORT=8000
-      - DATABASE_URL=sqlite+aiosqlite:////app/data/maplewind.db
-      - DATA_DIR=/app/data
-      - INIT_DATA_DIR=/app/init.d
-      - JWT_SECRET_KEY=${JWT_SECRET_KEY:?JWT_SECRET_KEY is required}
-      - ADMIN_SESSION_SECRET=${ADMIN_SESSION_SECRET:?ADMIN_SESSION_SECRET is required}
-      - API_V1_PREFIX=${API_V1_PREFIX:-/api/v1}
-      - API_ROOT_PATH=${API_ROOT_PATH:-}
-      - API_DOCS_URL=${API_DOCS_URL:-/docs}
-      - API_REDOC_URL=${API_REDOC_URL:-/redoc}
-      - API_OPENAPI_URL=${API_OPENAPI_URL:-/openapi.json}
+      ENVIRONMENT: production
+      HOST: 0.0.0.0
+      PORT: "8000"
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/maplewind
+      INIT_DATA_DIR: /app/init.d
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:?JWT_SECRET_KEY is required}
+      ADMIN_SESSION_SECRET: ${ADMIN_SESSION_SECRET:?ADMIN_SESSION_SECRET is required}
+      API_V1_PREFIX: ${API_V1_PREFIX:-/api/v1}
+      API_ROOT_PATH: ${API_ROOT_PATH:-}
+      API_DOCS_URL: ${API_DOCS_URL:-/docs}
+      API_REDOC_URL: ${API_REDOC_URL:-/redoc}
+      API_OPENAPI_URL: ${API_OPENAPI_URL:-/openapi.json}
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  chatbot:
+    image: ghcr.io/gc-maplewind/maplewind-chatbot:latest
+    container_name: maplewind-chatbot
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:8014:8000"
+    volumes:
+      - ../google-credentials.json:/app/google-credentials.json:ro
+    env_file:
+      - .env
+    environment:
+      ENVIRONMENT: production
+      CHATBOT_DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/chatbot
+      ADMIN_SESSION_SECRET: ${ADMIN_SESSION_SECRET:?ADMIN_SESSION_SECRET is required}
+      CHATBOT_AUTHORIZATION_KEY: ${CHATBOT_AUTHORIZATION_KEY:?CHATBOT_AUTHORIZATION_KEY is required}
+      GOOGLE_CREDENTIALS_PATH: ${GOOGLE_CREDENTIALS_PATH:-google-credentials.json}
+      GOOGLE_DRIVE_ROOT_FOLDER_ID: ${GOOGLE_DRIVE_ROOT_FOLDER_ID:?GOOGLE_DRIVE_ROOT_FOLDER_ID is required}
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
       interval: 30s

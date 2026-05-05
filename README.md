@@ -29,6 +29,7 @@
 - **사용자 시스템**: 로컬 회원가입/로그인 및 카카오 소셜 로그인 (JWT + Refresh Token)
 - **시스템 소식**: 운영팀 메시지 및 공지사항
 - **명시적 시드 실행**: 운영/개발에서 필요한 시점에 수동 시드 실행
+- **챗봇 분리**: 카카오 챗봇은 별도 repo `GC-MapleWind/maplewind-chatbot`에서 운영
 - **API 문서 자동 생성**: Swagger UI & ReDoc 지원
 
 ---
@@ -39,7 +40,7 @@
 |------|------|------|
 | 프레임워크 | FastAPI | 0.128+ |
 | 언어 | Python | 3.12+ |
-| 데이터베이스 | SQLite | (aiosqlite) |
+| 데이터베이스 | PostgreSQL | 17+ (`asyncpg`) |
 | ORM | SQLAlchemy | 2.0+ (Async) |
 | 인증 | JWT, OAuth2 | (python-jose) |
 | 패키지 매니저 | uv | - |
@@ -65,12 +66,16 @@ cd dpbr_13_B
 
 # 2. 환경 변수 설정 (.env)
 cp .env.example .env
-# .env 파일에 JWT_SECRET_KEY, KAKAO_CLIENT_ID 등을 설정하세요.
+# .env 파일에 POSTGRES_*, DATABASE_URL, JWT_SECRET_KEY, KAKAO_CLIENT_ID 등을 설정하세요.
 
 # 3. 의존성 설치
 uv sync
 
-# 4. 개발 서버 실행
+# 4. PostgreSQL 실행 + schema migration
+docker compose -f docker-compose.dev.yml up -d postgres
+uv run alembic upgrade head
+
+# 5. 개발 서버 실행
 uv run uvicorn src.main:app --reload
 ```
 
@@ -93,6 +98,16 @@ uv run uvicorn src.main:app --reload
 ```bash
 uv run python -m scripts.seed_real_data
 ```
+
+
+## 🧭 챗봇 분리
+
+카카오 챗봇 관련 코드와 Google Sheets/Drive 연동은 별도 서비스로 분리되었습니다.
+
+- 신규 repo: `GC-MapleWind/maplewind-chatbot`
+- 로컬 작업 디렉토리 예시: `../maplewind-chatbot`
+- 운영 compose에서는 `backend`, `chatbot`, `postgres`를 함께 올릴 수 있습니다.
+- 기존 SQLite 데이터 이전은 `scripts/migrate_sqlite_to_postgres.sh`와 `scripts/verify_postgres_counts.py`를 사용합니다.
 
 ## 🏗 아키텍처
 

@@ -2,8 +2,8 @@ import os
 import secrets
 
 from fastapi import FastAPI
-from sqladmin.authentication import AuthenticationBackend
 from sqladmin import Admin, ModelView
+from sqladmin.authentication import AuthenticationBackend
 from sqlalchemy.ext.asyncio import AsyncEngine
 from starlette.requests import Request
 
@@ -12,8 +12,6 @@ from src.models.comment import Comment
 from src.models.settlement import Settlement
 from src.models.team import TeamMember, TeamMessage
 from src.models.user import User
-from src.models.chatbot import ActivitySubmission, InfoList, EventInfo, SubmitterProfile, TemporaryImage
-from src.database_chatbot import chatbot_async_session
 
 
 class AdminAuth(AuthenticationBackend):
@@ -153,80 +151,6 @@ class TeamMessageAdmin(ModelView, model=TeamMessage):
     column_sortable_list = (TeamMessage.id, TeamMessage.member_id)
 
 
-class EventInfoAdmin(ModelView, model=EventInfo):
-    name = "Event"
-    name_plural = "Events"
-    icon = "fa-solid fa-calendar"
-    category = "Chatbot"
-    sessionmaker = chatbot_async_session
-
-    column_list = [EventInfo.id, EventInfo.name, EventInfo.start_day, EventInfo.end_day]
-    column_searchable_list = [EventInfo.name]
-    column_sortable_list = [EventInfo.id, EventInfo.name, EventInfo.start_day]
-
-
-class InfoListAdmin(ModelView, model=InfoList):
-    name = "Question"
-    name_plural = "Questions"
-    icon = "fa-solid fa-list-ol"
-    category = "Chatbot"
-    sessionmaker = chatbot_async_session
-
-    column_list = [InfoList.id, InfoList.step_order, InfoList.event_name, InfoList.field_name, InfoList.question_text]
-    column_searchable_list = [InfoList.field_name, InfoList.event_name, InfoList.question_text]
-    column_sortable_list = [InfoList.id, InfoList.step_order, InfoList.event_name]
-    column_default_sort = (InfoList.step_order, False)
-
-
-class TemporaryImageAdmin(ModelView, model=TemporaryImage):
-    name = "Session"
-    name_plural = "Sessions"
-    icon = "fa-solid fa-clock"
-    category = "Chatbot"
-    sessionmaker = chatbot_async_session
-    can_create = False
-
-    column_list = [TemporaryImage.id, TemporaryImage.user_key, TemporaryImage.data, TemporaryImage.image_urls]
-    column_searchable_list = [TemporaryImage.user_key]
-    column_sortable_list = [TemporaryImage.id]
-
-
-class SubmitterProfileAdmin(ModelView, model=SubmitterProfile):
-    name = "Submitter Profile"
-    name_plural = "Submitter Profiles"
-    icon = "fa-solid fa-id-card"
-    category = "친바방"
-    sessionmaker = chatbot_async_session
-
-    column_list = [SubmitterProfile.id, SubmitterProfile.user_key, SubmitterProfile.name, SubmitterProfile.student_id, SubmitterProfile.member_type]
-    column_searchable_list = [SubmitterProfile.name, SubmitterProfile.student_id, SubmitterProfile.member_type]
-    column_sortable_list = [SubmitterProfile.id, SubmitterProfile.name, SubmitterProfile.member_type]
-
-
-class ActivitySubmissionAdmin(ModelView, model=ActivitySubmission):
-    name = "Submission"
-    name_plural = "Submissions"
-    icon = "fa-solid fa-paper-plane"
-    category = "친바방"
-    sessionmaker = chatbot_async_session
-    can_create = False
-
-    column_list = [
-        ActivitySubmission.id,
-        ActivitySubmission.submitter_name,
-        ActivitySubmission.submitter_student_id,
-        ActivitySubmission.activity_date,
-        ActivitySubmission.activity_type,
-        ActivitySubmission.newbie_count,
-        ActivitySubmission.existing_count,
-        ActivitySubmission.score,
-        ActivitySubmission.submitted_at,
-    ]
-    column_searchable_list = [ActivitySubmission.submitter_name, ActivitySubmission.activity_type]
-    column_sortable_list = [ActivitySubmission.id, ActivitySubmission.submitted_at, ActivitySubmission.activity_date, ActivitySubmission.score]
-    column_default_sort = (ActivitySubmission.submitted_at, True)
-
-
 def setup_admin(app: FastAPI, engine: AsyncEngine) -> Admin:
     session_secret = os.getenv("ADMIN_SESSION_SECRET")
     if not session_secret:
@@ -244,9 +168,4 @@ def setup_admin(app: FastAPI, engine: AsyncEngine) -> Admin:
     admin.add_view(CommentAdmin)
     admin.add_view(TeamMemberAdmin)
     admin.add_view(TeamMessageAdmin)
-    admin.add_view(EventInfoAdmin)
-    admin.add_view(InfoListAdmin)
-    admin.add_view(TemporaryImageAdmin)
-    admin.add_view(SubmitterProfileAdmin)
-    admin.add_view(ActivitySubmissionAdmin)
     return admin
