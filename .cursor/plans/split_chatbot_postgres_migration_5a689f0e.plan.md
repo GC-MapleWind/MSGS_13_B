@@ -46,6 +46,8 @@ isProject: false
 
 ## Execution status — 2026-05-09
 
+- Remaining external gates and their evidence templates are indexed in `specs/001-split-chatbot-postgres/operator-handoff-index.md`.
+
 - Main repo PR #54 is merged into `dev` as merge commit `eafce94c`; the
   post-merge dev workflow run `25567914804` passed `Build and Push Dev Image`
   and `Deploy to Dev Server`.
