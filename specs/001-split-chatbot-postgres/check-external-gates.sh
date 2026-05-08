@@ -24,6 +24,31 @@ warn() { printf 'WARN %s\n' "$1"; warnings=$((warnings + 1)); }
 fail() { printf 'FAIL %s\n' "$1"; failures=$((failures + 1)); }
 info() { printf 'INFO %s\n' "$1"; }
 
+issue_view_line() {
+  repo="$1"
+  number="$2"
+  err_file="$3"
+
+  if line="$(gh issue view "${number}" --repo "${repo}" --json state,title,url --jq '.state + "\t" + .title + "\t" + .url' 2>"${err_file}.graphql")" && [[ -n "${line}" ]]; then
+    printf '%s\n' "${line}"
+    return 0
+  fi
+
+  info "gh issue view failed for ${repo}#${number}; trying REST fallback"
+  if line="$(gh api "repos/${repo}/issues/${number}" --jq '(.state | ascii_upcase) + "\t" + .title + "\t" + .html_url' 2>"${err_file}.rest")" && [[ -n "${line}" ]]; then
+    printf '%s\n' "${line}"
+    return 0
+  fi
+
+  {
+    printf 'graphql: '
+    tr '\n' ' ' <"${err_file}.graphql" 2>/dev/null || true
+    printf ' rest: '
+    tr '\n' ' ' <"${err_file}.rest" 2>/dev/null || true
+  } >"${err_file}"
+  return 1
+}
+
 ghcr_tag_visible() {
   pattern="$1"
   printf '%s\n' "${versions}" | awk -F'tags=' 'NF > 1 {print $2}' | tr ',' '\n' | grep -Eq "${pattern}"
@@ -164,9 +189,9 @@ section "Blocker issues"
 for item in "${CHATBOT_REPO} 1 workflow" "${MAIN_REPO} 55 cutover"; do
   set -- ${item}
   repo="$1"; number="$2"; label="$3"
-  issue_line="$(gh issue view "${number}" --repo "${repo}" --json state,title,url --jq '.state + "\t" + .title + "\t" + .url' 2>"${TMP_DIR}/issue_gate.err" || true)"
+  issue_line="$(issue_view_line "${repo}" "${number}" "${TMP_DIR}/issue_gate_${number}.err" || true)"
   if [[ -z "${issue_line}" ]]; then
-    fail "cannot read ${repo}#${number}: $(tr '\n' ' ' <"${TMP_DIR}/issue_gate.err")"
+    fail "cannot read ${repo}#${number}: $(tr '\n' ' ' <"${TMP_DIR}/issue_gate_${number}.err")"
     continue
   fi
   IFS=$'\t' read -r state title url <<<"${issue_line}"

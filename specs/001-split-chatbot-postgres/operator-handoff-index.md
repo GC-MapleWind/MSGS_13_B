@@ -100,6 +100,8 @@ Run `bash specs/001-split-chatbot-postgres/check-completion-readiness.sh` when
 you want both checks in one command. It fails if either the documentation
 coverage guard or live external gate diagnostics fail, but it is still not a
 substitute for the evidence transcripts requested by the templates above.
+The external gate checker reads blocker issues with `gh issue view` first and
+falls back to the REST issues API if GraphQL is transiently unavailable.
 
 ## Do not use as completion proof
 
