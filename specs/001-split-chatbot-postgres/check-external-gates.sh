@@ -18,6 +18,33 @@ workflow_files_present=0
 TMP_DIR="$(mktemp -d "${TMPDIR:-/tmp}/split-chatbot-gates.XXXXXX")"
 trap 'rm -rf "${TMP_DIR}"' EXIT
 
+CHATBOT_WORKFLOW_EVIDENCE_FIELDS=(
+  "- Chatbot workflow commit:"
+  "- CI run URL/conclusion:"
+  "- Deploy/build run URL/conclusion:"
+  "- GHCR image tags/digest:"
+  "- Remote workflow files API result:"
+)
+
+CUTOVER_EVIDENCE_FIELDS=(
+  "- Environment:"
+  "- Window:"
+  "- Main image:"
+  "- Chatbot image:"
+  "- SQLite backup SHA-256 files:"
+  "- Row-count result:"
+  "- Backend health/core APIs:"
+  "- Chatbot health:"
+  "- Kakao/Google Sheets smoke:"
+  "- Downtime:"
+  "- Webhook route + 7-day compatibility expiry:"
+  "- SLA p95/p99:"
+  "- Chatbot-only redeploy elapsed/backend restart evidence:"
+  "- 24h/7d monitoring links:"
+  "- Rollback used?:"
+  "- Remaining follow-ups:"
+)
+
 section() { printf '\n== %s ==\n' "$1"; }
 pass() { printf 'PASS %s\n' "$1"; }
 warn() { printf 'WARN %s\n' "$1"; warnings=$((warnings + 1)); }
@@ -208,7 +235,24 @@ run_self_test() {
       return 0
     fi
     if [[ "$1" == "api" && "$2" == "repos/example/repo/issues/14" ]]; then
-      printf 'Cutover evidence summary:\n- SQLite backup SHA-256 files: maplewind.db.bak sha256:abc chatbot.db.bak sha256:def\n- Row-count result: all counts match\n- Backend health/core APIs: /health /v1/characters /v1/settlements success\n- Chatbot health: /health success\n- 24h/7d monitoring links: https://example.test/monitoring\n'
+      printf 'Cutover evidence summary:
+- Environment: staging
+- Window: 2026-05-09 01:00-01:25 KST
+- Main image: ghcr.io/gc-maplewind/msgs_13_b-backend:sha256:abc
+- Chatbot image: ghcr.io/gc-maplewind/maplewind-chatbot:sha256:def
+- SQLite backup SHA-256 files: maplewind.db.bak sha256:abc chatbot.db.bak sha256:def
+- Row-count result: all counts match
+- Backend health/core APIs: /health /v1/characters /v1/settlements success
+- Chatbot health: /health success
+- Kakao/Google Sheets smoke: row 123 recorded
+- Downtime: 12 minutes
+- Webhook route + 7-day compatibility expiry: chatbot.maplewind.com active; old route forwards until 2026-05-16
+- SLA p95/p99: p95 1.2s p99 2.1s
+- Chatbot-only redeploy elapsed/backend restart evidence: 42s; backend container id unchanged
+- 24h/7d monitoring links: https://example.test/monitoring
+- Rollback used?: no
+- Remaining follow-ups: remove compatibility route after expiry
+'
       return 0
     fi
     if [[ "$1" == "api" && "$2" == "repos/example/repo/issues/14/comments?per_page=100" ]]; then
@@ -226,7 +270,7 @@ run_self_test() {
     printf 'unexpected gh call: %s\n' "$*" >&2
     return 127
   }
-  if issue_has_complete_summary "example/repo" "8" "Chatbot workflow evidence summary:" "${TMP_DIR}/issue_summary_positive_selftest.err" "- Chatbot workflow commit:" "- CI run URL/conclusion:" "- Deploy/build run URL/conclusion:" "- GHCR image tags/digest:" "- Remote workflow files API result:"; then
+  if issue_has_complete_summary "example/repo" "8" "Chatbot workflow evidence summary:" "${TMP_DIR}/issue_summary_positive_selftest.err" "${CHATBOT_WORKFLOW_EVIDENCE_FIELDS[@]}"; then
     pass "detects complete evidence summary in one issue block"
   else
     fail "misses complete evidence summary in one issue block"
@@ -236,32 +280,32 @@ run_self_test() {
   else
     pass "rejects advisory marker mention without standalone evidence heading"
   fi
-  if issue_has_complete_summary "example/repo" "10" "Chatbot workflow evidence summary:" "${TMP_DIR}/issue_summary_empty_fields_selftest.err" "- Chatbot workflow commit:" "- CI run URL/conclusion:" "- Deploy/build run URL/conclusion:" "- GHCR image tags/digest:" "- Remote workflow files API result:"; then
+  if issue_has_complete_summary "example/repo" "10" "Chatbot workflow evidence summary:" "${TMP_DIR}/issue_summary_empty_fields_selftest.err" "${CHATBOT_WORKFLOW_EVIDENCE_FIELDS[@]}"; then
     fail "unexpectedly accepts empty required evidence fields"
   else
     pass "rejects empty required evidence fields"
   fi
-  if issue_has_complete_summary "example/repo" "11" "Chatbot workflow evidence summary:" "${TMP_DIR}/issue_summary_split_selftest.err" "- Chatbot workflow commit:" "- CI run URL/conclusion:" "- Deploy/build run URL/conclusion:" "- GHCR image tags/digest:" "- Remote workflow files API result:"; then
+  if issue_has_complete_summary "example/repo" "11" "Chatbot workflow evidence summary:" "${TMP_DIR}/issue_summary_split_selftest.err" "${CHATBOT_WORKFLOW_EVIDENCE_FIELDS[@]}"; then
     fail "unexpectedly accepts marker and fields split across issue blocks"
   else
     pass "rejects marker and fields split across issue blocks"
   fi
-  if issue_has_complete_summary "example/repo" "12" "Chatbot workflow evidence summary:" "${TMP_DIR}/issue_summary_placeholder_selftest.err" "- Chatbot workflow commit:" "- CI run URL/conclusion:" "- Deploy/build run URL/conclusion:" "- GHCR image tags/digest:" "- Remote workflow files API result:"; then
+  if issue_has_complete_summary "example/repo" "12" "Chatbot workflow evidence summary:" "${TMP_DIR}/issue_summary_placeholder_selftest.err" "${CHATBOT_WORKFLOW_EVIDENCE_FIELDS[@]}"; then
     fail "unexpectedly accepts placeholder evidence field values"
   else
     pass "rejects placeholder evidence field values"
   fi
-  if issue_has_complete_summary "example/repo" "13" "Cutover evidence summary:" "${TMP_DIR}/issue_summary_korean_placeholder_selftest.err" "- SQLite backup SHA-256 files:" "- Row-count result:" "- 24h/7d monitoring links:"; then
+  if issue_has_complete_summary "example/repo" "13" "Cutover evidence summary:" "${TMP_DIR}/issue_summary_korean_placeholder_selftest.err" "${CUTOVER_EVIDENCE_FIELDS[@]}"; then
     fail "unexpectedly accepts Korean placeholder evidence field values"
   else
     pass "rejects Korean placeholder evidence field values"
   fi
-  if issue_has_complete_summary "example/repo" "14" "Cutover evidence summary:" "${TMP_DIR}/issue_summary_cutover_positive_selftest.err" "- SQLite backup SHA-256 files:" "- Row-count result:" "- Backend health/core APIs:" "- Chatbot health:" "- 24h/7d monitoring links:"; then
-    pass "detects complete cutover evidence summary with backup field"
+  if issue_has_complete_summary "example/repo" "14" "Cutover evidence summary:" "${TMP_DIR}/issue_summary_cutover_positive_selftest.err" "${CUTOVER_EVIDENCE_FIELDS[@]}"; then
+    pass "detects complete cutover evidence summary with all required fields"
   else
-    fail "misses complete cutover evidence summary with backup field"
+    fail "misses complete cutover evidence summary with all required fields"
   fi
-  if issue_has_complete_summary "example/repo" "15" "Chatbot workflow evidence summary:" "${TMP_DIR}/issue_summary_placeholder_variants_selftest.err" "- Chatbot workflow commit:" "- CI run URL/conclusion:" "- Deploy/build run URL/conclusion:" "- GHCR image tags/digest:" "- Remote workflow files API result:"; then
+  if issue_has_complete_summary "example/repo" "15" "Chatbot workflow evidence summary:" "${TMP_DIR}/issue_summary_placeholder_variants_selftest.err" "${CHATBOT_WORKFLOW_EVIDENCE_FIELDS[@]}"; then
     fail "unexpectedly accepts punctuated or spaced placeholder evidence field values"
   else
     pass "rejects punctuated and spaced placeholder evidence field values"
@@ -399,10 +443,10 @@ for item in "${CHATBOT_REPO} 1 workflow" "${MAIN_REPO} 55 cutover"; do
     marker=""
     if [[ "${label}" == "workflow" ]]; then
       marker="Chatbot workflow evidence summary:"
-      fields=("- Chatbot workflow commit:" "- CI run URL/conclusion:" "- Deploy/build run URL/conclusion:" "- GHCR image tags/digest:" "- Remote workflow files API result:")
+      fields=("${CHATBOT_WORKFLOW_EVIDENCE_FIELDS[@]}")
     elif [[ "${label}" == "cutover" ]]; then
       marker="Cutover evidence summary:"
-      fields=("- SQLite backup SHA-256 files:" "- Row-count result:" "- Backend health/core APIs:" "- Chatbot health:" "- 24h/7d monitoring links:")
+      fields=("${CUTOVER_EVIDENCE_FIELDS[@]}")
     fi
     if [[ -n "${marker}" ]]; then
       if issue_has_complete_summary "${repo}" "${number}" "${marker}" "${TMP_DIR}/issue_summary_${number}.err" "${fields[@]}"; then
