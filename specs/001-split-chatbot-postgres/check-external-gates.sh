@@ -120,7 +120,7 @@ for item in "${CHATBOT_REPO} 1 workflow" "${MAIN_REPO} 55 cutover"; do
   fi
   IFS=$'\t' read -r state title url <<<"${issue_line}"
   info "${repo}#${number} ${state} ${title} ${url}"
-  if [[ "${state}" == "CLOSED" ]]; then pass "${label} blocker issue is closed"; else warn "${label} blocker issue remains ${state}"; fi
+  if [[ "${state}" == "CLOSED" ]]; then pass "${label} blocker issue is closed"; else fail "${label} blocker issue remains ${state}"; fi
 done
 
 section "Summary"
