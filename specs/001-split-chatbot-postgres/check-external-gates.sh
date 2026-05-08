@@ -63,7 +63,7 @@ issue_contains_marker() {
     return 1
   }
 
-  grep -Fq "${marker}" "${err_file}.body"
+  grep -Fxq "${marker}" "${err_file}.body"
 }
 
 ghcr_tag_visible() {
@@ -123,7 +123,7 @@ run_self_test() {
       return 0
     fi
     if [[ "$1" == "api" && "$2" == "repos/example/repo/issues/9/comments?per_page=100" ]]; then
-      printf 'Comments without marker\n'
+      printf 'Advisory note mentions `Cutover evidence summary:` but is not the evidence heading\n'
       return 0
     fi
     printf 'unexpected gh call: %s\n' "$*" >&2
@@ -135,9 +135,9 @@ run_self_test() {
     fail "misses evidence marker in issue comments"
   fi
   if issue_contains_marker "example/repo" "9" "Cutover evidence summary:" "${TMP_DIR}/issue_marker_negative_selftest.err"; then
-    fail "unexpectedly detects missing evidence marker"
+    fail "unexpectedly detects advisory marker mention as evidence"
   else
-    pass "rejects missing evidence marker"
+    pass "rejects advisory marker mention without standalone evidence heading"
   fi
   unset -f gh
 
