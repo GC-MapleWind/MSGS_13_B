@@ -121,7 +121,7 @@ full final `Chatbot workflow evidence summary:` field set from
 `production-cutover-evidence-template.md`, not only representative fields;
 advisory comments, empty headings, empty required-field labels, placeholder
 values such as `TBD`/`pending`, or marker/field fragments split across comments
-do not count. Full-field Gate B checker checkpoint `1b0728df8c84ca788af4c44112638ef66e8f787e` passed dev Actions run `25584011713`; it remains checker evidence only.
+do not count. Full-field Gate B checker checkpoint `1b0728df8c84ca788af4c44112638ef66e8f787e` passed dev Actions run `25584011713`; it remains checker evidence only. Full-field Gate A checker checkpoint `f6b3b81d66eacb438c639910f5cca80a3bada0e7` passed dev Actions run `25584235040` (`Build and Push Dev Image` 1m3s; `Deploy to Dev Server` 1m8s); it remains checker/main-dev evidence only.
 
 ## Final completion audit checklist
 
