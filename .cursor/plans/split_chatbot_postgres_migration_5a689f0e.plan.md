@@ -47,7 +47,7 @@ isProject: false
 ## Execution status — 2026-05-09
 
 - Remaining external gates and their evidence templates are indexed in `specs/001-split-chatbot-postgres/operator-handoff-index.md`; observable remote status can be checked with `specs/001-split-chatbot-postgres/check-external-gates.sh`.
-- Latest external-gate check input was `origin/dev` `96af07881de00df7f70ae21aaab40656508d696f` and chatbot `origin/main` `8240db28ff058a216b017da1effb877d81290ee1`; `check-external-gates.sh` still exits non-zero because chatbot workflows/GHCR evidence and production cutover evidence are absent. Latest blocker comments: chatbot #1 `#issuecomment-4409522721`, main #55 `#issuecomment-4409522898`. Later docs-only audit commits may advance `dev` without changing implementation state.
+- Latest external-gate check input before this evidence-sync commit was `origin/dev` `b0b7e9005816af6de599a257cb11bc6a38e6875f` and chatbot `origin/main` `8240db28ff058a216b017da1effb877d81290ee1`; `check-external-gates.sh` exited `1` with failures for missing chatbot `.github/workflows`, missing workflow scope on the current credential, and GHCR package `GC-MapleWind/maplewind-chatbot` not visible/readable. Latest blocker comments: chatbot #1 `#issuecomment-4409522721`, main #55 `#issuecomment-4409522898`. Later docs-only audit commits may advance `dev` without changing implementation state.
 - Latest dev workflow evidence: run `25576285116` succeeded for commit `e87e71863a1dacc0662e995696ae9e348ce61426`, including `Build and Push Dev Image` and `Deploy to Dev Server`, after preserving `scripts/migrate_sqlite_to_postgres.sh` as executable. Earlier runs `25574864234` and `25574451603` also succeeded.
 
 - Main repo PR #54 is merged into `dev` as merge commit `eafce94c`; the
