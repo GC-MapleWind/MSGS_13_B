@@ -77,7 +77,8 @@ isProject: false
   (`X-Oauth-Scopes: gist, read:org, repo`). Handoff issue:
   https://github.com/GC-MapleWind/maplewind-chatbot/issues/1
 - Production/staging cutover, Kakao webhook change, SLA/load validation, and
-  24h/7d monitoring gates remain pending operational work. Handoff issue:
+  24h/7d monitoring gates remain pending operational work; evidence capture is templated in
+  `specs/001-split-chatbot-postgres/production-cutover-evidence-template.md`. Handoff issue:
   https://github.com/GC-MapleWind/MSGS_13_B/issues/55
 - README/docs/audit cleanup is complete; phase4-cleanup is marked completed. T042/T043 remain post-cutover cleanup/retention gates.
 - T042 removal of `migrate_user_student_id_to_username` remains gated by the

@@ -2,8 +2,8 @@
 title: "Split chatbot PostgreSQL migration handoff"
 tags: ["split-chatbot", "postgres", "migration", "handoff", "blocked", "ci-cd", "ops"]
 created: 2026-05-08T17:06:44.518Z
-updated: 2026-05-08T17:54:10Z
-sources: ["specs/001-split-chatbot-postgres/codex-prompts.md", "specs/001-split-chatbot-postgres/completion-audit.md", "specs/001-split-chatbot-postgres/cutover-runbook.md", "specs/001-split-chatbot-postgres/cutover-dryrun.md", ".cursor/plans/split_chatbot_postgres_migration_5a689f0e.plan.md", "https://github.com/GC-MapleWind/MSGS_13_B/pull/54", "https://github.com/GC-MapleWind/MSGS_13_B/actions/runs/25567914804", "https://github.com/GC-MapleWind/MSGS_13_B/actions/runs/25570800233", "https://github.com/GC-MapleWind/MSGS_13_B/actions/runs/25571572967", "https://github.com/GC-MapleWind/maplewind-chatbot/issues/1", "https://github.com/GC-MapleWind/MSGS_13_B/issues/55"]
+updated: 2026-05-08T19:02:00Z
+sources: ["specs/001-split-chatbot-postgres/codex-prompts.md", "specs/001-split-chatbot-postgres/completion-audit.md", "specs/001-split-chatbot-postgres/cutover-runbook.md", "specs/001-split-chatbot-postgres/production-cutover-evidence-template.md", "specs/001-split-chatbot-postgres/cutover-dryrun.md", ".cursor/plans/split_chatbot_postgres_migration_5a689f0e.plan.md", "https://github.com/GC-MapleWind/MSGS_13_B/pull/54", "https://github.com/GC-MapleWind/MSGS_13_B/actions/runs/25567914804", "https://github.com/GC-MapleWind/MSGS_13_B/actions/runs/25570800233", "https://github.com/GC-MapleWind/MSGS_13_B/actions/runs/25571572967", "https://github.com/GC-MapleWind/maplewind-chatbot/issues/1", "https://github.com/GC-MapleWind/MSGS_13_B/issues/55"]
 links: []
 category: session-log
 confidence: high
@@ -53,7 +53,7 @@ checkboxes are retained as historical plan text.
    - Tracking issue: `https://github.com/GC-MapleWind/maplewind-chatbot/issues/1`.
 
 2. Production/staging cutover has not been executed.
-   - Required work includes production backup, Postgres bring-up, pgloader migration, deployment, Kakao webhook change, SLA/load validation, and 24h/7d monitoring.
+   - Required work includes production backup, Postgres bring-up, pgloader migration, deployment, Kakao webhook change, SLA/load validation, and 24h/7d monitoring. Operators should fill `specs/001-split-chatbot-postgres/production-cutover-evidence-template.md` into issue #55 as the evidence bundle.
    - T042 removal of `migrate_user_student_id_to_username` is also gated by post-cutover/post-run verification; do not remove it before that evidence exists.
    - Tracking issue: `https://github.com/GC-MapleWind/MSGS_13_B/issues/55`.
 
