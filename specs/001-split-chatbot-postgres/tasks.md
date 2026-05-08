@@ -33,7 +33,7 @@ The checkboxes below preserve the original implementation plan. Use this overlay
 - **Production/ops-gated**: T001, T034-T039, T042-T043. These require production or
   staging authority, backup/cutover execution, webhook/SLA/monitoring evidence, or
   post-run retention cleanup.
-- **Documentation complete**: T040-T041. Main README and chatbot README/env docs are
+- **Documentation complete**: T040-T041. Main README and chatbot README/env/webhook/simulation docs are
   present; production runbooks and handoff issues remain the operational source of
   truth.
 

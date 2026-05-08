@@ -25,12 +25,13 @@ checkboxes are retained as historical plan text.
 - Verify the current `dev` hash with `git ls-remote origin refs/heads/dev`; evidence-only commits may advance the branch without changing implementation state.
 - Main `.env.example` includes both `DATABASE_URL` and integration-level `CHATBOT_DATABASE_URL`; the chatbot repo `.env.example` carries the chatbot service-specific environment contract.
 - Dev GitHub Actions run `25567914804` for `Backend CI/CD (Docker)` completed with conclusion `success` on `2026-05-08T16:52:37Z`.
-- Chatbot repo `GC-MapleWind/maplewind-chatbot` remote `main` points to history-adopting merge commit `5e6c20df8b0c047f716ad02be249a99ce367838e`.
+- Chatbot repo `GC-MapleWind/maplewind-chatbot` remote `main` is `6c76fbad89bfadaca4fe2eef5edaeca061e9640b`, a docs-only descendant of history-adopting merge commit `5e6c20df8b0c047f716ad02be249a99ce367838e`.
 - Chatbot history/archive refs exist:
   - `archive/chinbabang-submission` -> `b357aeaa6bc201fa693c871b31c6ad823b66e4c7`
   - `history-preserved-extract` -> `d725f8fa1fafe2ef78adcb4e89b3b8fa930af71f`
   - `archive/chinbabang-submission-filtered` -> `d725f8fa1fafe2ef78adcb4e89b3b8fa930af71f`
 - Local dry-run evidence, row counts, tests, and runbooks are recorded under `specs/001-split-chatbot-postgres/`.
+- Chatbot README documents required env vars, Kakao webhook endpoint, operations notes, and `scripts/simulate_maesaeng_flow.py` usage.
 
 ## Remaining blockers
 
