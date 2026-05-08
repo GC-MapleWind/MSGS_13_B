@@ -66,10 +66,10 @@ historical plan text; use the overlay and this audit as the current task ledger.
 ## Blocking gaps before goal completion
 
 1. `GC-MapleWind/maplewind-chatbot` remote main is `6c76fba`, a docs-only descendant of history-adopting merge commit `5e6c20d`, but CI/CD workflow files remain as patch artifact `chatbot-workflows-pending.patch`; the patch applies cleanly to current chatbot `origin/main` `6c76fbad89bfadaca4fe2eef5edaeca061e9640b`, but pushing/applying it to the remote failed because the OAuth credential lacks GitHub `workflow` scope for `.github/workflows/ci.yml`; credential headers confirm `X-Oauth-Scopes: gist, read:org, repo` with no `workflow`; remote API check for `.github/workflows` still returns HTTP 404. Handoff issue: https://github.com/GC-MapleWind/maplewind-chatbot/issues/1
-2. Production cutover, webhook update, SLA tests, and 24h/7d monitoring are manual/production operations and have not run in this local session. Handoff issue: https://github.com/GC-MapleWind/MSGS_13_B/issues/55
+2. T001 and T035-T039/T042-T043 remain production/staging operations: production SQLite backups, reverse proxy/Kakao routing, SLA/load and crash-isolation validation, cutover and monitoring, post-run T042 cleanup, and backup retention/cold-storage have not run in this local session. Handoff issue: https://github.com/GC-MapleWind/MSGS_13_B/issues/55
 3. T042 removal of `migrate_user_student_id_to_username` is intentionally not a free local cleanup until the cutover/post-run verification prerequisite in `tasks.md` is satisfied.
 4. Durable handoff evidence is published at https://github.com/GC-MapleWind/MSGS_13_B/blob/dev/omx_wiki/split-chatbot-postgresql-migration-handoff.md and cross-linked from both blocker issues.
 
 ## Current conclusion
 
-The implementation is merged to `dev`, the chatbot remote runtime/history adoption is pushed, and the migration dry-run is verified. The overall objective is not complete until the chatbot workflow-scope push and production/staging operational gates are resolved.
+The implementation is merged to `dev`, the chatbot remote runtime/history adoption is pushed, the migration dry-run is verified, T034/T040/T041 are documented complete, and T031 is no longer blocked. The overall objective is not complete until the chatbot workflow-scope push and production/staging operational gates are resolved.
