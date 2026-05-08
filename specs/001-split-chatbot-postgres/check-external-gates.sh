@@ -76,6 +76,13 @@ if gh api "repos/${CHATBOT_REPO}/contents/.github/workflows?ref=${CHATBOT_BRANCH
   if printf '%s\n' "${paths}" | grep -qx '.github/workflows/ci.yml' && printf '%s\n' "${paths}" | grep -qx '.github/workflows/deploy.yml'; then
     workflow_files_present=1
   fi
+  if gh api "repos/${CHATBOT_REPO}/contents/.github/workflows/deploy.yml?ref=${CHATBOT_BRANCH}" --jq '.content' 2>"${TMP_DIR}/chatbot_deploy_workflow.err" | base64 --decode >"${TMP_DIR}/chatbot_deploy.yml"; then
+    if grep -q 'type=raw,value=latest' "${TMP_DIR}/chatbot_deploy.yml"; then pass "deploy.yml preserves GHCR latest tag metadata"; else fail "deploy.yml missing type=raw,value=latest metadata"; fi
+    if grep -q 'type=sha,format=long,prefix=' "${TMP_DIR}/chatbot_deploy.yml"; then pass "deploy.yml preserves full-sha GHCR tag metadata"; else fail "deploy.yml missing type=sha,format=long,prefix= metadata"; fi
+    if grep -q 'type=sha,prefix=main-' "${TMP_DIR}/chatbot_deploy.yml"; then pass "deploy.yml preserves main-* GHCR tag metadata"; else fail "deploy.yml missing type=sha,prefix=main- metadata"; fi
+  else
+    fail "deploy.yml content is not readable on ${CHATBOT_BRANCH}: $(tr '\n' ' ' <"${TMP_DIR}/chatbot_deploy_workflow.err")"
+  fi
 else
   fail "${CHATBOT_REPO} .github/workflows is not readable on ${CHATBOT_BRANCH}: $(tr '\n' ' ' <"${TMP_DIR}/chatbot_workflow_gate.err")"
 fi
