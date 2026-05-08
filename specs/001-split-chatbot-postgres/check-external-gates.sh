@@ -89,7 +89,9 @@ issue_has_complete_summary() {
             if (field_pos == 1) {
               field_value = substr($line, length(fields[i]) + 1)
               gsub(/^[[:space:]]+|[[:space:]]+$/, "", field_value)
-              if (field_value != "") {
+              normalized_value = tolower(field_value)
+              gsub(/[`*_[:space:]]+/, "", normalized_value)
+              if (field_value != "" && normalized_value !~ /^(tbd|todo|pending|none|null|na|n\/a|placeholder|replace|replace-me|changeme|unknown|미정|대기|없음)$/) {
                 field_has_value = 1
               }
             }
@@ -188,6 +190,14 @@ run_self_test() {
       printf '- CI run URL/conclusion: https://example.test/ci success\n- Deploy/build run URL/conclusion: https://example.test/deploy success\n- GHCR image tags/digest: latest sha main main-abc digest sha256:abc\n'
       return 0
     fi
+    if [[ "$1" == "api" && "$2" == "repos/example/repo/issues/12" ]]; then
+      printf 'Chatbot workflow evidence summary:\n- CI run URL/conclusion: TBD\n- Deploy/build run URL/conclusion: pending\n- GHCR image tags/digest: replace-me\n'
+      return 0
+    fi
+    if [[ "$1" == "api" && "$2" == "repos/example/repo/issues/12/comments?per_page=100" ]]; then
+      printf 'No comments\n'
+      return 0
+    fi
     printf 'unexpected gh call: %s\n' "$*" >&2
     return 127
   }
@@ -210,6 +220,11 @@ run_self_test() {
     fail "unexpectedly accepts marker and fields split across issue blocks"
   else
     pass "rejects marker and fields split across issue blocks"
+  fi
+  if issue_has_complete_summary "example/repo" "12" "Chatbot workflow evidence summary:" "${TMP_DIR}/issue_summary_placeholder_selftest.err" "- CI run URL/conclusion:" "- Deploy/build run URL/conclusion:" "- GHCR image tags/digest:"; then
+    fail "unexpectedly accepts placeholder evidence field values"
+  else
+    pass "rejects placeholder evidence field values"
   fi
   unset -f gh
 
