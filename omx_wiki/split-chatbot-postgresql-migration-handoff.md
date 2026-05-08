@@ -45,9 +45,9 @@ checkboxes are retained as historical plan text.
 1. Chatbot CI/CD workflows are not present on the remote repo.
    - API check for `repos/GC-MapleWind/maplewind-chatbot/contents/.github/workflows` returned HTTP 404.
    - Current GitHub OAuth scopes are `gist, read:org, repo`; missing required `workflow` scope.
-   - Workflow patch is preserved in `specs/001-split-chatbot-postgres/chatbot-workflows-pending.patch`.
-   - Patch recoverability was verified against current chatbot `origin/main` `dff9dfd2b23be4c5e562e0ca65219df530081b57`: `git apply --check` passed. Patch SHA-256 is `43baf797f0057ef4b8631370f400929482a9615c60e87be75d8502b42fc8e12e`; it adds `.github/workflows/ci.yml` and `.github/workflows/deploy.yml`.
-   - Local workflow simulation was re-run against current chatbot `origin/main` `dff9dfd2b23be4c5e562e0ca65219df530081b57` after the README/T024 lifespan updates: patch application in a temporary worktree, frozen dev sync, ruff, CI-env SQLite unit tests, Alembic offline SQL, Alembic online migration against temporary `postgres:17-alpine`, and `docker build -t chatbot-ci-local:workflow-patch-lifespan .` all succeeded. Evidence: https://github.com/GC-MapleWind/maplewind-chatbot/issues/1#issuecomment-4408909456. Remaining gap is remote application/execution with a workflow-scoped credential.
+   - Updated workflow patch is preserved in `specs/001-split-chatbot-postgres/chatbot-workflows-pending.patch`.
+   - Patch recoverability was verified against current chatbot `origin/main` `dff9dfd2b23be4c5e562e0ca65219df530081b57`: `git apply --check` passed. Patch SHA-256 is `ceb61e156d10e4cde98a6bc9d2cbf903ae2205b1cc790f861881a1f1fe21cac4`; it adds `.github/workflows/ci.yml` and `.github/workflows/deploy.yml`.
+   - Local workflow simulation was re-run against current chatbot `origin/main` `dff9dfd2b23be4c5e562e0ca65219df530081b57` after the README/T024 lifespan updates: patch application in a temporary worktree, frozen dev sync, ruff, CI-env SQLite unit tests, Alembic offline SQL, Alembic online migration against temporary `postgres:17-alpine`, T030 tag-shape check for `type=sha,format=long,prefix=`, and `docker build -t chatbot-ci-local:workflow-patch-t030 .` all succeeded. Evidence: https://github.com/GC-MapleWind/maplewind-chatbot/issues/1#issuecomment-4408909456. Remaining gap is remote application/execution with a workflow-scoped credential.
    - Tracking issue: `https://github.com/GC-MapleWind/maplewind-chatbot/issues/1`.
 
 2. Production/staging cutover has not been executed.

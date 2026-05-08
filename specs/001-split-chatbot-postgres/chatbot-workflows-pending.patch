@@ -147,6 +147,7 @@ index 0000000..14ba861
 +          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
 +          tags: |
 +            type=raw,value=latest
++            type=sha,format=long,prefix=
 +            type=raw,value=main
 +            type=sha,prefix=main-
 +
