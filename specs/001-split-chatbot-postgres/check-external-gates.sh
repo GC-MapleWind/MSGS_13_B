@@ -19,11 +19,14 @@ TMP_DIR="$(mktemp -d "${TMPDIR:-/tmp}/split-chatbot-gates.XXXXXX")"
 trap 'rm -rf "${TMP_DIR}"' EXIT
 
 CHATBOT_WORKFLOW_EVIDENCE_FIELDS=(
+  "- Applied from MSGS_13_B dev:"
+  "- Patch SHA-256:"
   "- Chatbot workflow commit:"
   "- CI run URL/conclusion:"
   "- Deploy/build run URL/conclusion:"
   "- GHCR image tags/digest:"
   "- Remote workflow files API result:"
+  "- Remaining follow-ups:"
 )
 
 CUTOVER_EVIDENCE_FIELDS=(
@@ -191,7 +194,7 @@ run_self_test() {
       return 0
     fi
     if [[ "$1" == "api" && "$2" == "repos/example/repo/issues/8/comments?per_page=100" ]]; then
-      printf 'Chatbot workflow evidence summary:\n- Chatbot workflow commit: abcdef1234567890\n- CI run URL/conclusion: https://example.test/ci success\n- Deploy/build run URL/conclusion: https://example.test/deploy success\n- GHCR image tags/digest: latest sha main main-abc digest sha256:abc\n- Remote workflow files API result: ci.yml deploy.yml present\n'
+      printf 'Chatbot workflow evidence summary:\n- Applied from MSGS_13_B dev: 0123456789abcdef0123456789abcdef01234567\n- Patch SHA-256: ceb61e156d10e4cde98a6bc9d2cbf903ae2205b1cc790f861881a1f1fe21cac4\n- Applied from MSGS_13_B dev: 0123456789abcdef0123456789abcdef01234567\n- Patch SHA-256: ceb61e156d10e4cde98a6bc9d2cbf903ae2205b1cc790f861881a1f1fe21cac4\n- Chatbot workflow commit: abcdef1234567890\n- CI run URL/conclusion: https://example.test/ci success\n- Deploy/build run URL/conclusion: https://example.test/deploy success\n- GHCR image tags/digest: latest sha main main-abc digest sha256:abc\n- Remote workflow files API result: ci.yml deploy.yml present\n- Remaining follow-ups: monitor deploy evidence handoff\n'
       return 0
     fi
     if [[ "$1" == "api" && "$2" == "repos/example/repo/issues/9" ]]; then
@@ -203,7 +206,7 @@ run_self_test() {
       return 0
     fi
     if [[ "$1" == "api" && "$2" == "repos/example/repo/issues/10" ]]; then
-      printf 'Chatbot workflow evidence summary:\n- Chatbot workflow commit:\n- CI run URL/conclusion:\n- Deploy/build run URL/conclusion:\n- GHCR image tags/digest:\n- Remote workflow files API result:\n'
+      printf 'Chatbot workflow evidence summary:\n- Applied from MSGS_13_B dev:\n- Patch SHA-256:\n- Chatbot workflow commit:\n- CI run URL/conclusion:\n- Deploy/build run URL/conclusion:\n- GHCR image tags/digest:\n- Remote workflow files API result:\n- Remaining follow-ups:\n'
       return 0
     fi
     if [[ "$1" == "api" && "$2" == "repos/example/repo/issues/10/comments?per_page=100" ]]; then
@@ -215,11 +218,11 @@ run_self_test() {
       return 0
     fi
     if [[ "$1" == "api" && "$2" == "repos/example/repo/issues/11/comments?per_page=100" ]]; then
-      printf '- Chatbot workflow commit: abcdef1234567890\n- CI run URL/conclusion: https://example.test/ci success\n- Deploy/build run URL/conclusion: https://example.test/deploy success\n- GHCR image tags/digest: latest sha main main-abc digest sha256:abc\n- Remote workflow files API result: ci.yml deploy.yml present\n'
+      printf '- Applied from MSGS_13_B dev: 0123456789abcdef0123456789abcdef01234567\n- Patch SHA-256: ceb61e156d10e4cde98a6bc9d2cbf903ae2205b1cc790f861881a1f1fe21cac4\n- Chatbot workflow commit: abcdef1234567890\n- CI run URL/conclusion: https://example.test/ci success\n- Deploy/build run URL/conclusion: https://example.test/deploy success\n- GHCR image tags/digest: latest sha main main-abc digest sha256:abc\n- Remote workflow files API result: ci.yml deploy.yml present\n- Remaining follow-ups: monitor deploy evidence handoff\n'
       return 0
     fi
     if [[ "$1" == "api" && "$2" == "repos/example/repo/issues/12" ]]; then
-      printf 'Chatbot workflow evidence summary:\n- Chatbot workflow commit: TBD\n- CI run URL/conclusion: TBD\n- Deploy/build run URL/conclusion: pending\n- GHCR image tags/digest: replace-me\n- Remote workflow files API result: unknown\n'
+      printf 'Chatbot workflow evidence summary:\n- Applied from MSGS_13_B dev: TBD\n- Patch SHA-256: pending\n- Chatbot workflow commit: TBD\n- CI run URL/conclusion: TBD\n- Deploy/build run URL/conclusion: pending\n- GHCR image tags/digest: replace-me\n- Remote workflow files API result: unknown\n- Remaining follow-ups: none\n'
       return 0
     fi
     if [[ "$1" == "api" && "$2" == "repos/example/repo/issues/12/comments?per_page=100" ]]; then
@@ -260,7 +263,7 @@ run_self_test() {
       return 0
     fi
     if [[ "$1" == "api" && "$2" == "repos/example/repo/issues/15" ]]; then
-      printf 'Chatbot workflow evidence summary:\n- Chatbot workflow commit: TBD.\n- CI run URL/conclusion: To be determined\n- Deploy/build run URL/conclusion: replace me\n- GHCR image tags/digest: placeholder.\n- Remote workflow files API result: unknown.\n'
+      printf 'Chatbot workflow evidence summary:\n- Applied from MSGS_13_B dev: TBD.\n- Patch SHA-256: To be determined\n- Chatbot workflow commit: TBD.\n- CI run URL/conclusion: To be determined\n- Deploy/build run URL/conclusion: replace me\n- GHCR image tags/digest: placeholder.\n- Remote workflow files API result: unknown.\n- Remaining follow-ups: unknown.\n'
       return 0
     fi
     if [[ "$1" == "api" && "$2" == "repos/example/repo/issues/15/comments?per_page=100" ]]; then
@@ -271,9 +274,9 @@ run_self_test() {
     return 127
   }
   if issue_has_complete_summary "example/repo" "8" "Chatbot workflow evidence summary:" "${TMP_DIR}/issue_summary_positive_selftest.err" "${CHATBOT_WORKFLOW_EVIDENCE_FIELDS[@]}"; then
-    pass "detects complete evidence summary in one issue block"
+    pass "detects complete workflow evidence summary with all required fields"
   else
-    fail "misses complete evidence summary in one issue block"
+    fail "misses complete workflow evidence summary with all required fields"
   fi
   if issue_has_complete_summary "example/repo" "9" "Cutover evidence summary:" "${TMP_DIR}/issue_summary_advisory_selftest.err" "- Row-count result:" "- 24h/7d monitoring links:"; then
     fail "unexpectedly detects advisory marker mention as evidence"

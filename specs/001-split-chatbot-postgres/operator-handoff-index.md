@@ -114,8 +114,10 @@ tab-separated issue line for the readiness parser and that issue evidence
 summary markers are detected/rejected correctly. When blocker issues are closed,
 the live checker still fails if the expected Gate A/Gate B evidence summary
 markers are absent as standalone lines in the issue timeline, or if required
-fields are missing from the same issue body/comment block. Gate B requires the
-full final `Cutover evidence summary:` field set from
+fields are missing from the same issue body/comment block. Gate A requires the
+full final `Chatbot workflow evidence summary:` field set from
+`chatbot-workflow-evidence-template.md`, and Gate B requires the full final
+`Cutover evidence summary:` field set from
 `production-cutover-evidence-template.md`, not only representative fields;
 advisory comments, empty headings, empty required-field labels, placeholder
 values such as `TBD`/`pending`, or marker/field fragments split across comments
