@@ -40,6 +40,11 @@ run_self_test() {
   versions='version=2 updated=now tags=latest,main'
   if ghcr_tag_visible '^[0-9a-f]{40}$'; then fail "unexpectedly matches missing full-sha tag"; else pass "rejects missing full-sha tag"; fi
 
+  versions='version=3 updated=now tags=not-latest,mainline,main-123456'
+  if ghcr_tag_visible '^latest$'; then fail "unexpectedly matches non-exact latest tag"; else pass "rejects non-exact latest tag"; fi
+  if ghcr_tag_visible '^main$'; then fail "unexpectedly matches non-exact main tag"; else pass "rejects non-exact main tag"; fi
+  if ghcr_tag_visible '^main-[0-9a-f]{7,40}$'; then fail "unexpectedly matches too-short main-* tag"; else pass "rejects too-short main-* tag"; fi
+
   section "Self-test summary"
   info "failures=${failures} warnings=${warnings}"
   [[ "${failures}" -eq 0 ]]
