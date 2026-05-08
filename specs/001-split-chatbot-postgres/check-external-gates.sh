@@ -163,7 +163,7 @@ run_self_test() {
       return 0
     fi
     if [[ "$1" == "api" && "$2" == "repos/example/repo/issues/8/comments?per_page=100" ]]; then
-      printf 'Chatbot workflow evidence summary:\n- CI run URL/conclusion: https://example.test/ci success\n- Deploy/build run URL/conclusion: https://example.test/deploy success\n- GHCR image tags/digest: latest sha main main-abc digest sha256:abc\n'
+      printf 'Chatbot workflow evidence summary:\n- Chatbot workflow commit: abcdef1234567890\n- CI run URL/conclusion: https://example.test/ci success\n- Deploy/build run URL/conclusion: https://example.test/deploy success\n- GHCR image tags/digest: latest sha main main-abc digest sha256:abc\n- Remote workflow files API result: ci.yml deploy.yml present\n'
       return 0
     fi
     if [[ "$1" == "api" && "$2" == "repos/example/repo/issues/9" ]]; then
@@ -175,7 +175,7 @@ run_self_test() {
       return 0
     fi
     if [[ "$1" == "api" && "$2" == "repos/example/repo/issues/10" ]]; then
-      printf 'Chatbot workflow evidence summary:\n- CI run URL/conclusion:\n- Deploy/build run URL/conclusion:\n- GHCR image tags/digest:\n'
+      printf 'Chatbot workflow evidence summary:\n- Chatbot workflow commit:\n- CI run URL/conclusion:\n- Deploy/build run URL/conclusion:\n- GHCR image tags/digest:\n- Remote workflow files API result:\n'
       return 0
     fi
     if [[ "$1" == "api" && "$2" == "repos/example/repo/issues/10/comments?per_page=100" ]]; then
@@ -187,11 +187,11 @@ run_self_test() {
       return 0
     fi
     if [[ "$1" == "api" && "$2" == "repos/example/repo/issues/11/comments?per_page=100" ]]; then
-      printf '- CI run URL/conclusion: https://example.test/ci success\n- Deploy/build run URL/conclusion: https://example.test/deploy success\n- GHCR image tags/digest: latest sha main main-abc digest sha256:abc\n'
+      printf '- Chatbot workflow commit: abcdef1234567890\n- CI run URL/conclusion: https://example.test/ci success\n- Deploy/build run URL/conclusion: https://example.test/deploy success\n- GHCR image tags/digest: latest sha main main-abc digest sha256:abc\n- Remote workflow files API result: ci.yml deploy.yml present\n'
       return 0
     fi
     if [[ "$1" == "api" && "$2" == "repos/example/repo/issues/12" ]]; then
-      printf 'Chatbot workflow evidence summary:\n- CI run URL/conclusion: TBD\n- Deploy/build run URL/conclusion: pending\n- GHCR image tags/digest: replace-me\n'
+      printf 'Chatbot workflow evidence summary:\n- Chatbot workflow commit: TBD\n- CI run URL/conclusion: TBD\n- Deploy/build run URL/conclusion: pending\n- GHCR image tags/digest: replace-me\n- Remote workflow files API result: unknown\n'
       return 0
     fi
     if [[ "$1" == "api" && "$2" == "repos/example/repo/issues/12/comments?per_page=100" ]]; then
@@ -217,7 +217,7 @@ run_self_test() {
     printf 'unexpected gh call: %s\n' "$*" >&2
     return 127
   }
-  if issue_has_complete_summary "example/repo" "8" "Chatbot workflow evidence summary:" "${TMP_DIR}/issue_summary_positive_selftest.err" "- CI run URL/conclusion:" "- Deploy/build run URL/conclusion:" "- GHCR image tags/digest:"; then
+  if issue_has_complete_summary "example/repo" "8" "Chatbot workflow evidence summary:" "${TMP_DIR}/issue_summary_positive_selftest.err" "- Chatbot workflow commit:" "- CI run URL/conclusion:" "- Deploy/build run URL/conclusion:" "- GHCR image tags/digest:" "- Remote workflow files API result:"; then
     pass "detects complete evidence summary in one issue block"
   else
     fail "misses complete evidence summary in one issue block"
@@ -227,17 +227,17 @@ run_self_test() {
   else
     pass "rejects advisory marker mention without standalone evidence heading"
   fi
-  if issue_has_complete_summary "example/repo" "10" "Chatbot workflow evidence summary:" "${TMP_DIR}/issue_summary_empty_fields_selftest.err" "- CI run URL/conclusion:" "- Deploy/build run URL/conclusion:" "- GHCR image tags/digest:"; then
+  if issue_has_complete_summary "example/repo" "10" "Chatbot workflow evidence summary:" "${TMP_DIR}/issue_summary_empty_fields_selftest.err" "- Chatbot workflow commit:" "- CI run URL/conclusion:" "- Deploy/build run URL/conclusion:" "- GHCR image tags/digest:" "- Remote workflow files API result:"; then
     fail "unexpectedly accepts empty required evidence fields"
   else
     pass "rejects empty required evidence fields"
   fi
-  if issue_has_complete_summary "example/repo" "11" "Chatbot workflow evidence summary:" "${TMP_DIR}/issue_summary_split_selftest.err" "- CI run URL/conclusion:" "- Deploy/build run URL/conclusion:" "- GHCR image tags/digest:"; then
+  if issue_has_complete_summary "example/repo" "11" "Chatbot workflow evidence summary:" "${TMP_DIR}/issue_summary_split_selftest.err" "- Chatbot workflow commit:" "- CI run URL/conclusion:" "- Deploy/build run URL/conclusion:" "- GHCR image tags/digest:" "- Remote workflow files API result:"; then
     fail "unexpectedly accepts marker and fields split across issue blocks"
   else
     pass "rejects marker and fields split across issue blocks"
   fi
-  if issue_has_complete_summary "example/repo" "12" "Chatbot workflow evidence summary:" "${TMP_DIR}/issue_summary_placeholder_selftest.err" "- CI run URL/conclusion:" "- Deploy/build run URL/conclusion:" "- GHCR image tags/digest:"; then
+  if issue_has_complete_summary "example/repo" "12" "Chatbot workflow evidence summary:" "${TMP_DIR}/issue_summary_placeholder_selftest.err" "- Chatbot workflow commit:" "- CI run URL/conclusion:" "- Deploy/build run URL/conclusion:" "- GHCR image tags/digest:" "- Remote workflow files API result:"; then
     fail "unexpectedly accepts placeholder evidence field values"
   else
     pass "rejects placeholder evidence field values"
@@ -385,7 +385,7 @@ for item in "${CHATBOT_REPO} 1 workflow" "${MAIN_REPO} 55 cutover"; do
     marker=""
     if [[ "${label}" == "workflow" ]]; then
       marker="Chatbot workflow evidence summary:"
-      fields=("- CI run URL/conclusion:" "- Deploy/build run URL/conclusion:" "- GHCR image tags/digest:")
+      fields=("- Chatbot workflow commit:" "- CI run URL/conclusion:" "- Deploy/build run URL/conclusion:" "- GHCR image tags/digest:" "- Remote workflow files API result:")
     elif [[ "${label}" == "cutover" ]]; then
       marker="Cutover evidence summary:"
       fields=("- SQLite backup SHA-256 files:" "- Row-count result:" "- Backend health/core APIs:" "- Chatbot health:" "- 24h/7d monitoring links:")
