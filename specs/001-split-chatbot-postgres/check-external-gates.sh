@@ -13,6 +13,7 @@ CHATBOT_BRANCH="${CHATBOT_BRANCH:-main}"
 failures=0
 warnings=0
 has_workflow_scope=0
+has_read_packages_scope=0
 workflow_files_present=0
 TMP_DIR="$(mktemp -d "${TMPDIR:-/tmp}/split-chatbot-gates.XXXXXX")"
 trap 'rm -rf "${TMP_DIR}"' EXIT
@@ -57,6 +58,12 @@ else
     pass "credential includes workflow scope"
   else
     warn "credential lacks workflow scope; workflow-file application is expected to be blocked if workflows are still absent"
+  fi
+  if printf '%s' "${scopes}" | grep -Eq '(^|, *)read:packages(,|$)'; then
+    has_read_packages_scope=1
+    pass "credential includes read:packages scope"
+  else
+    warn "credential lacks read:packages scope; private GHCR package visibility may be inconclusive"
   fi
 fi
 
@@ -106,7 +113,11 @@ if gh api "/orgs/${chatbot_owner}/packages/container/${chatbot_package}" >"${TMP
     warn "GHCR package visible but versions/tags not readable: $(tr '\n' ' ' <"${TMP_DIR}/chatbot_ghcr_versions.err")"
   fi
 else
-  fail "GHCR package ${chatbot_owner}/${chatbot_package} is not visible/readable: $(tr '\n' ' ' <"${TMP_DIR}/chatbot_ghcr_package.err")"
+  if [[ "${has_read_packages_scope}" -eq 0 ]]; then
+    fail "GHCR package ${chatbot_owner}/${chatbot_package} is not visible/readable with current credential, and credential lacks read:packages scope: $(tr '\n' ' ' <"${TMP_DIR}/chatbot_ghcr_package.err")"
+  else
+    fail "GHCR package ${chatbot_owner}/${chatbot_package} is not visible/readable despite read:packages scope: $(tr '\n' ' ' <"${TMP_DIR}/chatbot_ghcr_package.err")"
+  fi
 fi
 
 section "Blocker issues"
