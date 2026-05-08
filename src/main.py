@@ -3,26 +3,24 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 from dotenv import load_dotenv
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
-from src.controller.v1.characters import router as characters_router
-from src.controller.v1.comments import router as comments_router
-from src.controller.v1.settlements import router as settlements_router
-from src.controller.v1.system import router as system_router
-from src.controller.v1.users import router as users_router
-from src.controller.v1.chatbot import router as chatbot_router
-from starlette.middleware.sessions import SessionMiddleware
-from starlette.responses import PlainTextResponse, Response
-from starlette.types import Scope
-from fastapi.staticfiles import StaticFiles
-from sqlalchemy import text
 
-from src.admin import setup_admin
-from src.database import async_session, engine, init_db
-from src.database_chatbot import init_chatbot_db
-
-# 환경 변수 로드
 load_dotenv()
+
+from fastapi import FastAPI  # noqa: E402
+from fastapi.middleware.cors import CORSMiddleware  # noqa: E402
+from fastapi.staticfiles import StaticFiles  # noqa: E402
+from sqlalchemy import text  # noqa: E402
+from starlette.middleware.sessions import SessionMiddleware  # noqa: E402
+from starlette.responses import PlainTextResponse, Response  # noqa: E402
+from starlette.types import Scope  # noqa: E402
+
+from src.admin import setup_admin  # noqa: E402
+from src.controller.v1.characters import router as characters_router  # noqa: E402
+from src.controller.v1.comments import router as comments_router  # noqa: E402
+from src.controller.v1.settlements import router as settlements_router  # noqa: E402
+from src.controller.v1.system import router as system_router  # noqa: E402
+from src.controller.v1.users import router as users_router  # noqa: E402
+from src.database import async_session, engine  # noqa: E402
 
 
 def _normalize_router_prefix(value: str | None, default: str) -> str:
@@ -88,6 +86,7 @@ class ImageOnlyStaticFiles(StaticFiles):
 
 
 async def migrate_user_student_id_to_username() -> None:
+    """Legacy SQLite-only cleanup retained for pre-cutover local DBs."""
     async with async_session() as db:
         bind = db.get_bind()
         if bind.dialect.name != "sqlite":
@@ -104,9 +103,7 @@ async def migrate_user_student_id_to_username() -> None:
         users = users_result.fetchall()
 
         for user_id, username, student_id in users:
-            if not student_id:
-                continue
-            if username == student_id:
+            if not student_id or username == student_id:
                 continue
             conflict_result = await db.execute(
                 text("SELECT id FROM users WHERE username = :student_id AND id != :user_id"),
@@ -133,8 +130,6 @@ async def migrate_user_student_id_to_username() -> None:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    await init_db()
-    await init_chatbot_db()
     await migrate_user_student_id_to_username()
     yield
 
@@ -149,8 +144,6 @@ app = FastAPI(
     openapi_url=API_OPENAPI_URL,
 )
 
-# CORS 설정: 보안을 위해 허용할 도메인을 명시합니다.
-# .env 파일에 ALLOWED_ORIGINS=http://localhost:3000,http://127.0.0.1:3000 와 같이 설정하세요.
 allowed_origins_str = os.getenv(
     "ALLOWED_ORIGINS", "http://localhost:3000,http://localhost:5173"
 )
@@ -164,16 +157,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.add_middleware(
-    SessionMiddleware,
-    secret_key=ADMIN_SESSION_SECRET,
-)
+app.add_middleware(SessionMiddleware, secret_key=ADMIN_SESSION_SECRET)
 
 setup_admin(app, engine)
 
-# 메생결산 이미지 static 서빙
-# URL: /static/settlements/{이름}/{이미지명}.png
-# 실제 경로: INIT_DATA_DIR/{이름}/{이미지명}.png (기본값: 13기 메생결산/)
 _settlements_dir = os.environ.get("INIT_DATA_DIR", "13기 메생결산")
 Path(_settlements_dir).mkdir(parents=True, exist_ok=True)
 _avatars_dir = Path("avatars")
@@ -183,10 +170,6 @@ app.mount(
     ImageOnlyStaticFiles(directory=_settlements_dir),
     name="settlements",
 )
-
-# 아바타 이미지 static 서빙
-# URL: /static/avatars/{폴더}/avatar_image.png
-# 실제 경로: avatars/{폴더}/avatar_image.png
 app.mount(
     "/static/avatars",
     ImageOnlyStaticFiles(directory=_avatars_dir),
@@ -198,7 +181,6 @@ app.include_router(settlements_router, prefix=API_V1_PREFIX)
 app.include_router(comments_router, prefix=API_V1_PREFIX)
 app.include_router(system_router, prefix=API_V1_PREFIX)
 app.include_router(users_router, prefix=API_V1_PREFIX)
-app.include_router(chatbot_router, prefix=API_V1_PREFIX)
 
 
 @app.get("/health")
