@@ -12,7 +12,7 @@ Use the SDD artifacts in `specs/001-split-chatbot-postgres/`, `codex-prompts.md`
 | --- | --- | --- |
 | T005 dependencies: main repo has asyncpg, psycopg, alembic and no runtime Google chatbot deps | `pyproject.toml`; `grep` for `gspread`, `google-api-python-client`, `googleapiclient` in main `src`/`pyproject.toml` | PASS for runtime; `aiosqlite` remains in dev dependencies for SQLite tests |
 | T006/T007 PostgreSQL service and two DB init SQL | `docker-compose.yml`, `docker-compose.dev.yml`, `scripts/postgres-init.sql`; dry-run DB creation via `cat scripts/postgres-init.sql | docker exec ... psql` | PASS |
-| T008 `.env.example` Postgres variables | `.env.example` | PASS |
+| T008 `.env.example` Postgres variables | `.env.example` includes `POSTGRES_USER`, `POSTGRES_PASSWORD`, `DATABASE_URL`, and integration-level `CHATBOT_DATABASE_URL`; chatbot repo `.env.example` also requires `CHATBOT_DATABASE_URL` | PASS |
 | T009 main DB fail-fast and SQLite PRAGMA guard | `src/database.py` | PASS |
 | T010/T011 chatbot DB/model Postgres compatibility | moved to `../maplewind-chatbot/src/database.py`, `src/models/chatbot.py`, `src/alembic/versions/0001_initial.py` | PASS locally |
 | T012 legacy SQLite migration guard | `src/main.py` checks dialect before PRAGMA | PASS |
