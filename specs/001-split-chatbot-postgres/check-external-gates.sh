@@ -114,10 +114,12 @@ if gh api "/orgs/${chatbot_owner}/packages/container/${chatbot_package}" >"${TMP
   versions="$(gh api "/orgs/${chatbot_owner}/packages/container/${chatbot_package}/versions?per_page=10" --jq '.[] | "version=\(.id) updated=\(.updated_at) tags=\(.metadata.container.tags | join(","))"' 2>"${TMP_DIR}/chatbot_ghcr_versions.err" || true)"
   if [[ -n "${versions}" ]]; then
     printf '%s\n' "${versions}"
-    if printf '%s\n' "${versions}" | grep -Eq 'tags=.*(^|,)latest(,|$)'; then pass "GHCR latest tag is visible"; else warn "GHCR latest tag not visible in recent versions"; fi
-    if printf '%s\n' "${versions}" | grep -Eq 'tags=.*(^|,)main(,|$)'; then pass "GHCR main tag is visible"; else warn "GHCR main tag not visible in recent versions"; fi
+    if printf '%s\n' "${versions}" | grep -Eq 'tags=.*(^|,)latest(,|$)'; then pass "GHCR latest tag is visible"; else fail "GHCR latest tag not visible in recent versions"; fi
+    if printf '%s\n' "${versions}" | grep -Eq 'tags=.*(^|,)[0-9a-f]{40}(,|$)'; then pass "GHCR full-sha tag is visible"; else fail "GHCR full-sha tag not visible in recent versions"; fi
+    if printf '%s\n' "${versions}" | grep -Eq 'tags=.*(^|,)main(,|$)'; then pass "GHCR main tag is visible"; else fail "GHCR main tag not visible in recent versions"; fi
+    if printf '%s\n' "${versions}" | grep -Eq 'tags=.*(^|,)main-[0-9a-f]{7,40}(,|$)'; then pass "GHCR main-* tag is visible"; else fail "GHCR main-* tag not visible in recent versions"; fi
   else
-    warn "GHCR package visible but versions/tags not readable: $(tr '\n' ' ' <"${TMP_DIR}/chatbot_ghcr_versions.err")"
+    fail "GHCR package visible but versions/tags not readable: $(tr '\n' ' ' <"${TMP_DIR}/chatbot_ghcr_versions.err")"
   fi
 else
   if [[ "${has_read_packages_scope}" -eq 0 ]]; then
