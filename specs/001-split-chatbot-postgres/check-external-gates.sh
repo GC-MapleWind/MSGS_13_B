@@ -49,6 +49,23 @@ issue_view_line() {
   return 1
 }
 
+issue_contains_marker() {
+  repo="$1"
+  number="$2"
+  marker="$3"
+  err_file="$4"
+
+  {
+    gh api "repos/${repo}/issues/${number}" --jq '.body // ""'
+    gh api "repos/${repo}/issues/${number}/comments?per_page=100" --paginate --jq '.[].body // ""'
+  } >"${err_file}.body" 2>"${err_file}.api" || {
+    tr '\n' ' ' <"${err_file}.api" >"${err_file}"
+    return 1
+  }
+
+  grep -Fq "${marker}" "${err_file}.body"
+}
+
 ghcr_tag_visible() {
   pattern="$1"
   printf '%s\n' "${versions}" | awk -F'tags=' 'NF > 1 {print $2}' | tr ',' '\n' | grep -Eq "${pattern}"
@@ -88,6 +105,39 @@ run_self_test() {
     pass "REST fallback returns a clean issue line"
   else
     fail "REST fallback returned unexpected issue line: ${issue_line}"
+  fi
+  unset -f gh
+
+  section "Issue evidence marker self-test"
+  gh() {
+    if [[ "$1" == "api" && "$2" == "repos/example/repo/issues/8" ]]; then
+      printf 'Issue body without marker\n'
+      return 0
+    fi
+    if [[ "$1" == "api" && "$2" == "repos/example/repo/issues/8/comments?per_page=100" ]]; then
+      printf 'Chatbot workflow evidence summary:\n'
+      return 0
+    fi
+    if [[ "$1" == "api" && "$2" == "repos/example/repo/issues/9" ]]; then
+      printf 'Issue body without marker\n'
+      return 0
+    fi
+    if [[ "$1" == "api" && "$2" == "repos/example/repo/issues/9/comments?per_page=100" ]]; then
+      printf 'Comments without marker\n'
+      return 0
+    fi
+    printf 'unexpected gh call: %s\n' "$*" >&2
+    return 127
+  }
+  if issue_contains_marker "example/repo" "8" "Chatbot workflow evidence summary:" "${TMP_DIR}/issue_marker_positive_selftest.err"; then
+    pass "detects evidence marker in issue comments"
+  else
+    fail "misses evidence marker in issue comments"
+  fi
+  if issue_contains_marker "example/repo" "9" "Cutover evidence summary:" "${TMP_DIR}/issue_marker_negative_selftest.err"; then
+    fail "unexpectedly detects missing evidence marker"
+  else
+    pass "rejects missing evidence marker"
   fi
   unset -f gh
 
@@ -218,6 +268,21 @@ for item in "${CHATBOT_REPO} 1 workflow" "${MAIN_REPO} 55 cutover"; do
   IFS=$'\t' read -r state title url <<<"${issue_line}"
   info "${repo}#${number} ${state} ${title} ${url}"
   if [[ "${state}" == "CLOSED" ]]; then pass "${label} blocker issue is closed"; else fail "${label} blocker issue remains ${state}"; fi
+  if [[ "${state}" == "CLOSED" ]]; then
+    marker=""
+    if [[ "${label}" == "workflow" ]]; then
+      marker="Chatbot workflow evidence summary:"
+    elif [[ "${label}" == "cutover" ]]; then
+      marker="Cutover evidence summary:"
+    fi
+    if [[ -n "${marker}" ]]; then
+      if issue_contains_marker "${repo}" "${number}" "${marker}" "${TMP_DIR}/issue_marker_${number}.err"; then
+        pass "${label} evidence summary marker is present in issue timeline"
+      else
+        fail "${label} evidence summary marker is missing from issue timeline: ${marker}"
+      fi
+    fi
+  fi
 done
 
 section "Summary"

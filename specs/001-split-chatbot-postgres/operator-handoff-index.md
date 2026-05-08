@@ -102,7 +102,10 @@ substitute for the evidence transcripts requested by the templates above.
 The external gate checker reads blocker issues with `gh issue view` first and
 falls back to the REST issues API if GraphQL is transiently unavailable;
 `check-external-gates.sh --self-test` verifies the fallback emits a clean
-tab-separated issue line for the readiness parser.
+tab-separated issue line for the readiness parser and that issue evidence
+summary markers are detected/rejected correctly. When blocker issues are closed,
+the live checker still fails if the expected Gate A/Gate B evidence summary
+markers are absent from the issue timeline.
 
 ## Final completion audit checklist
 
