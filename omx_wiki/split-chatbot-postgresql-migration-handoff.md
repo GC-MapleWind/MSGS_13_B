@@ -28,10 +28,11 @@ checkboxes are retained as historical plan text.
 - Dev GitHub Actions run `25570800233` for `Backend CI/CD (Docker)` completed with conclusion `success` after the FR-007/SC-006 dependency cleanup.
 - Main dependency graph now removes `aiosqlite` completely: `pyproject.toml` and `uv.lock` are clean, and runtime-seeding tests run against temporary `postgres:17-alpine`.
 - Chatbot repo `GC-MapleWind/maplewind-chatbot` remote `main` is `6c76fbad89bfadaca4fe2eef5edaeca061e9640b`, a docs-only descendant of history-adopting merge commit `5e6c20df8b0c047f716ad02be249a99ce367838e`.
-- Chatbot history/archive refs exist:
-  - `archive/chinbabang-submission` -> `b357aeaa6bc201fa693c871b31c6ad823b66e4c7`
-  - `history-preserved-extract` -> `d725f8fa1fafe2ef78adcb4e89b3b8fa930af71f`
-  - `archive/chinbabang-submission-filtered` -> `d725f8fa1fafe2ef78adcb4e89b3b8fa930af71f`
+- Archive/history refs now satisfy FR-014:
+  - Main `GC-MapleWind/MSGS_13_B` `archive/chinbabang-submission` -> `387cb221da0e18c9bcefe595d3fb119f18f0ea05`
+  - Chatbot `GC-MapleWind/maplewind-chatbot` `archive/chinbabang-submission` -> `b357aeaa6bc201fa693c871b31c6ad823b66e4c7`
+  - Chatbot `history-preserved-extract` -> `d725f8fa1fafe2ef78adcb4e89b3b8fa930af71f`
+  - Chatbot `archive/chinbabang-submission-filtered` -> `d725f8fa1fafe2ef78adcb4e89b3b8fa930af71f`
 - Local dry-run evidence, row counts, tests, and runbooks are recorded under `specs/001-split-chatbot-postgres/`.
 - Chatbot README documents required env vars, Kakao webhook endpoint, operations notes, and `scripts/simulate_maesaeng_flow.py` usage.
 - Production `docker-compose.yml` is the integrated compose design for T034: it pulls both GHCR images, shares PostgreSQL, and uses separate backend/chatbot DB URLs.
