@@ -32,6 +32,7 @@ checkboxes are retained as historical plan text.
   - `archive/chinbabang-submission-filtered` -> `d725f8fa1fafe2ef78adcb4e89b3b8fa930af71f`
 - Local dry-run evidence, row counts, tests, and runbooks are recorded under `specs/001-split-chatbot-postgres/`.
 - Chatbot README documents required env vars, Kakao webhook endpoint, operations notes, and `scripts/simulate_maesaeng_flow.py` usage.
+- Production `docker-compose.yml` is the integrated compose design for T034: it pulls both GHCR images, shares PostgreSQL, and uses separate backend/chatbot DB URLs.
 
 ## Remaining blockers
 

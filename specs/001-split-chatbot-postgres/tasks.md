@@ -25,12 +25,12 @@ description: "Task list for split-chatbot-postgres feature"
 The checkboxes below preserve the original implementation plan. Use this overlay plus
 [completion-audit.md](./completion-audit.md) as the current execution state:
 
-- **Verified complete**: T002-T028, T031-T033.
+- **Verified complete**: T002-T028, T031-T034.
 - **Prepared but externally blocked**: T029-T030. The workflow patch is preserved in
   [chatbot-workflows-pending.patch](./chatbot-workflows-pending.patch) and applies
   cleanly to chatbot `origin/main`, but pushing workflow files requires a GitHub
   credential/app with `workflow` scope.
-- **Production/ops-gated**: T001, T034-T039, T042-T043. These require production or
+- **Production/ops-gated**: T001, T035-T039, T042-T043. These require production or
   staging authority, backup/cutover execution, webhook/SLA/monitoring evidence, or
   post-run retention cleanup.
 - **Documentation complete**: T040-T041. Main README and chatbot README/env/webhook/simulation docs are
