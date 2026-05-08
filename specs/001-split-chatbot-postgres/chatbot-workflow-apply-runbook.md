@@ -21,6 +21,20 @@
   `8240db28ff058a216b017da1effb877d81290ee1` or a descendant where
   `git apply --check` still passes.
 
+## Optional helper script
+
+For a guarded, non-pushing preparation flow, run:
+
+```bash
+specs/001-split-chatbot-postgres/prepare-chatbot-workflows.sh --allow-missing-workflow-scope
+```
+
+With a workflow-scoped credential, use the same helper without
+`--allow-missing-workflow-scope`; add `--run-local-checks` for local lint/test
+checks and `--commit --push` only when ready to write chatbot `main`. The helper
+verifies the pending patch SHA-256, applies it to a fresh chatbot clone, checks
+the required GHCR tag metadata, and stops before push by default.
+
 ## Verify credential and patch inputs
 
 ```bash

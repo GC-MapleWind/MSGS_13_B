@@ -22,7 +22,10 @@ Use these files in order:
    a credential or GitHub App that can write `.github/workflows/*`.
 2. `chatbot-workflows-pending.patch` — adds chatbot `ci.yml` and `deploy.yml`.
    Patch SHA-256: `ceb61e156d10e4cde98a6bc9d2cbf903ae2205b1cc790f861881a1f1fe21cac4`.
-3. `chatbot-workflow-evidence-template.md` — paste the completed evidence into
+3. `prepare-chatbot-workflows.sh` — guarded helper that verifies the patch hash,
+   applies it to a fresh chatbot clone, checks GHCR tag metadata, and does not
+   push unless explicitly requested.
+4. `chatbot-workflow-evidence-template.md` — paste the completed evidence into
    issue #1.
 
 Minimum evidence to close this gate:
