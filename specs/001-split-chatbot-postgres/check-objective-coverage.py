@@ -17,6 +17,26 @@ ROOT = Path(__file__).resolve().parent
 REPO = ROOT.parents[1]
 
 
+EXPECTED_CHECKED_TASKS = {
+    *(f"T{num:03d}" for num in range(2, 29)),
+    *(f"T{num:03d}" for num in range(31, 35)),
+    "T040",
+    "T041",
+}
+EXPECTED_UNCHECKED_TASKS = {
+    "T001",
+    "T029",
+    "T030",
+    "T035",
+    "T036",
+    "T037",
+    "T038",
+    "T039",
+    "T042",
+    "T043",
+}
+
+
 def read(path: Path) -> str:
     return path.read_text(encoding="utf-8")
 
@@ -44,6 +64,51 @@ def check_id_coverage(label: str, expected: list[str], audit: str) -> int:
         print(f"FAIL {label} missing from completion-audit.md: {', '.join(missing)}")
         return 1
     print(f"PASS {label} coverage: {len(expected)} identifiers")
+    return 0
+
+
+
+def check_task_checkbox_status(tasks: str) -> int:
+    """Ensure tasks.md checkboxes match the audited completion/blocker ledger."""
+
+    states: dict[str, str] = {}
+    duplicates: list[str] = []
+    for mark, task_id in re.findall(r"(?m)^- \[([ x])\] (T\d{3})\b", tasks):
+        if task_id in states:
+            duplicates.append(task_id)
+        states[task_id] = mark
+
+    expected_all = EXPECTED_CHECKED_TASKS | EXPECTED_UNCHECKED_TASKS
+    failures = 0
+    if duplicates:
+        print(f"FAIL duplicate task checkbox entries: {', '.join(sorted(set(duplicates)))}")
+        failures = 1
+
+    missing = sorted(expected_all - states.keys())
+    unexpected = sorted(states.keys() - expected_all)
+    if missing:
+        print(f"FAIL task checkbox entries missing: {', '.join(missing)}")
+        failures = 1
+    if unexpected:
+        print(f"FAIL unexpected task checkbox entries: {', '.join(unexpected)}")
+        failures = 1
+
+    wrongly_unchecked = sorted(task for task in EXPECTED_CHECKED_TASKS if states.get(task) != "x")
+    wrongly_checked = sorted(task for task in EXPECTED_UNCHECKED_TASKS if states.get(task) != " ")
+    if wrongly_unchecked:
+        print(f"FAIL evidence-backed tasks not checked in tasks.md: {', '.join(wrongly_unchecked)}")
+        failures = 1
+    if wrongly_checked:
+        print(f"FAIL externally blocked tasks must remain unchecked in tasks.md: {', '.join(wrongly_checked)}")
+        failures = 1
+
+    if failures:
+        return 1
+    print(
+        "PASS task checkbox status: "
+        f"{len(EXPECTED_CHECKED_TASKS)} checked, "
+        f"{len(EXPECTED_UNCHECKED_TASKS)} externally blocked unchecked"
+    )
     return 0
 
 
@@ -125,6 +190,7 @@ def main() -> int:
     prompts = read(ROOT / "codex-prompts.md")
 
     status |= check_id_coverage("tasks", ids(r"\bT\d{3}\b", tasks), audit)
+    status |= check_task_checkbox_status(tasks)
     status |= check_id_coverage("functional requirements", ids(r"\bFR-\d{3}\b", spec), audit)
     status |= check_id_coverage("success criteria", ids(r"\bSC-\d{3}\b", spec), audit)
     status |= check_id_coverage("prompt task IDs", task_ids_with_ranges(prompts), audit)
