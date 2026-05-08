@@ -49,6 +49,9 @@ isProject: false
 - Main repo PR #54 is merged into `dev` as merge commit `eafce94c`; the
   post-merge dev workflow run `25567914804` passed `Build and Push Dev Image`
   and `Deploy to Dev Server`.
+- Latest audited `origin/dev` head is `db692dafe29f0d6d9aabc7b154b3cf4066a43725`;
+  it adds `omx_wiki/split-chatbot-postgresql-migration-handoff.md`, and both
+  open blocker issues link back to that handoff page.
 - Chatbot remote `GC-MapleWind/maplewind-chatbot` `main` is pushed to
   history-adopting merge commit `5e6c20d`, with runtime parent `b3d80a9` and
   filtered-history parent `d725f8f`; `git diff HEAD^1 HEAD` is empty, so the

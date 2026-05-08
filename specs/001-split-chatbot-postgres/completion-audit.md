@@ -39,6 +39,7 @@ Use the SDD artifacts in `specs/001-split-chatbot-postgres/`, `codex-prompts.md`
 - `uv run python -m unittest discover -s tests -v` — PASS, 4 tests.
 - Main Alembic online migration against temporary PostgreSQL 17 dry-run container — PASS.
 - PR #54 merged into `dev` as merge commit `eafce94c3c0930c5dbd420bb95cf455af319215f`; post-merge dev workflow run `25567914804` passed `Build and Push Dev Image` and `Deploy to Dev Server`.
+- Latest audited `origin/dev` head is `db692dafe29f0d6d9aabc7b154b3cf4066a43725`, which adds the durable handoff page `omx_wiki/split-chatbot-postgresql-migration-handoff.md`.
 - `scripts/migrate_sqlite_to_postgres.sh main maplewind.db ...` — PASS, row counts matched.
 - `scripts/migrate_sqlite_to_postgres.sh chatbot chatbot.db ...` — PASS, row counts matched.
 
@@ -53,8 +54,9 @@ Use the SDD artifacts in `specs/001-split-chatbot-postgres/`, `codex-prompts.md`
 
 ## Blocking gaps before goal completion
 
-1. `GC-MapleWind/maplewind-chatbot` remote main now has history-adopting merge commit `5e6c20d`, but CI/CD workflow files remain on local branch `workflows-pending-scope` commit `6ab860c` and as patch artifact `chatbot-workflows-pending.patch`; pushing that branch failed because the OAuth credential lacks GitHub `workflow` scope for `.github/workflows/ci.yml`; credential headers confirm `X-Oauth-Scopes: gist, read:org, repo` with no `workflow`. Handoff issue: https://github.com/GC-MapleWind/maplewind-chatbot/issues/1
+1. `GC-MapleWind/maplewind-chatbot` remote main now has history-adopting merge commit `5e6c20d`, but CI/CD workflow files remain on local branch `workflows-pending-scope` commit `6ab860c` and as patch artifact `chatbot-workflows-pending.patch`; pushing that branch failed because the OAuth credential lacks GitHub `workflow` scope for `.github/workflows/ci.yml`; credential headers confirm `X-Oauth-Scopes: gist, read:org, repo` with no `workflow`; remote API check for `.github/workflows` still returns HTTP 404. Handoff issue: https://github.com/GC-MapleWind/maplewind-chatbot/issues/1
 2. Production cutover, webhook update, SLA tests, and 24h/7d monitoring are manual/production operations and have not run in this local session. Handoff issue: https://github.com/GC-MapleWind/MSGS_13_B/issues/55
+3. Durable handoff evidence is published at https://github.com/GC-MapleWind/MSGS_13_B/blob/dev/omx_wiki/split-chatbot-postgresql-migration-handoff.md and cross-linked from both blocker issues.
 
 ## Current conclusion
 

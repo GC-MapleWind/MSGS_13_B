@@ -19,7 +19,8 @@ The repo-local implementation and verified development-lane evidence are complet
 ## Verified completed evidence
 
 - Main repo PR #54 was merged into `dev` as merge commit `eafce94c3c0930c5dbd420bb95cf455af319215f`.
-- Latest audited `origin/dev` head is `0d8d35659deb807cdd5dbe2a0bd1a163e1cd0e1c`.
+- Latest audited `origin/dev` head is `db692dafe29f0d6d9aabc7b154b3cf4066a43725`.
+- This handoff page is published from `dev` and linked from both open blocker issues.
 - Dev GitHub Actions run `25567914804` for `Backend CI/CD (Docker)` completed with conclusion `success` on `2026-05-08T16:52:37Z`.
 - Chatbot repo `GC-MapleWind/maplewind-chatbot` remote `main` points to history-adopting merge commit `5e6c20df8b0c047f716ad02be249a99ce367838e`.
 - Chatbot history/archive refs exist:
