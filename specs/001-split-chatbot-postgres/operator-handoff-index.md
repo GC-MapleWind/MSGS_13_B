@@ -56,6 +56,17 @@ Minimum evidence to close this gate:
 - Chatbot-only redeploy evidence showing no backend restart and <=60s redeploy.
 - Backup retention/cold-storage owner/date.
 
+## Optional maintenance — Main workflow runtime refresh
+
+This is not a split-chatbot-postgres completion gate. If GitHub Actions Node 20
+deprecation warnings need cleanup, use:
+
+1. `main-workflow-runtime-refresh-runbook.md` — apply instructions.
+2. `main-workflow-runtime-refresh-pending.patch` — prepared `.github/workflows/deploy.yml` update.
+
+The current session could not push this workflow-file change because the OAuth
+credential lacks `workflow` scope.
+
 ## Quick observable status check
 
 Run `./specs/001-split-chatbot-postgres/check-external-gates.sh` from a clone with `gh` authenticated to inspect observable remote status: current refs, workflow scope, chatbot workflow files, visible Actions runs, and blocker issue state. The script exits non-zero while observable blockers remain; that is expected before workflow/cutover evidence exists. It is diagnostic only, so a zero exit code is also not enough for completion proof; use the evidence templates above.

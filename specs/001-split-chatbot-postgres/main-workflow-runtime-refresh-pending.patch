@@ -1,0 +1,101 @@
+From a245e73091549370c154075e059761c1d0813930 Mon Sep 17 00:00:00 2001
+From: ark1st <ark8846@gmail.com>
+Date: Sat, 9 May 2026 04:18:35 +0900
+Subject: [PATCH] Refresh GitHub Actions runtimes
+
+Move checkout, setup-buildx, login, and metadata actions to Node 24-capable major versions to reduce the runner deprecation risk while leaving build-push pinned because its current major still uses Node 20.
+
+Constraint: GitHub Actions warns that Node 20 actions will be forced toward Node 24 in 2026.
+Rejected: Updating docker/build-push-action only for version freshness | v6 still declares node20, so it does not address the warning class.
+Confidence: medium
+Scope-risk: narrow
+Directive: Re-check action.yml runtimes before changing build-push-action or future action majors.
+Tested: inspected upstream action.yml runtime declarations for checkout v5, setup-buildx v4, login v4, metadata v6, and build-push v6; git diff --check.
+Not-tested: GitHub Actions run is triggered after push.
+
+Co-authored-by: OmX <omx@oh-my-codex.dev>
+---
+ .github/workflows/deploy.yml | 22 +++++++++++-----------
+ 1 file changed, 11 insertions(+), 11 deletions(-)
+
+diff --git a/.github/workflows/deploy.yml b/.github/workflows/deploy.yml
+index 3371d56..7671360 100644
+--- a/.github/workflows/deploy.yml
++++ b/.github/workflows/deploy.yml
+@@ -28,10 +28,10 @@ jobs:
+     
+     steps:
+       - name: Checkout code
+-        uses: actions/checkout@v4
++        uses: actions/checkout@v5
+       
+       - name: Set up Docker Buildx
+-        uses: docker/setup-buildx-action@v3
++        uses: docker/setup-buildx-action@v4
+       
+       - name: Build Docker image (no push)
+         uses: docker/build-push-action@v5
+@@ -57,13 +57,13 @@ jobs:
+     
+     steps:
+       - name: Checkout code
+-        uses: actions/checkout@v4
++        uses: actions/checkout@v5
+ 
+       - name: Set up Docker Buildx
+-        uses: docker/setup-buildx-action@v3
++        uses: docker/setup-buildx-action@v4
+ 
+       - name: Log in to Container Registry
+-        uses: docker/login-action@v3
++        uses: docker/login-action@v4
+         with:
+           registry: ${{ env.REGISTRY }}
+           username: ${{ github.actor }}
+@@ -71,7 +71,7 @@ jobs:
+ 
+       - name: Extract metadata
+         id: meta
+-        uses: docker/metadata-action@v5
++        uses: docker/metadata-action@v6
+         with:
+           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+           tags: |
+@@ -118,7 +118,7 @@ jobs:
+           ssh-keyscan -H ${{ secrets.SERVER_HOST }} >> ~/.ssh/known_hosts
+ 
+       - name: Checkout code
+-        uses: actions/checkout@v4
++        uses: actions/checkout@v5
+ 
+       - name: Deploy with Docker Compose
+         id: deploy
+@@ -247,13 +247,13 @@ jobs:
+ 
+     steps:
+       - name: Checkout code
+-        uses: actions/checkout@v4
++        uses: actions/checkout@v5
+ 
+       - name: Set up Docker Buildx
+-        uses: docker/setup-buildx-action@v3
++        uses: docker/setup-buildx-action@v4
+ 
+       - name: Log in to Container Registry
+-        uses: docker/login-action@v3
++        uses: docker/login-action@v4
+         with:
+           registry: ${{ env.REGISTRY }}
+           username: ${{ github.actor }}
+@@ -290,7 +290,7 @@ jobs:
+ 
+     steps:
+       - name: Checkout code
+-        uses: actions/checkout@v4
++        uses: actions/checkout@v5
+ 
+       - name: Setup SSH Key
+         run: |
+-- 
+2.34.1
+
