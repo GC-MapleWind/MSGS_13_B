@@ -18,6 +18,14 @@ else
   failures=$((failures + 1))
 fi
 
+printf '\n== External gate parser self-test ==\n'
+if bash specs/001-split-chatbot-postgres/check-external-gates.sh --self-test; then
+  printf 'PASS external gate parser self-test\n'
+else
+  printf 'FAIL external gate parser self-test\n'
+  failures=$((failures + 1))
+fi
+
 printf '\n== Live external gate diagnostics ==\n'
 if bash specs/001-split-chatbot-postgres/check-external-gates.sh; then
   printf 'PASS live external gate diagnostics returned zero observable failures\n'

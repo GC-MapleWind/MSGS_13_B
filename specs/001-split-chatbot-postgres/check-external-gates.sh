@@ -29,6 +29,27 @@ ghcr_tag_visible() {
   printf '%s\n' "${versions}" | awk -F'tags=' 'NF > 1 {print $2}' | tr ',' '\n' | grep -Eq "${pattern}"
 }
 
+run_self_test() {
+  section "GHCR tag parser self-test"
+  versions='version=1 updated=now tags=latest,0123456789abcdef0123456789abcdef01234567,main,main-0123456'
+  if ghcr_tag_visible '^latest$'; then pass "matches first-position latest tag"; else fail "misses first-position latest tag"; fi
+  if ghcr_tag_visible '^[0-9a-f]{40}$'; then pass "matches full-sha tag"; else fail "misses full-sha tag"; fi
+  if ghcr_tag_visible '^main$'; then pass "matches main tag"; else fail "misses main tag"; fi
+  if ghcr_tag_visible '^main-[0-9a-f]{7,40}$'; then pass "matches main-* tag"; else fail "misses main-* tag"; fi
+
+  versions='version=2 updated=now tags=latest,main'
+  if ghcr_tag_visible '^[0-9a-f]{40}$'; then fail "unexpectedly matches missing full-sha tag"; else pass "rejects missing full-sha tag"; fi
+
+  section "Self-test summary"
+  info "failures=${failures} warnings=${warnings}"
+  [[ "${failures}" -eq 0 ]]
+}
+
+if [[ "${1:-}" == "--self-test" ]]; then
+  run_self_test
+  exit $?
+fi
+
 need_cmd() {
   if ! command -v "$1" >/dev/null 2>&1; then
     fail "missing required command: $1"
