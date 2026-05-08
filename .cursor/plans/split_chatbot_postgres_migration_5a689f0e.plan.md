@@ -46,12 +46,9 @@ isProject: false
 
 ## Execution status — 2026-05-09
 
-- Main feature branch is pushed to `origin/feat/split-chatbot-postgres-migration`
-  with migration runbooks, dry-run evidence, the blocked chatbot workflow patch
-  artifact, and this tracked Cursor plan status.
-- Main repo PR #54 is open at head `903151f`; GitHub Actions run
-  `25567071312` passed `Test Build (PR)`, `Build and Push Dev Image`, and
-  `Deploy to Dev Server`; GitHub reports merge state `CLEAN`.
+- Main repo PR #54 is merged into `dev` as merge commit `eafce94c`; the
+  post-merge dev workflow run `25567914804` passed `Build and Push Dev Image`
+  and `Deploy to Dev Server`.
 - Chatbot remote `GC-MapleWind/maplewind-chatbot` `main` is pushed to
   history-adopting merge commit `5e6c20d`, with runtime parent `b3d80a9` and
   filtered-history parent `d725f8f`; `git diff HEAD^1 HEAD` is empty, so the

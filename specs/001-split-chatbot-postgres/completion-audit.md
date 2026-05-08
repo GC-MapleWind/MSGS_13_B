@@ -38,7 +38,7 @@ Use the SDD artifacts in `specs/001-split-chatbot-postgres/`, `codex-prompts.md`
 - `uv run ruff check .` — PASS.
 - `uv run python -m unittest discover -s tests -v` — PASS, 4 tests.
 - Main Alembic online migration against temporary PostgreSQL 17 dry-run container — PASS.
-- PR #54 GitHub checks at head `903151f`: `Test Build (PR)`, `Build and Push Dev Image`, and `Deploy to Dev Server` — PASS; merge state `CLEAN`.
+- PR #54 merged into `dev` as merge commit `eafce94c3c0930c5dbd420bb95cf455af319215f`; post-merge dev workflow run `25567914804` passed `Build and Push Dev Image` and `Deploy to Dev Server`.
 - `scripts/migrate_sqlite_to_postgres.sh main maplewind.db ...` — PASS, row counts matched.
 - `scripts/migrate_sqlite_to_postgres.sh chatbot chatbot.db ...` — PASS, row counts matched.
 
@@ -58,4 +58,4 @@ Use the SDD artifacts in `specs/001-split-chatbot-postgres/`, `codex-prompts.md`
 
 ## Current conclusion
 
-The local implementation, chatbot remote runtime push, filtered-history adoption, and migration dry-run are substantially complete and verified. The overall objective is not complete until the chatbot workflow-scope push and production/staging operational gates are resolved.
+The implementation is merged to `dev`, the chatbot remote runtime/history adoption is pushed, and the migration dry-run is verified. The overall objective is not complete until the chatbot workflow-scope push and production/staging operational gates are resolved.
