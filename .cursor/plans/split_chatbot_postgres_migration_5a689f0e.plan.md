@@ -48,7 +48,7 @@ isProject: false
 
 - Remaining external gates and their evidence templates are indexed in `specs/001-split-chatbot-postgres/operator-handoff-index.md`; observable remote status can be checked with `specs/001-split-chatbot-postgres/check-external-gates.sh`.
 - Latest external-gate check input was `origin/dev` `3f9912b304bd241a224a7a801b5549028046a26a`; later docs-only audit commits may advance `dev` without changing implementation state.
-- Latest dev workflow evidence: run `25574864234` succeeded for commit `7d1ba3b9f6735602d8e560dc60c2ac30779aa229`, including dev image build/push and dev server deploy health check. Earlier run `25574451603` succeeded for commit `2caab4ae2c51cb0193e0810fa3e67af9d9715e2c`.
+- Latest dev workflow evidence: run `25576285116` succeeded for commit `e87e71863a1dacc0662e995696ae9e348ce61426`, including `Build and Push Dev Image` and `Deploy to Dev Server`, after preserving `scripts/migrate_sqlite_to_postgres.sh` as executable. Earlier runs `25574864234` and `25574451603` also succeeded.
 
 - Main repo PR #54 is merged into `dev` as merge commit `eafce94c`; the
   post-merge dev workflow run `25567914804` passed `Build and Push Dev Image`
