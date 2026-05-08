@@ -55,6 +55,7 @@ isProject: false
 - Objective coverage guard `specs/001-split-chatbot-postgres/check-objective-coverage.py` passes after requiring the readiness wrapper file, covering 9 required objective files, all 43 task IDs, all 16 FR IDs, all 7 SC IDs, 39 range-expanded prompt task IDs, 34 local Markdown links, and blocker language. This guard is documentation-only; it does not close external workflow/GHCR/cutover gates.
 - Dev workflow evidence checkpoint: run `25576285116` succeeded for commit `e87e71863a1dacc0662e995696ae9e348ce61426`, including `Build and Push Dev Image` and `Deploy to Dev Server`, after preserving `scripts/migrate_sqlite_to_postgres.sh` as executable. Earlier runs `25574864234` and `25574451603` also succeeded.
 - Dev workflow evidence checkpoint: run `25582341603` succeeded for checker commit `2018d8b49c613172098ac3f2b010bc63eb4fbb8a`, including `Build and Push Dev Image`, `Deploy to Dev Server`, and `Health Check`, after adding Korean placeholder rejection self-test coverage. This remains main-dev evidence only.
+- Dev workflow evidence checkpoint: run `25582554521` succeeded for checker commit `5b0749a8d640a648139734fda349ed7e8157537a`, including `Build and Push Dev Image`, `Deploy to Dev Server`, and `Health Check`, after requiring the Gate B cutover `SQLite backup SHA-256 files` evidence field. This remains main-dev evidence only.
 
 - Main repo PR #54 is merged into `dev` as merge commit `eafce94c`; the
   post-merge dev workflow run `25567914804` passed `Build and Push Dev Image`
