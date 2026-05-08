@@ -39,7 +39,7 @@ checkboxes are retained as historical plan text.
    - API check for `repos/GC-MapleWind/maplewind-chatbot/contents/.github/workflows` returned HTTP 404.
    - Current GitHub OAuth scopes are `gist, read:org, repo`; missing required `workflow` scope.
    - Workflow patch is preserved in `specs/001-split-chatbot-postgres/chatbot-workflows-pending.patch`.
-   - Patch recoverability was verified against chatbot `origin/main` `5e6c20df8b0c047f716ad02be249a99ce367838e`: `git apply --check` passed. Patch SHA-256 is `43baf797f0057ef4b8631370f400929482a9615c60e87be75d8502b42fc8e12e`; it adds `.github/workflows/ci.yml` and `.github/workflows/deploy.yml`.
+   - Patch recoverability was verified against current chatbot `origin/main` `6c76fbad89bfadaca4fe2eef5edaeca061e9640b`: `git apply --check` passed. Patch SHA-256 is `43baf797f0057ef4b8631370f400929482a9615c60e87be75d8502b42fc8e12e`; it adds `.github/workflows/ci.yml` and `.github/workflows/deploy.yml`.
    - Tracking issue: `https://github.com/GC-MapleWind/maplewind-chatbot/issues/1`.
 
 2. Production/staging cutover has not been executed.

@@ -60,7 +60,7 @@ historical plan text; use the overlay and this audit as the current task ledger.
 - Chatbot Alembic online migration against temporary PostgreSQL 17 dry-run container — PASS.
 - After splitting blocked workflow files out of the runtime commit, reran on remote-main runtime commit `b3d80a9`: `uv run ruff check .`, `uv run python -m unittest discover -s tests -v`, and `uv run python scripts/simulate_maesaeng_flow.py` — PASS.
 - PostgreSQL-backed simulation on remote-main commit `b3d80a9`: temporary `postgres:17-alpine` container `dpbr-chatbot-sim-pg` on localhost port `55414`; `CHATBOT_DATABASE_URL=postgresql+asyncpg://maplewind:maplewind@localhost:55414/chatbot uv run python scripts/simulate_maesaeng_flow.py` — PASS; container removed after the run.
-- Workflow patch recoverability check: pulled `specs/001-split-chatbot-postgres/chatbot-workflows-pending.patch` from `origin/dev` and ran `git apply --check` against a temporary worktree of chatbot `origin/main` `5e6c20df8b0c047f716ad02be249a99ce367838e` — PASS. Patch SHA-256: `43baf797f0057ef4b8631370f400929482a9615c60e87be75d8502b42fc8e12e`; adds `.github/workflows/ci.yml` (88 lines) and `.github/workflows/deploy.yml` (115 lines).
+- Workflow patch recoverability check: pulled `specs/001-split-chatbot-postgres/chatbot-workflows-pending.patch` from `origin/dev` and ran `git apply --check` against a temporary worktree of current chatbot `origin/main` `6c76fbad89bfadaca4fe2eef5edaeca061e9640b` — PASS. Patch SHA-256: `43baf797f0057ef4b8631370f400929482a9615c60e87be75d8502b42fc8e12e`; adds `.github/workflows/ci.yml` (88 lines) and `.github/workflows/deploy.yml` (115 lines).
 
 ## Blocking gaps before goal completion
 
