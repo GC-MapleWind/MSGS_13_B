@@ -10,14 +10,38 @@
 
 - GitHub authentication can write `.github/workflows/*` in
   `GC-MapleWind/maplewind-chatbot`.
-- `gh auth status` or API headers show `workflow` in the granted scopes.
+- `gh auth status` succeeds and API headers show `workflow` in the granted scopes, or a GitHub App has equivalent permission to write workflow files.
 - `GC-MapleWind/MSGS_13_B` `dev` contains
   `specs/001-split-chatbot-postgres/chatbot-workflows-pending.patch`.
 - Expected patch SHA-256:
   `ceb61e156d10e4cde98a6bc9d2cbf903ae2205b1cc790f861881a1f1fe21cac4`.
-- Expected chatbot base commit:
-  `25ba79950d452fa07aadf486d253c4c7eb6f3b71` or a descendant where
+- Expected latest verified chatbot base commit:
+  `8240db28ff058a216b017da1effb877d81290ee1` or a descendant where
   `git apply --check` still passes.
+
+## Verify credential and patch inputs
+
+```bash
+set -euo pipefail
+
+EXPECTED_PATCH_SHA="ceb61e156d10e4cde98a6bc9d2cbf903ae2205b1cc790f861881a1f1fe21cac4"
+EXPECTED_CHATBOT_BASE="8240db28ff058a216b017da1effb877d81290ee1"
+
+gh auth status -h github.com
+gh api -i user | awk 'BEGIN{IGNORECASE=1} /^x-oauth-scopes:/ {print}'
+gh api -i user | awk 'BEGIN{IGNORECASE=1; ok=0} /^x-oauth-scopes:/ && $0 ~ /workflow/ {ok=1} END{exit ok ? 0 : 1}'
+
+sha256sum --check <<EOF
+${EXPECTED_PATCH_SHA}  ${PATCH_SOURCE:-$HOME/dpbr_13_B/specs/001-split-chatbot-postgres/chatbot-workflows-pending.patch}
+EOF
+
+git ls-remote https://github.com/GC-MapleWind/maplewind-chatbot.git refs/heads/main
+```
+
+If the scope check fails, stop and use a workflow-scoped PAT or GitHub App.
+The latest patch check in the main handoff verified clean application to
+chatbot `main` `8240db28ff058a216b017da1effb877d81290ee1`; if `main` has
+advanced, `git apply --check` below is the authority.
 
 ## Apply workflow files
 
@@ -33,6 +57,8 @@ cd "$WORKDIR"
 git checkout main
 git pull --ff-only origin main
 
+base_commit=$(git rev-parse HEAD)
+echo "chatbot_base_commit=$base_commit"
 git apply --check "$PATCH_SOURCE"
 sha256sum "$PATCH_SOURCE"
 git apply "$PATCH_SOURCE"

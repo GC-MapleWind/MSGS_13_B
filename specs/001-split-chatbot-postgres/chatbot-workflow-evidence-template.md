@@ -10,9 +10,9 @@
 - Operator:
 - Credential type: user PAT / GitHub App / other
 - Granted scopes shown by `gh api -i user` or equivalent:
-- MSGS_13_B dev commit containing the patch:
-- Patch SHA-256:
-- Chatbot base commit before applying patch:
+- MSGS_13_B dev commit containing the patch: `4f4097cfdb9cd774b67df29f83008f3a10f742fc` or later `dev` descendant containing `chatbot-workflows-pending.patch`
+- Patch SHA-256: `ceb61e156d10e4cde98a6bc9d2cbf903ae2205b1cc790f861881a1f1fe21cac4`
+- Chatbot base commit before applying patch: latest verified base `8240db28ff058a216b017da1effb877d81290ee1`, or a later `main` descendant where `git apply --check` passes
 - Chatbot commit after applying patch:
 - Workflow application time with timezone:
 
@@ -21,9 +21,9 @@
 ```text
 Command transcript:
 - gh auth status:
-- gh api -i user scope headers:
+- gh api -i user scope headers, including `workflow` or equivalent GitHub App permission:
 - git ls-remote origin refs/heads/main:
-- sha256sum chatbot-workflows-pending.patch:
+- sha256sum --check for chatbot-workflows-pending.patch:
 - git apply --check chatbot-workflows-pending.patch:
 ```
 
