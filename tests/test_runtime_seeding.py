@@ -1,15 +1,20 @@
 import os
-import sqlite3
 import subprocess
 import sys
 import tempfile
+import time
 import unittest
 from pathlib import Path
+from uuid import uuid4
 
 import openpyxl
+import psycopg
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
+POSTGRES_IMAGE = "postgres:17-alpine"
+POSTGRES_USER = "maplewind"
+POSTGRES_PASSWORD = "maplewind"
 
 
 def _run_python_snippet(code: str, env: dict[str, str]) -> subprocess.CompletedProcess[str]:
@@ -34,13 +39,24 @@ def _run_seed_command(env: dict[str, str]) -> subprocess.CompletedProcess[str]:
     )
 
 
-def _count_rows(db_path: Path, table: str) -> int:
-    if not db_path.exists():
-        return 0
+def _run_docker_command(args: list[str]) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        ["docker", *args],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
 
-    with sqlite3.connect(db_path) as conn:
+
+def _count_rows(database_url: str, table: str) -> int:
+    with psycopg.connect(database_url) as conn:
         table_exists = conn.execute(
-            "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name=?", (table,)
+            """
+            SELECT COUNT(*)
+            FROM information_schema.tables
+            WHERE table_schema = 'public' AND table_name = %s
+            """,
+            (table,),
         ).fetchone()[0]
         if table_exists == 0:
             return 0
@@ -95,11 +111,90 @@ def _create_seed_files(init_dir: Path) -> None:
 
 
 class RuntimeSeedingTests(unittest.TestCase):
-    def _base_env(self, db_path: Path, init_dir: Path) -> dict[str, str]:
+    postgres_container: str | None = None
+    postgres_port: str | None = None
+    admin_url: str | None = None
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        docker_probe = _run_docker_command(["version", "--format", "{{.Server.Version}}"])
+        if docker_probe.returncode != 0:
+            raise unittest.SkipTest(f"Docker is unavailable: {docker_probe.stderr.strip()}")
+
+        container_name = f"maplewind-test-postgres-{uuid4().hex[:12]}"
+        started = _run_docker_command(
+            [
+                "run",
+                "-d",
+                "--rm",
+                "--name",
+                container_name,
+                "-e",
+                f"POSTGRES_USER={POSTGRES_USER}",
+                "-e",
+                f"POSTGRES_PASSWORD={POSTGRES_PASSWORD}",
+                "-e",
+                "POSTGRES_DB=postgres",
+                "-p",
+                "127.0.0.1::5432",
+                POSTGRES_IMAGE,
+            ]
+        )
+        if started.returncode != 0:
+            raise unittest.SkipTest(f"Could not start PostgreSQL test container: {started.stderr.strip()}")
+
+        cls.postgres_container = container_name
+        try:
+            port_result = _run_docker_command(["port", container_name, "5432/tcp"])
+            if port_result.returncode != 0:
+                raise RuntimeError(port_result.stderr.strip())
+            cls.postgres_port = port_result.stdout.rsplit(":", 1)[-1].strip()
+            cls.admin_url = (
+                f"postgresql://{POSTGRES_USER}:{POSTGRES_PASSWORD}"
+                f"@127.0.0.1:{cls.postgres_port}/postgres"
+            )
+            deadline = time.monotonic() + 30
+            while True:
+                try:
+                    with psycopg.connect(cls.admin_url, connect_timeout=1) as conn:
+                        conn.execute("SELECT 1")
+                    break
+                except psycopg.OperationalError:
+                    if time.monotonic() > deadline:
+                        raise
+                    time.sleep(0.5)
+        except Exception:
+            _run_docker_command(["rm", "-f", container_name])
+            raise
+
+    @classmethod
+    def tearDownClass(cls) -> None:
+        if cls.postgres_container:
+            _run_docker_command(["rm", "-f", cls.postgres_container])
+
+    def _database_urls(self) -> tuple[str, str]:
+        if self.admin_url is None or self.postgres_port is None:
+            raise RuntimeError("PostgreSQL test container did not start")
+
+        db_name = f"maplewind_test_{uuid4().hex}"
+        with psycopg.connect(self.admin_url, autocommit=True) as conn:
+            conn.execute(f"CREATE DATABASE {db_name}")
+
+        sync_url = (
+            f"postgresql://{POSTGRES_USER}:{POSTGRES_PASSWORD}"
+            f"@127.0.0.1:{self.postgres_port}/{db_name}"
+        )
+        async_url = (
+            f"postgresql+asyncpg://{POSTGRES_USER}:{POSTGRES_PASSWORD}"
+            f"@127.0.0.1:{self.postgres_port}/{db_name}"
+        )
+        return sync_url, async_url
+
+    def _base_env(self, database_url: str, init_dir: Path) -> dict[str, str]:
         env = os.environ.copy()
         env.update(
             {
-                "DATABASE_URL": f"sqlite+aiosqlite:///{db_path}",
+                "DATABASE_URL": database_url,
                 "ADMIN_SESSION_SECRET": "test-admin-secret",
                 "JWT_SECRET_KEY": "test-jwt-secret",
                 "INIT_DATA_DIR": str(init_dir),
@@ -110,16 +205,17 @@ class RuntimeSeedingTests(unittest.TestCase):
 
     def test_startup_does_not_seed_without_explicit_command(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
-            temp_root = Path(temp_dir)
-            db_path = temp_root / "runtime.db"
-            init_dir = temp_root / "init-data"
-            env = self._base_env(db_path, init_dir)
+            sync_url, async_url = self._database_urls()
+            init_dir = Path(temp_dir) / "init-data"
+            env = self._base_env(async_url, init_dir)
 
             result = _run_python_snippet(
                 (
                     "import asyncio\n"
+                    "from src.database import init_db\n"
                     "from src.main import app\n"
                     "async def _run():\n"
+                    "    await init_db()\n"
                     "    async with app.router.lifespan_context(app):\n"
                     "        pass\n"
                     "asyncio.run(_run())\n"
@@ -128,9 +224,9 @@ class RuntimeSeedingTests(unittest.TestCase):
             )
 
             self.assertEqual(result.returncode, 0, msg=result.stderr)
-            self.assertEqual(_count_rows(db_path, "users"), 0)
-            self.assertEqual(_count_rows(db_path, "characters"), 0)
-            self.assertEqual(_count_rows(db_path, "comments"), 0)
+            self.assertEqual(_count_rows(sync_url, "users"), 0)
+            self.assertEqual(_count_rows(sync_url, "characters"), 0)
+            self.assertEqual(_count_rows(sync_url, "comments"), 0)
 
     def test_src_main_has_no_scripts_import(self) -> None:
         src_main = (PROJECT_ROOT / "src" / "main.py").read_text(encoding="utf-8")
@@ -138,33 +234,31 @@ class RuntimeSeedingTests(unittest.TestCase):
 
     def test_explicit_seed_command_uses_init_data_dir(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
-            temp_root = Path(temp_dir)
-            db_path = temp_root / "seed.db"
-            init_dir = temp_root / "seed-input"
+            sync_url, async_url = self._database_urls()
+            init_dir = Path(temp_dir) / "seed-input"
             _create_seed_files(init_dir)
-            env = self._base_env(db_path, init_dir)
+            env = self._base_env(async_url, init_dir)
 
             result = _run_seed_command(env)
 
             self.assertEqual(result.returncode, 0, msg=result.stderr)
-            self.assertEqual(_count_rows(db_path, "users"), 1)
-            self.assertEqual(_count_rows(db_path, "characters"), 1)
-            self.assertEqual(_count_rows(db_path, "settlements"), 1)
+            self.assertEqual(_count_rows(sync_url, "users"), 1)
+            self.assertEqual(_count_rows(sync_url, "characters"), 1)
+            self.assertEqual(_count_rows(sync_url, "settlements"), 1)
 
-            with sqlite3.connect(db_path) as conn:
+            with psycopg.connect(sync_url) as conn:
                 row = conn.execute(
-                    "SELECT username, name FROM users WHERE name = ?", ("seed-user",)
+                    "SELECT username, name FROM users WHERE name = %s", ("seed-user",)
                 ).fetchone()
             self.assertIsNotNone(row)
             self.assertEqual(row[0], "20260001")
 
     def test_explicit_seed_command_fails_with_missing_files(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
-            temp_root = Path(temp_dir)
-            db_path = temp_root / "missing.db"
-            init_dir = temp_root / "missing-seed-input"
+            _sync_url, async_url = self._database_urls()
+            init_dir = Path(temp_dir) / "missing-seed-input"
             init_dir.mkdir(parents=True, exist_ok=True)
-            env = self._base_env(db_path, init_dir)
+            env = self._base_env(async_url, init_dir)
 
             result = _run_seed_command(env)
 

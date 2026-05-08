@@ -17,7 +17,7 @@ historical plan text; use the overlay and this audit as the current task ledger.
 | T002 chatbot repo creation | `GC-MapleWind/maplewind-chatbot` remote exists; current `main` is `6c76fbad89bfadaca4fe2eef5edaeca061e9640b` | PASS |
 | T003 pgloader local verification | `scripts/migrate_sqlite_to_postgres.sh` dry-runs used `dimitri/pgloader:latest`; row-count evidence in `cutover-dryrun.md` | PASS |
 | T004 PostgreSQL 17 image selection | `docker-compose.yml`, `docker-compose.dev.yml`, and dry-run containers use PostgreSQL 17 / `postgres:17-alpine` | PASS |
-| T005 dependencies: main repo has asyncpg, psycopg, alembic and no runtime Google chatbot deps | `pyproject.toml`; `grep` for `gspread`, `google-api-python-client`, `googleapiclient` in main `src`/`pyproject.toml` | PASS for runtime; `aiosqlite` remains in dev dependencies for SQLite tests |
+| T005 dependencies: main repo has asyncpg, psycopg, alembic and no Google/chatbot/SQLite driver deps | `pyproject.toml`; `uv.lock`; `grep` for `gspread`, `google-api-python-client`, `googleapiclient`, `aiosqlite` in main `src`/`pyproject.toml` | PASS; `aiosqlite` removed from the main dependency graph and runtime-seeding tests now use PostgreSQL 17 |
 | T006/T007 PostgreSQL service and two DB init SQL | `docker-compose.yml`, `docker-compose.dev.yml`, `scripts/postgres-init.sql`; dry-run DB creation via `cat scripts/postgres-init.sql | docker exec ... psql` | PASS |
 | T008 `.env.example` Postgres variables | `.env.example` includes `POSTGRES_USER`, `POSTGRES_PASSWORD`, `DATABASE_URL`, and integration-level `CHATBOT_DATABASE_URL`; chatbot repo `.env.example` also requires `CHATBOT_DATABASE_URL` | PASS |
 | T009 main DB fail-fast and SQLite PRAGMA guard | `src/database.py` | PASS |
@@ -40,15 +40,46 @@ historical plan text; use the overlay and this audit as the current task ledger.
 | T040-T041 documentation | Main README references `GC-MapleWind/maplewind-chatbot` and integrated compose; chatbot README on `main` `6c76fbad89bfadaca4fe2eef5edaeca061e9640b` documents env vars, Kakao webhook endpoint, operations notes, and simulation script usage | PASS |
 | T042-T043 post-cutover cleanup and backup retention | requires post-run T042 removal decision for `migrate_user_student_id_to_username` and SQLite backup retention/cold-storage action after cutover | GAP/ops |
 
+## Functional requirement / success-criteria coverage
+
+This table maps `spec.md` FR/SC items directly to evidence. It intentionally does not treat local dry-runs as production cutover proof.
+
+| Spec item | Evidence inspected | Status |
+| --- | --- | --- |
+| FR-001 separate repos/images | Main PR #54 merged; chatbot remote `GC-MapleWind/maplewind-chatbot` `main` at `6c76fbad89bfadaca4fe2eef5edaeca061e9640b`; `docker-compose.yml` pulls separate backend/chatbot GHCR images | PASS |
+| FR-002 PostgreSQL 17 instance with `maplewind`/`chatbot` DBs | `docker-compose.yml`, `docker-compose.dev.yml`, `scripts/postgres-init.sql`, and dry-run PostgreSQL 17 containers | PASS for design/local dry-run; production bring-up remains T038 |
+| FR-003 no-loss production SQLite migration | `cutover-dryrun.md` row-count/sample comparisons against non-production SQLite copies | GAP/ops until production backup/cutover row counts are captured |
+| FR-004 main backend only uses `maplewind` DB | Main `src/database.py` requires `DATABASE_URL`; chatbot DB code/files removed from main `src`; integrated compose gives backend only `DATABASE_URL` | PASS |
+| FR-005 chatbot only uses `chatbot` DB | Chatbot repo `src/database.py` requires `CHATBOT_DATABASE_URL`; integrated compose gives chatbot only `CHATBOT_DATABASE_URL` | PASS |
+| FR-006 independent Alembic in both repos | Main `src/alembic`; chatbot repo `src/alembic`; both online migrations passed against temporary PostgreSQL 17 | PASS |
+| FR-007 main has no `gspread`, `google-api-python-client`, `aiosqlite` deps | `pyproject.toml`, `uv.lock`, and main `src` grep; `aiosqlite` removed from dev dependencies in this audit pass | PASS |
+| FR-008 chatbot declares own runtime deps | Chatbot `pyproject.toml` declares FastAPI, SQLAlchemy, asyncpg, Alembic, httpx, gspread, google API client, sqladmin | PASS |
+| FR-009 Kakao webhook/reverse-proxy cutover + 7-day compatibility | `cutover-runbook.md` documents route and compatibility; actual Kakao/reverse-proxy change requires ops authority | GAP/ops |
+| FR-010 each container runs `alembic upgrade head` before runtime | Main and chatbot Docker/entrypoint paths plus dry-run Alembic evidence | PASS locally; production deployment evidence remains T038 |
+| FR-011 chatbot callback SLA pattern retained | Chatbot 메생결산 simulation passed; background/callback behavior retained in chatbot runtime | PASS locally; production p95/p99 remains SC-003 |
+| FR-012 rollbackable cutover | `cutover-runbook.md` includes rollback commands and backup prerequisites | PASS for runbook; actual rollback readiness depends on T001/T038 |
+| FR-013 git filter-repo history preservation | Filtered repo has 42 commits; chatbot history-adopting merge `5e6c20d` preserves runtime tree | PASS |
+| FR-014 archive branch preserved in both repos | Chatbot archive refs pushed; main source branch/history retained per handoff evidence | PASS |
+| FR-015 sqladmin chatbot views removed from main and present in chatbot | Main `src` cleanup; chatbot `src/admin.py` registers chatbot ModelViews | PASS |
+| FR-016 main compose no longer mounts Google credentials; chatbot-only secret mount | Integrated compose separates backend/chatbot mounts and secrets | PASS |
+| SC-001 row counts match SQLite backup | Local dry-run row counts match in `cutover-dryrun.md` | GAP/ops for production backup-time counts |
+| SC-002 cutover downtime <= 30 minutes | Requires production cutover timing | GAP/ops |
+| SC-003 24h chatbot p95 <= 3s / p99 <= 4s | Requires production/staging monitoring after cutover | GAP/ops |
+| SC-004 7d main 5xx <= 0.1% | Requires production monitoring after cutover | GAP/ops |
+| SC-005 chatbot CI lint/test and deploy pushes GHCR independently | Workflow patch exists and applies cleanly; remote workflow files blocked by missing `workflow` token scope | GAP/external credential |
+| SC-006 main dependency graph removes `gspread`, `google-api-python-client`, `aiosqlite` | `pyproject.toml`/`uv.lock` no longer include those packages after this audit fix | PASS |
+| SC-007 chatbot redeploy without backend restart and <= 60s | Integrated compose supports independent service replacement; actual redeploy timing requires staging/production exercise | GAP/ops |
+
 ## Verification commands run
 
 ### Main repo
 
 - `bash -n scripts/migrate_sqlite_to_postgres.sh` — PASS.
 - `uv run ruff check .` — PASS.
-- `uv run python -m unittest discover -s tests -v` — PASS, 4 tests.
+- `uv run python -m unittest discover -s tests -v` — PASS, 4 tests; runtime-seeding tests now run against temporary `postgres:17-alpine` and no longer require `aiosqlite`.
 - Main Alembic online migration against temporary PostgreSQL 17 dry-run container — PASS.
 - PR #54 merged into `dev` as merge commit `eafce94c3c0930c5dbd420bb95cf455af319215f`; post-merge dev workflow run `25567914804` passed `Build and Push Dev Image` and `Deploy to Dev Server`.
+- Dependency graph check: `grep -RIn "aiosqlite\|gspread\|google-api-python-client\|googleapiclient" pyproject.toml src tests` and `grep -n "aiosqlite" uv.lock` returned no matches after the dependency cleanup.
 - Durable handoff evidence is published from `dev` at `omx_wiki/split-chatbot-postgresql-migration-handoff.md`; verify the current `dev` hash with `git ls-remote origin refs/heads/dev` instead of treating this audit text as the moving branch pointer.
 - `scripts/migrate_sqlite_to_postgres.sh main maplewind.db ...` — PASS, row counts matched.
 - `scripts/migrate_sqlite_to_postgres.sh chatbot chatbot.db ...` — PASS, row counts matched.

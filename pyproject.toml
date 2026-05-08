@@ -27,6 +27,5 @@ dependencies = [
 
 [dependency-groups]
 dev = [
-    "aiosqlite>=0.22.1",
     "ruff>=0.15.2",
 ]
