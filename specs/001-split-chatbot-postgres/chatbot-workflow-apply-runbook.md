@@ -17,7 +17,7 @@
   `specs/001-split-chatbot-postgres/chatbot-workflows-pending.patch`.
 - Expected patch SHA-256:
   `ceb61e156d10e4cde98a6bc9d2cbf903ae2205b1cc790f861881a1f1fe21cac4`.
-- Expected latest verified chatbot base commit:
+- Expected verified chatbot base checkpoint:
   `8240db28ff058a216b017da1effb877d81290ee1` or a descendant where
   `git apply --check` still passes.
 
@@ -43,7 +43,7 @@ git ls-remote https://github.com/GC-MapleWind/maplewind-chatbot.git refs/heads/m
 ```
 
 If the `workflow` scope check fails, stop and use a workflow-scoped PAT or GitHub App. If only the `read:packages` check fails, continue only if the package will be public or equivalent package-visibility evidence can be attached.
-The latest patch check in the main handoff verified clean application to
+The documented patch check in the main handoff verified clean application to
 chatbot `main` `8240db28ff058a216b017da1effb877d81290ee1`; if `main` has
 advanced, `git apply --check` below is the authority.
 
@@ -97,7 +97,7 @@ CHATBOT_DATABASE_URL=postgresql+asyncpg://ci:ci@localhost:5432/chatbot \
 grep -n "type=sha,format=long,prefix=" .github/workflows/deploy.yml
 ```
 
-Optional full local Docker smoke, matching the latest local audit:
+Optional full local Docker smoke, matching the documented local audit:
 
 ```bash
 docker build -t chatbot-ci-local:workflow-patch-apply .

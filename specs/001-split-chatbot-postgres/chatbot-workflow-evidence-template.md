@@ -13,7 +13,7 @@
 - Granted scopes shown by `gh api -i user` or equivalent (`workflow` required for applying workflows; `read:packages` or public package evidence required for private GHCR verification):
 - MSGS_13_B dev commit containing the patch: `4f4097cfdb9cd774b67df29f83008f3a10f742fc` or later `dev` descendant containing `chatbot-workflows-pending.patch`
 - Patch SHA-256: `ceb61e156d10e4cde98a6bc9d2cbf903ae2205b1cc790f861881a1f1fe21cac4`
-- Chatbot base commit before applying patch: latest verified base `8240db28ff058a216b017da1effb877d81290ee1`, or a later `main` descendant where `git apply --check` passes
+- Chatbot base commit before applying patch: verified base checkpoint `8240db28ff058a216b017da1effb877d81290ee1`, or a later `main` descendant where `git apply --check` passes
 - Chatbot commit after applying patch:
 - Workflow application time with timezone:
 

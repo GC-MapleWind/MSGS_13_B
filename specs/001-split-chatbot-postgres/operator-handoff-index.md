@@ -71,7 +71,7 @@ deprecation warnings need cleanup, use:
 The current session could not push this workflow-file change because the OAuth
 credential lacks `workflow` scope.
 
-## Latest observable checkpoint
+## Observable checkpoint
 
 - Historical gate-check input after the Gate A closure hard-stop update: `origin/dev` `415235d0fae96eb0bfb22539d843dba07ce4de3d` and chatbot `origin/main` `8240db28ff058a216b017da1effb877d81290ee1`.
 - `check-external-gates.sh` still exits non-zero because chatbot workflow files are absent on remote, no chatbot Actions run or GHCR package evidence is visible, the current credential lacks `workflow` and `read:packages` scopes, and blocker issues #1/#55 remain open. The GHCR package check currently reports HTTP 404 for `GC-MapleWind/maplewind-chatbot`; if the package later becomes visible, missing `latest`, full-sha, `main`, or `main-*` tags fail the checker.
