@@ -54,23 +54,27 @@ isProject: false
   blocker issues link back to that handoff page. Verify the current `dev` hash
   with `git ls-remote origin refs/heads/dev` because evidence-only commits may
   advance the branch without changing implementation state.
-- Chatbot remote `GC-MapleWind/maplewind-chatbot` `main` is pushed to
-  history-adopting merge commit `5e6c20d`, with runtime parent `b3d80a9` and
-  filtered-history parent `d725f8f`; `git diff HEAD^1 HEAD` is empty, so the
-  runtime tree was preserved. Local verification on runtime commit `b3d80a9`
-  passed lint, unittest, SQLite fallback simulation, and PostgreSQL-backed
-  메생결산 simulation.
+- Chatbot remote `GC-MapleWind/maplewind-chatbot` `main` is
+  `6c76fbad89bfadaca4fe2eef5edaeca061e9640b`, a docs-only descendant of
+  history-adopting merge commit `5e6c20d` with runtime parent `b3d80a9` and
+  filtered-history parent `d725f8f`; `git diff 5e6c20d^1 5e6c20d` was empty,
+  so the runtime tree was preserved. Local verification on runtime commit
+  `b3d80a9` passed lint, unittest, SQLite fallback simulation, and
+  PostgreSQL-backed 메생결산 simulation. The chatbot README now documents env,
+  Kakao webhook, operations, and simulation usage.
 - Chatbot CI/CD workflow files are staged in local branch
   `workflows-pending-scope` commit `6ab860c` and preserved as
   `specs/001-split-chatbot-postgres/chatbot-workflows-pending.patch`. The
-  patch was rechecked against chatbot `origin/main` `5e6c20d` with
-  `git apply --check` and applies cleanly; direct push is blocked because the
+  patch was rechecked against current chatbot `origin/main`
+  `6c76fbad89bfadaca4fe2eef5edaeca061e9640b` with `git apply --check` and
+  applies cleanly; direct push is blocked because the
   current GitHub OAuth credential lacks `workflow` scope
   (`X-Oauth-Scopes: gist, read:org, repo`). Handoff issue:
   https://github.com/GC-MapleWind/maplewind-chatbot/issues/1
 - Production/staging cutover, Kakao webhook change, SLA/load validation, and
   24h/7d monitoring gates remain pending operational work. Handoff issue:
   https://github.com/GC-MapleWind/MSGS_13_B/issues/55
+- README docs are complete; T042/T043 remain post-cutover cleanup/retention gates.
 - T042 removal of `migrate_user_student_id_to_username` remains gated by the
   post-cutover/post-run verification prerequisite in `tasks.md`; do not remove
   it as an isolated local cleanup before that operational evidence exists.
