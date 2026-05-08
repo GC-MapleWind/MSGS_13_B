@@ -54,6 +54,35 @@ warn() { printf 'WARN %s\n' "$1"; warnings=$((warnings + 1)); }
 fail() { printf 'FAIL %s\n' "$1"; failures=$((failures + 1)); }
 info() { printf 'INFO %s\n' "$1"; }
 
+gh_api_retry_to_file() {
+  api_path="$1"
+  out_file="$2"
+  err_file="$3"
+  attempts="${4:-3}"
+
+  attempt=1
+  while [[ "${attempt}" -le "${attempts}" ]]; do
+    if gh api "${api_path}" >"${out_file}" 2>"${err_file}"; then
+      if [[ "${attempt}" -gt 1 ]]; then
+        info "gh api ${api_path} succeeded on retry ${attempt}"
+      fi
+      return 0
+    fi
+
+    err_text="$(tr '
+' ' ' <"${err_file}" 2>/dev/null || true)"
+    if ! printf '%s' "${err_text}" | grep -Eiq '(i/o timeout|timed out|timeout|connection reset|TLS handshake timeout|502|503|504)'; then
+      return 1
+    fi
+    if [[ "${attempt}" -lt "${attempts}" ]]; then
+      warn "gh api ${api_path} transient failure on attempt ${attempt}/${attempts}: ${err_text}"
+      sleep "${attempt}"
+    fi
+    attempt=$((attempt + 1))
+  done
+  return 1
+}
+
 issue_view_line() {
   repo="$1"
   number="$2"
@@ -186,6 +215,39 @@ run_self_test() {
     fail "REST fallback returned unexpected issue line: ${issue_line}"
   fi
   unset -f gh
+
+
+  section "API retry self-test"
+  retry_count_file="${TMP_DIR}/api_retry_count"
+  printf '0' >"${retry_count_file}"
+  gh() {
+    if [[ "$1" == "api" && "$2" == "repos/example/repo/actions/runs?branch=main&per_page=10" ]]; then
+      count="$(cat "${retry_count_file}")"
+      count=$((count + 1))
+      printf '%s' "${count}" >"${retry_count_file}"
+      if [[ "${count}" -eq 1 ]]; then
+        printf 'Get "https://api.github.com/repos/example/repo/actions/runs": dial tcp 127.0.0.1:443: i/o timeout
+' >&2
+        return 1
+      fi
+      printf '{"workflow_runs":[]}
+'
+      return 0
+    fi
+    printf 'unexpected gh call: %s
+' "$*" >&2
+    return 127
+  }
+  sleep() { :; }
+  warnings_before_retry_selftest="${warnings}"
+  if gh_api_retry_to_file "repos/example/repo/actions/runs?branch=main&per_page=10" "${TMP_DIR}/api_retry.json" "${TMP_DIR}/api_retry.err" 2 >/dev/null; then
+    pass "retries transient gh api timeout"
+  else
+    fail "did not retry transient gh api timeout"
+  fi
+  warnings="${warnings_before_retry_selftest}"
+  unset -f gh sleep
+
 
   section "Issue evidence marker self-test"
   gh() {
@@ -417,17 +479,35 @@ fi
 
 section "Chatbot Actions runs"
 runs_json="${TMP_DIR}/chatbot_runs_gate.json"
-if gh api "repos/${CHATBOT_REPO}/actions/runs?branch=${CHATBOT_BRANCH}&per_page=10" >"${runs_json}" 2>"${TMP_DIR}/chatbot_runs_gate.err"; then
-  run_lines="$(gh api "repos/${CHATBOT_REPO}/actions/runs?branch=${CHATBOT_BRANCH}&per_page=10" --jq '.workflow_runs[] | "\(.name) status=\(.status) conclusion=\(.conclusion) head=\(.head_sha) url=\(.html_url)"' 2>/dev/null || true)"
-  success_count="$(gh api "repos/${CHATBOT_REPO}/actions/runs?branch=${CHATBOT_BRANCH}&per_page=10" --jq '[.workflow_runs[] | select(.conclusion == "success")] | length' 2>/dev/null || printf '0')"
+actions_api="repos/${CHATBOT_REPO}/actions/runs?branch=${CHATBOT_BRANCH}&per_page=10"
+if gh_api_retry_to_file "${actions_api}" "${runs_json}" "${TMP_DIR}/chatbot_runs_gate.err" 3; then
+  run_lines="$(python3 - "${runs_json}" <<'PY_ACTION_LINES'
+import json
+import sys
+from pathlib import Path
+payload = json.loads(Path(sys.argv[1]).read_text())
+for run in payload.get("workflow_runs", []):
+    print(f"{run.get('name')} status={run.get('status')} conclusion={run.get('conclusion')} head={run.get('head_sha')} url={run.get('html_url')}")
+PY_ACTION_LINES
+)"
+  success_count="$(python3 - "${runs_json}" <<'PY_ACTION_COUNT'
+import json
+import sys
+from pathlib import Path
+payload = json.loads(Path(sys.argv[1]).read_text())
+print(sum(1 for run in payload.get("workflow_runs", []) if run.get("conclusion") == "success"))
+PY_ACTION_COUNT
+)"
   if [[ -z "${run_lines}" ]]; then
     fail "no chatbot Actions runs visible on ${CHATBOT_BRANCH}"
   else
-    printf '%s\n' "${run_lines}"
+    printf '%s
+' "${run_lines}"
     if [[ "${success_count}" -gt 0 ]]; then pass "at least one successful chatbot Actions run is visible"; else fail "no successful chatbot Actions run visible"; fi
   fi
 else
-  fail "cannot list chatbot Actions runs via API: $(tr '\n' ' ' <"${TMP_DIR}/chatbot_runs_gate.err")"
+  fail "cannot list chatbot Actions runs via API after retries: $(tr '
+' ' ' <"${TMP_DIR}/chatbot_runs_gate.err")"
 fi
 
 section "Chatbot GHCR package"
