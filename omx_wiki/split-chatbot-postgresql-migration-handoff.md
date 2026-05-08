@@ -24,11 +24,12 @@ checkboxes are retained as historical plan text.
 - This handoff page is published from `dev` and linked from both open blocker issues.
 - Latest dependency-cleanup evidence commit is `7d70ea9ae35fc6ddc884b0af88dcf051bff20ff0`; verify the current moving `dev` branch pointer with `git ls-remote origin refs/heads/dev` because evidence-only commits may advance the branch without changing implementation state.
 - Main `.env.example` includes both `DATABASE_URL` and integration-level `CHATBOT_DATABASE_URL`; the chatbot repo `.env.example` carries the chatbot service-specific environment contract.
+- Chatbot README at `4c5c121979b111326a9e8534b9712722664a6664` now documents the main-repo integrated compose deployment handoff and FR-009 seven-day reverse-proxy compatibility route; chatbot ruff and unittest passed after the docs update.
 - Dev GitHub Actions run `25567914804` for `Backend CI/CD (Docker)` completed with conclusion `success` on `2026-05-08T16:52:37Z`.
 - Dev GitHub Actions run `25570800233` for `Backend CI/CD (Docker)` completed with conclusion `success` after the FR-007/SC-006 dependency cleanup.
 - Dev GitHub Actions run `25571572967` for `Backend CI/CD (Docker)` completed with conclusion `success` after the compose environment isolation fix.
 - Main dependency graph now removes `aiosqlite` completely: `pyproject.toml` and `uv.lock` are clean, and runtime-seeding tests run against temporary `postgres:17-alpine`.
-- Chatbot repo `GC-MapleWind/maplewind-chatbot` remote `main` is `6c76fbad89bfadaca4fe2eef5edaeca061e9640b`, a docs-only descendant of history-adopting merge commit `5e6c20df8b0c047f716ad02be249a99ce367838e`.
+- Chatbot repo `GC-MapleWind/maplewind-chatbot` remote `main` is `4c5c121979b111326a9e8534b9712722664a6664`, a documentation descendant of history-adopting merge commit `5e6c20df8b0c047f716ad02be249a99ce367838e`.
 - Archive/history refs now satisfy FR-014:
   - Main `GC-MapleWind/MSGS_13_B` `archive/chinbabang-submission` -> `387cb221da0e18c9bcefe595d3fb119f18f0ea05`
   - Chatbot `GC-MapleWind/maplewind-chatbot` `archive/chinbabang-submission` -> `b357aeaa6bc201fa693c871b31c6ad823b66e4c7`
@@ -45,8 +46,8 @@ checkboxes are retained as historical plan text.
    - API check for `repos/GC-MapleWind/maplewind-chatbot/contents/.github/workflows` returned HTTP 404.
    - Current GitHub OAuth scopes are `gist, read:org, repo`; missing required `workflow` scope.
    - Workflow patch is preserved in `specs/001-split-chatbot-postgres/chatbot-workflows-pending.patch`.
-   - Patch recoverability was verified against current chatbot `origin/main` `6c76fbad89bfadaca4fe2eef5edaeca061e9640b`: `git apply --check` passed. Patch SHA-256 is `43baf797f0057ef4b8631370f400929482a9615c60e87be75d8502b42fc8e12e`; it adds `.github/workflows/ci.yml` and `.github/workflows/deploy.yml`.
-   - Local workflow simulation passed against current chatbot `origin/main` `6c76fba`: frozen dev sync, ruff, SQLite unit tests, Alembic offline SQL, Alembic online migration against temporary `postgres:17-alpine`, and Docker build all succeeded. Remaining gap is remote application/execution with a workflow-scoped credential.
+   - Patch recoverability was verified against current chatbot `origin/main` `4c5c121979b111326a9e8534b9712722664a6664`: `git apply --check` passed. Patch SHA-256 is `43baf797f0057ef4b8631370f400929482a9615c60e87be75d8502b42fc8e12e`; it adds `.github/workflows/ci.yml` and `.github/workflows/deploy.yml`.
+   - Local workflow simulation passed against current chatbot `origin/main` `4c5c121`: frozen dev sync, ruff, SQLite unit tests, Alembic offline SQL, Alembic online migration against temporary `postgres:17-alpine`, and Docker build all succeeded. Remaining gap is remote application/execution with a workflow-scoped credential.
    - Tracking issue: `https://github.com/GC-MapleWind/maplewind-chatbot/issues/1`.
 
 2. Production/staging cutover has not been executed.
