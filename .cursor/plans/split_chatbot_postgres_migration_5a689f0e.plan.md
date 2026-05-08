@@ -22,7 +22,7 @@ todos:
     status: completed
   - id: phase2-extract
     content: "Phase 2: git filter-repo 로 챗봇 파일들을 이력 보존하며 신규 repo로 추출"
-    status: in_progress
+    status: completed
   - id: phase2-newrepo
     content: "Phase 2: 신규 repo 구조 세팅 (main.py, config.py, alembic, Dockerfile, pyproject.toml, .env.example)"
     status: completed
@@ -49,19 +49,15 @@ isProject: false
 - Main feature branch is pushed to `origin/feat/split-chatbot-postgres-migration`
   with migration runbooks, dry-run evidence, the blocked chatbot workflow patch
   artifact, and this tracked Cursor plan status.
-- Main repo PR #54 is open; build/test jobs pass on the feature branch. A
-  previous `Deploy to Dev Server` run failed because the existing dev
-  PostgreSQL volume lacked database `maplewind`; compose files now include an
-  idempotent inline `postgres-init` one-shot service so missing DBs are created
-  before app startup without requiring the workflow to copy an extra SQL file.
-  The fresh PR deploy result still needs to be observed.
-- Chatbot remote `GC-MapleWind/maplewind-chatbot` `main` is pushed to runtime
-  commit `b3d80a9`; local verification on that commit passed lint, unittest,
-  SQLite fallback simulation, and PostgreSQL-backed 메생결산 simulation.
-- History-preserving extraction evidence exists on non-destructive chatbot
-  remote branches `history-preserved-extract` and
-  `archive/chinbabang-submission-filtered` at `d725f8f`; chatbot remote `main`
-  itself has not adopted that filtered-history branch.
+- Main repo PR #54 is open at head `903151f`; GitHub Actions run
+  `25567071312` passed `Test Build (PR)`, `Build and Push Dev Image`, and
+  `Deploy to Dev Server`; GitHub reports merge state `CLEAN`.
+- Chatbot remote `GC-MapleWind/maplewind-chatbot` `main` is pushed to
+  history-adopting merge commit `5e6c20d`, with runtime parent `b3d80a9` and
+  filtered-history parent `d725f8f`; `git diff HEAD^1 HEAD` is empty, so the
+  runtime tree was preserved. Local verification on runtime commit `b3d80a9`
+  passed lint, unittest, SQLite fallback simulation, and PostgreSQL-backed
+  메생결산 simulation.
 - Chatbot CI/CD workflow files are staged in local branch
   `workflows-pending-scope` commit `6ab860c` and preserved as
   `specs/001-split-chatbot-postgres/chatbot-workflows-pending.patch`; direct

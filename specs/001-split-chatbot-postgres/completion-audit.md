@@ -22,10 +22,10 @@ Use the SDD artifacts in `specs/001-split-chatbot-postgres/`, `codex-prompts.md`
 | T018 메생결산 simulation | `../maplewind-chatbot/scripts/simulate_maesaeng_flow.py`; SQLite fallback and PostgreSQL-backed run against temporary `postgres:17-alpine` container both called `register_final_data` once, sent callback once, and cleaned the temporary session | PASS |
 | T019 dry-run report with row counts and sample comparisons | `specs/001-split-chatbot-postgres/cutover-dryrun.md` | PASS for local SQLite copies |
 | T020 cutover runbook with rollback | `specs/001-split-chatbot-postgres/cutover-runbook.md` | PASS |
-| T021 git history-preserving extraction | Local filtered repo `../chatbot-history-extract` has 42 commits; remote evidence branches `history-preserved-extract` and `archive/chinbabang-submission-filtered` point to filtered commit `d725f8fa1fafe2ef78adcb4e89b3b8fa930af71f` | PASS for evidence branch; remote `main` is still not history-preserved |
+| T021 git history-preserving extraction | Local filtered repo `../chatbot-history-extract` has 42 commits; chatbot remote `main` now points to merge commit `5e6c20df8b0c047f716ad02be249a99ce367838e` with parents `b3d80a9` and filtered-history commit `d725f8fa1fafe2ef78adcb4e89b3b8fa930af71f`; `git diff HEAD^1 HEAD` is empty, preserving the runtime tree | PASS |
 | T022-T028 chatbot repo structure/env/Dockerfile/dev compose | `../maplewind-chatbot` file tree; runtime commit `b3d80a935f82427d13432ad56107dd51189931e0` pushed to remote `main` | PASS |
 | T029/T030 chatbot CI/CD workflows | local branch `workflows-pending-scope` commit `6ab860c` contains `.github/workflows/ci.yml` and `deploy.yml`; direct push rejected by GitHub token missing `workflow` scope; patch preserved in `specs/001-split-chatbot-postgres/chatbot-workflows-pending.patch` | GAP for remote workflow availability |
-| T031 push new repo + archive branch | chatbot remote `main` now points to runtime commit `b3d80a935f82427d13432ad56107dd51189931e0`; `archive/chinbabang-submission` pushed at `b357aea`; filtered-history evidence branches pushed at `d725f8fa1fafe2ef78adcb4e89b3b8fa930af71f`; workflow branch push rejected by remote workflow-scope policy | PARTIAL |
+| T031 push new repo + archive branch | chatbot remote `main` now points to history-adopting merge commit `5e6c20df8b0c047f716ad02be249a99ce367838e`; `archive/chinbabang-submission` pushed at `b357aea`; filtered-history evidence branches remain at `d725f8fa1fafe2ef78adcb4e89b3b8fa930af71f`; workflow branch push rejected by remote workflow-scope policy | PARTIAL only for workflow branch |
 | T032/T033 main repo cleanup | main `src/` has no chatbot/google refs; tracked chatbot files absent; main tests pass | PASS |
 | T034-T037 SLA isolation | requires deployed/staging environment and load test | GAP |
 | T038-T043 production cutover/polish | requires production backup, deployment, Kakao webhook update, monitoring, and backup retention | GAP/manual ops |
@@ -38,6 +38,7 @@ Use the SDD artifacts in `specs/001-split-chatbot-postgres/`, `codex-prompts.md`
 - `uv run ruff check .` — PASS.
 - `uv run python -m unittest discover -s tests -v` — PASS, 4 tests.
 - Main Alembic online migration against temporary PostgreSQL 17 dry-run container — PASS.
+- PR #54 GitHub checks at head `903151f`: `Test Build (PR)`, `Build and Push Dev Image`, and `Deploy to Dev Server` — PASS; merge state `CLEAN`.
 - `scripts/migrate_sqlite_to_postgres.sh main maplewind.db ...` — PASS, row counts matched.
 - `scripts/migrate_sqlite_to_postgres.sh chatbot chatbot.db ...` — PASS, row counts matched.
 
@@ -47,16 +48,14 @@ Use the SDD artifacts in `specs/001-split-chatbot-postgres/`, `codex-prompts.md`
 - `uv run python -m unittest discover -s tests -v` — PASS, 6 tests.
 - `uv run python scripts/simulate_maesaeng_flow.py` — PASS.
 - Chatbot Alembic online migration against temporary PostgreSQL 17 dry-run container — PASS.
-- After splitting blocked workflow files out of the runtime commit, reran on remote-main commit `b3d80a9`: `uv run ruff check .`, `uv run python -m unittest discover -s tests -v`, and `uv run python scripts/simulate_maesaeng_flow.py` — PASS.
+- After splitting blocked workflow files out of the runtime commit, reran on remote-main runtime commit `b3d80a9`: `uv run ruff check .`, `uv run python -m unittest discover -s tests -v`, and `uv run python scripts/simulate_maesaeng_flow.py` — PASS.
 - PostgreSQL-backed simulation on remote-main commit `b3d80a9`: temporary `postgres:17-alpine` container `dpbr-chatbot-sim-pg` on localhost port `55414`; `CHATBOT_DATABASE_URL=postgresql+asyncpg://maplewind:maplewind@localhost:55414/chatbot uv run python scripts/simulate_maesaeng_flow.py` — PASS; container removed after the run.
 
 ## Blocking gaps before goal completion
 
-1. `GC-MapleWind/maplewind-chatbot` remote main now has runtime commit `b3d80a9`, but CI/CD workflow files remain on local branch `workflows-pending-scope` commit `6ab860c` and as patch artifact `chatbot-workflows-pending.patch`; pushing that branch failed because the OAuth credential lacks GitHub `workflow` scope for `.github/workflows/ci.yml`.
-2. History-preserving extraction is evidenced on non-destructive remote branches (`history-preserved-extract`, `archive/chinbabang-submission-filtered`) and local repo `../chatbot-history-extract`, but the chatbot remote `main` branch itself is still not the filtered-history branch.
-3. Main repo PR [#54](https://github.com/GC-MapleWind/MSGS_13_B/pull/54) is open; build/test jobs pass on the feature branch. Previous `Deploy to Dev Server` runs failed because the existing dev PostgreSQL volume did not contain database `maplewind`, then because the workflow version deployed to dev did not copy `scripts/postgres-init.sql` for the one-shot init service. `docker-compose.dev.yml` and `docker-compose.yml` now include idempotent inline `postgres-init` SQL so existing volumes create missing `maplewind`/`chatbot` databases before app startup without requiring an extra deployed SQL file. The fresh PR deploy result still needs to be observed.
-4. Production cutover, webhook update, SLA tests, and 24h/7d monitoring are manual/production operations and have not run in this local session.
+1. `GC-MapleWind/maplewind-chatbot` remote main now has history-adopting merge commit `5e6c20d`, but CI/CD workflow files remain on local branch `workflows-pending-scope` commit `6ab860c` and as patch artifact `chatbot-workflows-pending.patch`; pushing that branch failed because the OAuth credential lacks GitHub `workflow` scope for `.github/workflows/ci.yml`.
+2. Production cutover, webhook update, SLA tests, and 24h/7d monitoring are manual/production operations and have not run in this local session.
 
 ## Current conclusion
 
-The local implementation, chatbot remote runtime push, and migration dry-run are substantially complete and verified. History preservation is now evidenced on separate branches, but the overall objective is not complete until the remote workflow-scope push/branch-adoption gap and production/staging operational gates are resolved.
+The local implementation, chatbot remote runtime push, filtered-history adoption, and migration dry-run are substantially complete and verified. The overall objective is not complete until the chatbot workflow-scope push and production/staging operational gates are resolved.
