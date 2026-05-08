@@ -2,8 +2,9 @@
 
 > Scope: apply the prepared chatbot CI/CD workflow patch to
 > `GC-MapleWind/maplewind-chatbot` once a GitHub credential or GitHub App with
-> `workflow` scope is available. This runbook does **not** perform production
-> cutover.
+> `workflow` scope is available; GHCR verification later in this runbook also
+> needs `read:packages`, equivalent GitHub App/package permission, or public
+> package evidence. This runbook does **not** perform production cutover.
 > Capture the result with `chatbot-workflow-evidence-template.md`.
 
 ## Preconditions
@@ -11,6 +12,7 @@
 - GitHub authentication can write `.github/workflows/*` in
   `GC-MapleWind/maplewind-chatbot`.
 - `gh auth status` succeeds and API headers show `workflow` in the granted scopes, or a GitHub App has equivalent permission to write workflow files.
+- GHCR package verification can use `read:packages`, equivalent GitHub App/package permission, or public package evidence.
 - `GC-MapleWind/MSGS_13_B` `dev` contains
   `specs/001-split-chatbot-postgres/chatbot-workflows-pending.patch`.
 - Expected patch SHA-256:
@@ -30,6 +32,8 @@ EXPECTED_CHATBOT_BASE="8240db28ff058a216b017da1effb877d81290ee1"
 gh auth status -h github.com
 gh api -i user | awk 'BEGIN{IGNORECASE=1} /^x-oauth-scopes:/ {print}'
 gh api -i user | awk 'BEGIN{IGNORECASE=1; ok=0} /^x-oauth-scopes:/ && $0 ~ /workflow/ {ok=1} END{exit ok ? 0 : 1}'
+# Required for private GHCR API verification; if this fails, attach public package UI/API proof instead.
+gh api -i user | awk 'BEGIN{IGNORECASE=1; ok=0} /^x-oauth-scopes:/ && $0 ~ /read:packages/ {ok=1} END{exit ok ? 0 : 1}' || echo 'read:packages missing; use GitHub App/package permission or public GHCR evidence later'
 
 sha256sum --check <<EOF
 ${EXPECTED_PATCH_SHA}  ${PATCH_SOURCE:-$HOME/dpbr_13_B/specs/001-split-chatbot-postgres/chatbot-workflows-pending.patch}
@@ -38,7 +42,7 @@ EOF
 git ls-remote https://github.com/GC-MapleWind/maplewind-chatbot.git refs/heads/main
 ```
 
-If the scope check fails, stop and use a workflow-scoped PAT or GitHub App.
+If the `workflow` scope check fails, stop and use a workflow-scoped PAT or GitHub App. If only the `read:packages` check fails, continue only if the package will be public or equivalent package-visibility evidence can be attached.
 The latest patch check in the main handoff verified clean application to
 chatbot `main` `8240db28ff058a216b017da1effb877d81290ee1`; if `main` has
 advanced, `git apply --check` below is the authority.
@@ -132,6 +136,7 @@ Required evidence before closing the workflow blocker:
 - Chatbot CI run completes successfully.
 - Deploy workflow builds/pushes GHCR image tags `:latest` and `:<full sha>`.
 - GHCR package/tag visibility is confirmed with a `read:packages`-capable credential, GitHub App/package permission, or public package evidence.
+- If GHCR API access uses a private package, the credential/package permission used for verification is recorded in `chatbot-workflow-evidence-template.md`.
 - If production deploy is enabled, deploy job completes successfully and
   `/health` on the deployed chatbot returns 200.
 
