@@ -40,6 +40,7 @@ The repo-local implementation and verified development-lane evidence are complet
 
 2. Production/staging cutover has not been executed.
    - Required work includes production backup, Postgres bring-up, pgloader migration, deployment, Kakao webhook change, SLA/load validation, and 24h/7d monitoring.
+   - T042 removal of `migrate_user_student_id_to_username` is also gated by post-cutover/post-run verification; do not remove it before that evidence exists.
    - Tracking issue: `https://github.com/GC-MapleWind/MSGS_13_B/issues/55`.
 
 ## Do not mark goal complete until

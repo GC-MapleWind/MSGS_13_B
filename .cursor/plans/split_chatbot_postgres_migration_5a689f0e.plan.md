@@ -71,6 +71,9 @@ isProject: false
 - Production/staging cutover, Kakao webhook change, SLA/load validation, and
   24h/7d monitoring gates remain pending operational work. Handoff issue:
   https://github.com/GC-MapleWind/MSGS_13_B/issues/55
+- T042 removal of `migrate_user_student_id_to_username` remains gated by the
+  post-cutover/post-run verification prerequisite in `tasks.md`; do not remove
+  it as an isolated local cleanup before that operational evidence exists.
 
 ## 큰 그림
 

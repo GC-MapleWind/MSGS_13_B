@@ -28,7 +28,7 @@ Use the SDD artifacts in `specs/001-split-chatbot-postgres/`, `codex-prompts.md`
 | T031 push new repo + archive branch | chatbot remote `main` now points to history-adopting merge commit `5e6c20df8b0c047f716ad02be249a99ce367838e`; `archive/chinbabang-submission` pushed at `b357aea`; filtered-history evidence branches remain at `d725f8fa1fafe2ef78adcb4e89b3b8fa930af71f`; workflow branch push rejected by remote workflow-scope policy | PARTIAL only for workflow branch |
 | T032/T033 main repo cleanup | main `src/` has no chatbot/google refs; tracked chatbot files absent; main tests pass | PASS |
 | T034-T037 SLA isolation | requires deployed/staging environment and load test | GAP |
-| T038-T043 production cutover/polish | requires production backup, deployment, Kakao webhook update, monitoring, and backup retention | GAP/manual ops |
+| T038-T043 production cutover/polish | requires production backup, deployment, Kakao webhook update, monitoring, backup retention, and the post-run T042 removal decision for `migrate_user_student_id_to_username` | GAP/manual ops |
 
 ## Verification commands run
 
@@ -57,7 +57,8 @@ Use the SDD artifacts in `specs/001-split-chatbot-postgres/`, `codex-prompts.md`
 
 1. `GC-MapleWind/maplewind-chatbot` remote main now has history-adopting merge commit `5e6c20d`, but CI/CD workflow files remain as patch artifact `chatbot-workflows-pending.patch`; the patch applies cleanly to current chatbot `origin/main`, but pushing/applying it to the remote failed because the OAuth credential lacks GitHub `workflow` scope for `.github/workflows/ci.yml`; credential headers confirm `X-Oauth-Scopes: gist, read:org, repo` with no `workflow`; remote API check for `.github/workflows` still returns HTTP 404. Handoff issue: https://github.com/GC-MapleWind/maplewind-chatbot/issues/1
 2. Production cutover, webhook update, SLA tests, and 24h/7d monitoring are manual/production operations and have not run in this local session. Handoff issue: https://github.com/GC-MapleWind/MSGS_13_B/issues/55
-3. Durable handoff evidence is published at https://github.com/GC-MapleWind/MSGS_13_B/blob/dev/omx_wiki/split-chatbot-postgresql-migration-handoff.md and cross-linked from both blocker issues.
+3. T042 removal of `migrate_user_student_id_to_username` is intentionally not a free local cleanup until the cutover/post-run verification prerequisite in `tasks.md` is satisfied.
+4. Durable handoff evidence is published at https://github.com/GC-MapleWind/MSGS_13_B/blob/dev/omx_wiki/split-chatbot-postgresql-migration-handoff.md and cross-linked from both blocker issues.
 
 ## Current conclusion
 
