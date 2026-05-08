@@ -83,7 +83,18 @@ issue_has_complete_summary() {
       if (has_marker) {
         has_fields = 1
         for (i = 1; i <= fields_count; i++) {
-          if (index($0, fields[i]) == 0) {
+          field_has_value = 0
+          for (line = 1; line <= NF; line++) {
+            field_pos = index($line, fields[i])
+            if (field_pos == 1) {
+              field_value = substr($line, length(fields[i]) + 1)
+              gsub(/^[[:space:]]+|[[:space:]]+$/, "", field_value)
+              if (field_value != "") {
+                field_has_value = 1
+              }
+            }
+          }
+          if (!field_has_value) {
             has_fields = 0
           }
         }
@@ -150,7 +161,7 @@ run_self_test() {
       return 0
     fi
     if [[ "$1" == "api" && "$2" == "repos/example/repo/issues/8/comments?per_page=100" ]]; then
-      printf 'Chatbot workflow evidence summary:\n- CI run URL/conclusion:\n- Deploy/build run URL/conclusion:\n- GHCR image tags/digest:\n'
+      printf 'Chatbot workflow evidence summary:\n- CI run URL/conclusion: https://example.test/ci success\n- Deploy/build run URL/conclusion: https://example.test/deploy success\n- GHCR image tags/digest: latest sha main main-abc digest sha256:abc\n'
       return 0
     fi
     if [[ "$1" == "api" && "$2" == "repos/example/repo/issues/9" ]]; then
@@ -162,11 +173,19 @@ run_self_test() {
       return 0
     fi
     if [[ "$1" == "api" && "$2" == "repos/example/repo/issues/10" ]]; then
-      printf 'Chatbot workflow evidence summary:\n'
+      printf 'Chatbot workflow evidence summary:\n- CI run URL/conclusion:\n- Deploy/build run URL/conclusion:\n- GHCR image tags/digest:\n'
       return 0
     fi
     if [[ "$1" == "api" && "$2" == "repos/example/repo/issues/10/comments?per_page=100" ]]; then
-      printf '- CI run URL/conclusion:\n- Deploy/build run URL/conclusion:\n- GHCR image tags/digest:\n'
+      printf 'No comments\n'
+      return 0
+    fi
+    if [[ "$1" == "api" && "$2" == "repos/example/repo/issues/11" ]]; then
+      printf 'Chatbot workflow evidence summary:\n'
+      return 0
+    fi
+    if [[ "$1" == "api" && "$2" == "repos/example/repo/issues/11/comments?per_page=100" ]]; then
+      printf '- CI run URL/conclusion: https://example.test/ci success\n- Deploy/build run URL/conclusion: https://example.test/deploy success\n- GHCR image tags/digest: latest sha main main-abc digest sha256:abc\n'
       return 0
     fi
     printf 'unexpected gh call: %s\n' "$*" >&2
@@ -182,7 +201,12 @@ run_self_test() {
   else
     pass "rejects advisory marker mention without standalone evidence heading"
   fi
-  if issue_has_complete_summary "example/repo" "10" "Chatbot workflow evidence summary:" "${TMP_DIR}/issue_summary_split_selftest.err" "- CI run URL/conclusion:" "- Deploy/build run URL/conclusion:" "- GHCR image tags/digest:"; then
+  if issue_has_complete_summary "example/repo" "10" "Chatbot workflow evidence summary:" "${TMP_DIR}/issue_summary_empty_fields_selftest.err" "- CI run URL/conclusion:" "- Deploy/build run URL/conclusion:" "- GHCR image tags/digest:"; then
+    fail "unexpectedly accepts empty required evidence fields"
+  else
+    pass "rejects empty required evidence fields"
+  fi
+  if issue_has_complete_summary "example/repo" "11" "Chatbot workflow evidence summary:" "${TMP_DIR}/issue_summary_split_selftest.err" "- CI run URL/conclusion:" "- Deploy/build run URL/conclusion:" "- GHCR image tags/digest:"; then
     fail "unexpectedly accepts marker and fields split across issue blocks"
   else
     pass "rejects marker and fields split across issue blocks"
