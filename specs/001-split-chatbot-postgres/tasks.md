@@ -133,7 +133,7 @@ PostgreSQL 환경에서 정상 동작한다.
   `scripts/migrate_sqlite_to_postgres.sh` 를 운영 백업 사본으로 실행 후 핵심 테이블
   (`users`, `characters`, `settlements`, `event_info`, `info_list`, `temporary_image`)
   의 샘플 행을 SQLite ↔ PG 비교.
-- [ ] T020 [US1] 컷오버 절차 문서화: `specs/001-split-chatbot-postgres/cutover.md`
+- [ ] T020 [US1] 컷오버 절차 문서화: `specs/001-split-chatbot-postgres/cutover-runbook.md`
   (선택) 또는 plan.md 의 Phase 3 섹션을 운영 runbook 형태로 정리. 롤백 명령 포함.
 
 **Checkpoint**: 메인 + 챗봇이 같은 repo / 같은 컨테이너인 채로 PostgreSQL 위에서
