@@ -12,6 +12,19 @@
 - `scripts/postgres-init.sql` is present beside the production compose file.
 - Docker can pull `postgres:17-alpine` and `dimitri/pgloader:latest`.
 
+## Evidence-summary preflight helper
+
+Before posting the final issue #55 summary, validate the local draft:
+
+```bash
+specs/001-split-chatbot-postgres/validate-cutover-evidence-summary.sh <draft.md>
+```
+
+The helper rejects missing, empty, placeholder, Korean-placeholder, or split
+`Cutover evidence summary:` fields. It is a formatting/evidence-capture guard
+only; `check-completion-readiness.sh` must still pass after the issue comment is
+posted.
+
 ## Preflight evidence gate
 
 Do not start the 7-step cutover until these checks are captured in

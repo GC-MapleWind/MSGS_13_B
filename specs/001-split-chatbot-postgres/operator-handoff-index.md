@@ -48,7 +48,9 @@ Use these files in order:
 1. `cutover-runbook.md` — production/staging cutover and rollback commands.
 2. `production-cutover-evidence-template.md` — paste the completed evidence into
    issue #55.
-3. `cutover-dryrun.md` — local dry-run reference only; it is not production
+3. `validate-cutover-evidence-summary.sh` — preflight-check the final issue #55
+   summary draft for required non-placeholder fields before posting it.
+4. `cutover-dryrun.md` — local dry-run reference only; it is not production
    proof.
 
 Minimum evidence to close this gate:

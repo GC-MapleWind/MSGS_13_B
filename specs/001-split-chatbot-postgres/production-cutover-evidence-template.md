@@ -168,6 +168,17 @@ Required result:
 - SQLite backup retention date or cold-storage location:
 - Owner for deleting/archiving backups after 30 days:
 
+
+Before posting the final summary to issue #55, save the draft to a local file and run:
+
+```bash
+specs/001-split-chatbot-postgres/validate-cutover-evidence-summary.sh <draft.md>
+```
+
+This only checks that the required `Cutover evidence summary:` fields are present
+in one block with non-placeholder values; it does not replace the live readiness
+checker after the comment is posted.
+
 ## Final issue comment summary
 
 ```markdown
