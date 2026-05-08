@@ -39,7 +39,7 @@ Use the SDD artifacts in `specs/001-split-chatbot-postgres/`, `codex-prompts.md`
 - `uv run python -m unittest discover -s tests -v` — PASS, 4 tests.
 - Main Alembic online migration against temporary PostgreSQL 17 dry-run container — PASS.
 - PR #54 merged into `dev` as merge commit `eafce94c3c0930c5dbd420bb95cf455af319215f`; post-merge dev workflow run `25567914804` passed `Build and Push Dev Image` and `Deploy to Dev Server`.
-- Latest audited `origin/dev` head is `db692dafe29f0d6d9aabc7b154b3cf4066a43725`, which adds the durable handoff page `omx_wiki/split-chatbot-postgresql-migration-handoff.md`.
+- Durable handoff evidence is published from `dev` at `omx_wiki/split-chatbot-postgresql-migration-handoff.md`; verify the current `dev` hash with `git ls-remote origin refs/heads/dev` instead of treating this audit text as the moving branch pointer.
 - `scripts/migrate_sqlite_to_postgres.sh main maplewind.db ...` — PASS, row counts matched.
 - `scripts/migrate_sqlite_to_postgres.sh chatbot chatbot.db ...` — PASS, row counts matched.
 

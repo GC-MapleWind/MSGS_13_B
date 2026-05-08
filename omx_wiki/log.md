@@ -32,3 +32,11 @@
 - **Pages:** split-chatbot-postgresql-migration-handoff.md
 - **Summary:** Lint: 1 issues (1 orphan, 0 stale, 0 broken, 0 contradictions)
 
+## [2026-05-08T17:21:02.821Z] add
+- **Pages:** split-chatbot-postgresql-migration-handoff.md
+- **Summary:** Refreshed wiki index and derived metadata surfaces
+
+## [2026-05-08T17:21:05.292Z] lint
+- **Pages:** split-chatbot-postgresql-migration-handoff.md
+- **Summary:** Lint: 1 issues (1 orphan, 0 stale, 0 broken, 0 contradictions)
+
