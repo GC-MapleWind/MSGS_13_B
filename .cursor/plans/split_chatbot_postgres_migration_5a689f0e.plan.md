@@ -52,8 +52,9 @@ isProject: false
 - Main repo PR #54 is open; build/test jobs pass on the feature branch. A
   previous `Deploy to Dev Server` run failed because the existing dev
   PostgreSQL volume lacked database `maplewind`; compose files now include an
-  idempotent `postgres-init` one-shot service so missing DBs are created before
-  app startup. The fresh PR deploy result still needs to be observed.
+  idempotent inline `postgres-init` one-shot service so missing DBs are created
+  before app startup without requiring the workflow to copy an extra SQL file.
+  The fresh PR deploy result still needs to be observed.
 - Chatbot remote `GC-MapleWind/maplewind-chatbot` `main` is pushed to runtime
   commit `b3d80a9`; local verification on that commit passed lint, unittest,
   SQLite fallback simulation, and PostgreSQL-backed 메생결산 simulation.

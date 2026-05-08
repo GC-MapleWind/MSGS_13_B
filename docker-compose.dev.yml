@@ -28,12 +28,18 @@ services:
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-maplewind}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-maplewind}
-    volumes:
-      - ./scripts/postgres-init.sql:/scripts/postgres-init.sql:ro
     command:
       - sh
       - -c
-      - PGPASSWORD="$${POSTGRES_PASSWORD}" psql -h postgres -U "$${POSTGRES_USER}" -d postgres -f /scripts/postgres-init.sql
+      - |
+        set -e
+        export PGPASSWORD="$${POSTGRES_PASSWORD}"
+        psql -h postgres -U "$${POSTGRES_USER}" -d postgres <<'SQL'
+        SELECT 'CREATE DATABASE maplewind'
+        WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'maplewind')\gexec
+        SELECT 'CREATE DATABASE chatbot'
+        WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'chatbot')\gexec
+        SQL
     restart: "no"
 
   backend:
