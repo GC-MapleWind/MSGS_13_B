@@ -7,10 +7,35 @@
 - Current SQLite files are present on the production host:
   - `data/maplewind.db`
   - `data/chatbot.db`
-- New backend and chatbot images are available in GHCR.
+- New backend and chatbot images are available in GHCR; Gate A (`GC-MapleWind/maplewind-chatbot#1`) is closed with workflow, CI, deploy/build, and GHCR tag evidence.
 - `.env` contains `POSTGRES_USER`, `POSTGRES_PASSWORD`, `DATABASE_URL`, `CHATBOT_DATABASE_URL`, backend secrets, and chatbot secrets.
 - `scripts/postgres-init.sql` is present beside the production compose file.
 - Docker can pull `postgres:17-alpine` and `dimitri/pgloader:latest`.
+
+## Preflight evidence gate
+
+Do not start the 7-step cutover until these checks are captured in
+`production-cutover-evidence-template.md`:
+
+```bash
+set -euo pipefail
+
+git ls-remote https://github.com/GC-MapleWind/MSGS_13_B.git refs/heads/dev
+git ls-remote https://github.com/GC-MapleWind/maplewind-chatbot.git refs/heads/main
+
+gh api 'repos/GC-MapleWind/maplewind-chatbot/contents/.github/workflows?ref=main'
+gh api 'repos/GC-MapleWind/maplewind-chatbot/actions/runs?branch=main&per_page=5'
+gh api '/orgs/GC-MapleWind/packages/container/maplewind-chatbot'
+
+# Record the exact images/tags that production will deploy.
+docker manifest inspect ghcr.io/gc-maplewind/msgs_13_b-backend:latest >/tmp/backend-image.json
+docker manifest inspect ghcr.io/gc-maplewind/maplewind-chatbot:latest >/tmp/chatbot-image.json
+```
+
+Latest handoff refs before this runbook update: main `dev` `22e149c3de1a9b0ecf20361152a45693ee9e0f05` and chatbot
+`main` `8240db28ff058a216b017da1effb877d81290ee1`. If either branch has advanced, record the new refs and verify
+that the chatbot workflow patch has been applied and successful GHCR evidence
+exists for the image tags being deployed.
 
 ## 7-step cutover
 
@@ -50,6 +75,7 @@ docker run --rm --network dpbr-main_default \
 
 # 5. Pull and start the split services.
 docker compose --env-file .env pull backend chatbot
+docker compose --env-file .env images backend chatbot
 docker compose --env-file .env up -d --remove-orphans postgres backend chatbot
 
 # 6. Update Kakao OpenBuilder webhook to the new chatbot route.
@@ -59,6 +85,10 @@ docker compose --env-file .env up -d --remove-orphans postgres backend chatbot
 # 7. Smoke test production.
 curl -sf http://127.0.0.1:8013/health
 curl -sf http://127.0.0.1:8014/health
+docker compose --env-file .env exec -T backend env | grep -E "^(DATABASE_URL)="
+! docker compose --env-file .env exec -T backend env | grep -E "^(CHATBOT_|GOOGLE_)"
+docker compose --env-file .env exec -T chatbot env | grep -E "^(CHATBOT_DATABASE_URL)="
+! docker compose --env-file .env exec -T chatbot env | grep -E "^(DATABASE_URL=)"
 # Then perform one Kakao "메생결산" flow and confirm the Google Sheet row appears.
 ```
 

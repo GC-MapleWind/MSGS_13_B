@@ -118,7 +118,7 @@ git push origin HEAD:main
 After push:
 
 ```bash
-gh run list --repo GC-MapleWind/maplewind-chatbot --branch main --limit 5
+gh api 'repos/GC-MapleWind/maplewind-chatbot/actions/runs?branch=main&per_page=5'
 gh run watch --repo GC-MapleWind/maplewind-chatbot <run-id>
 gh run view --repo GC-MapleWind/maplewind-chatbot <run-id> --json conclusion,status,headSha,url
 ```

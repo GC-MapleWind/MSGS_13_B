@@ -9,11 +9,32 @@
 - Environment: `staging` / `production`
 - Operator:
 - Window start/end with timezone:
-- Main deploy commit/image:
-- Chatbot deploy commit/image:
+- Main deploy commit/image/tag/digest:
+- Chatbot deploy commit/image/tag/digest:
+- Gate A evidence issue/comment proving chatbot workflows and GHCR tags are present:
 - PostgreSQL image:
 - Kakao webhook target after change:
 - Compatibility route expiry date, at least 7 days after cutover:
+
+## Preflight dependency evidence — Gate A / SC-005
+
+```text
+Command transcript:
+- git ls-remote https://github.com/GC-MapleWind/MSGS_13_B.git refs/heads/dev:
+- git ls-remote https://github.com/GC-MapleWind/maplewind-chatbot.git refs/heads/main:
+- gh api repos/GC-MapleWind/maplewind-chatbot/contents/.github/workflows?ref=main:
+- gh api 'repos/GC-MapleWind/maplewind-chatbot/actions/runs?branch=main&per_page=5':
+- gh api /orgs/GC-MapleWind/packages/container/maplewind-chatbot or package UI link:
+- docker manifest inspect ghcr.io/gc-maplewind/msgs_13_b-backend:<tag>:
+- docker manifest inspect ghcr.io/gc-maplewind/maplewind-chatbot:<tag>:
+```
+
+Required result:
+
+- Chatbot `.github/workflows/ci.yml` and `deploy.yml` exist on remote `main`.
+- Chatbot CI/deploy or image-build evidence is linked from `maplewind-chatbot#1`.
+- `ghcr.io/gc-maplewind/maplewind-chatbot:<tag>` exists for the exact tag/digest being deployed.
+- Main and chatbot refs are recorded; latest handoff refs before this template update were main `dev` `22e149c3de1a9b0ecf20361152a45693ee9e0f05` and chatbot `main` `8240db28ff058a216b017da1effb877d81290ee1`.
 
 ## Pre-cutover backups — T001 / FR-003 / FR-012
 
@@ -56,11 +77,13 @@ Required result:
 ```text
 Command transcript:
 - docker compose --env-file .env pull backend chatbot:
+- docker compose --env-file .env images backend chatbot:
 - docker compose --env-file .env up -d --remove-orphans postgres backend chatbot:
 - docker compose --env-file .env ps:
 - docker compose --env-file .env logs --tail=100 backend:
 - docker compose --env-file .env logs --tail=100 chatbot:
-- docker inspect env summary showing backend has DATABASE_URL only and chatbot has CHATBOT_DATABASE_URL only:
+- docker compose --env-file .env exec -T backend env filtered to DATABASE_URL and absence of CHATBOT_/GOOGLE_ variables:
+- docker compose --env-file .env exec -T chatbot env filtered to CHATBOT_DATABASE_URL and absence of DATABASE_URL:
 ```
 
 Required result:

@@ -75,7 +75,7 @@ Required result:
 
 ```text
 Command transcript:
-- gh run list --repo GC-MapleWind/maplewind-chatbot --limit 10:
+- gh api 'repos/GC-MapleWind/maplewind-chatbot/actions/runs?branch=main&per_page=10':
 - gh run view <ci-run-id> --repo GC-MapleWind/maplewind-chatbot --json status,conclusion,headSha,url:
 - gh run view <deploy-run-id> --repo GC-MapleWind/maplewind-chatbot --json status,conclusion,headSha,url:
 - gh run view <deploy-run-id> --repo GC-MapleWind/maplewind-chatbot --log-failed, if failed:
