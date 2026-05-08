@@ -65,7 +65,7 @@ isProject: false
   with `git ls-remote origin refs/heads/dev` because evidence-only commits may
   advance the branch without changing implementation state.
 - Chatbot remote `GC-MapleWind/maplewind-chatbot` `main` is
-  `25ba79950d452fa07aadf486d253c4c7eb6f3b71`, a documentation descendant of
+  `8240db28ff058a216b017da1effb877d81290ee1`, a documentation descendant of
   history-adopting merge commit `5e6c20d` with runtime parent `b3d80a9` and
   filtered-history parent `d725f8f`; `git diff 5e6c20d^1 5e6c20d` was empty,
   so the runtime tree was preserved. Local verification on runtime commit
@@ -75,7 +75,7 @@ isProject: false
   `workflows-pending-scope` commit `6ab860c`; the updated patch is preserved as
   `specs/001-split-chatbot-postgres/chatbot-workflows-pending.patch`. The
   patch was rechecked and locally simulated against current chatbot `origin/main`
-  `25ba79950d452fa07aadf486d253c4c7eb6f3b71` (patch apply, frozen sync, ruff, unittest, Alembic offline/online, Docker build, and `:<full sha>` tag-shape check) and
+  `8240db28ff058a216b017da1effb877d81290ee1` (patch apply rechecked after README env documentation update; prior frozen sync, ruff, unittest, Alembic offline/online, Docker build, and `:<full sha>` tag-shape check passed on the previous docs head) and
   applies cleanly; direct push is blocked because the
   current GitHub OAuth credential lacks `workflow` scope
   (`X-Oauth-Scopes: gist, read:org, repo`). evidence capture is templated in
