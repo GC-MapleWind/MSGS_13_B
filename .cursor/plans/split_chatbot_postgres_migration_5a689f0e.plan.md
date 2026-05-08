@@ -49,7 +49,7 @@ isProject: false
 - Main repo PR #54 is merged into `dev` as merge commit `eafce94c`; the
   post-merge dev workflow run `25567914804` passed `Build and Push Dev Image`
   and `Deploy to Dev Server`.
-- Current `dev` evidence head is `7d70ea9ae35fc6ddc884b0af88dcf051bff20ff0`.
+- Latest dependency-cleanup evidence commit is `7d70ea9ae35fc6ddc884b0af88dcf051bff20ff0`.
   That commit closes the remaining local FR-007/SC-006 gap by removing
   `aiosqlite` from `pyproject.toml`/`uv.lock`, switching runtime-seeding tests
   to temporary `postgres:17-alpine`, and adding explicit FR/SC coverage to

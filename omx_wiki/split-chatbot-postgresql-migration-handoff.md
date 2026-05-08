@@ -22,7 +22,7 @@ checkboxes are retained as historical plan text.
 
 - Main repo PR #54 was merged into `dev` as merge commit `eafce94c3c0930c5dbd420bb95cf455af319215f`.
 - This handoff page is published from `dev` and linked from both open blocker issues.
-- Current `dev` evidence head is `7d70ea9ae35fc6ddc884b0af88dcf051bff20ff0`; verify it with `git ls-remote origin refs/heads/dev` because evidence-only commits may advance the branch without changing implementation state.
+- Latest dependency-cleanup evidence commit is `7d70ea9ae35fc6ddc884b0af88dcf051bff20ff0`; verify the current moving `dev` branch pointer with `git ls-remote origin refs/heads/dev` because evidence-only commits may advance the branch without changing implementation state.
 - Main `.env.example` includes both `DATABASE_URL` and integration-level `CHATBOT_DATABASE_URL`; the chatbot repo `.env.example` carries the chatbot service-specific environment contract.
 - Dev GitHub Actions run `25567914804` for `Backend CI/CD (Docker)` completed with conclusion `success` on `2026-05-08T16:52:37Z`.
 - Dev GitHub Actions run `25570800233` for `Backend CI/CD (Docker)` completed with conclusion `success` after the FR-007/SC-006 dependency cleanup.
