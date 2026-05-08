@@ -84,6 +84,7 @@ This table maps `spec.md` FR/SC items directly to evidence. It intentionally doe
 - Admin isolation check: main `src/admin.py` contains no chatbot ModelViews and `grep -RIn "EventInfo\|InfoList\|TemporaryImage\|chatbot\|gspread\|googleapiclient" src pyproject.toml` returned no main backend refs; chatbot `src/admin.py` registers the three chatbot ModelViews.
 - Dev GitHub Actions run `25571572967` for `Backend CI/CD (Docker)` completed with conclusion `success` after the compose environment isolation fix.
 - Dev GitHub Actions run `25574451603` for `Backend CI/CD (Docker)` completed with conclusion `success` on `2caab4ae2c51cb0193e0810fa3e67af9d9715e2c`; it built/pushed the dev image and deployed to the dev server with health check after the external gate checker temp-file hardening.
+- Dev GitHub Actions run `25574864234` for `Backend CI/CD (Docker)` completed with conclusion `success` on `7d1ba3b9f6735602d8e560dc60c2ac30779aa229`; it built/pushed the dev image and deployed to the dev server with health check after preserving the optional main workflow runtime-refresh patch artifact.
 - Durable handoff evidence is published from `dev` at `omx_wiki/split-chatbot-postgresql-migration-handoff.md`; verify the current `dev` hash with `git ls-remote origin refs/heads/dev` instead of treating this audit text as the moving branch pointer.
 - `scripts/migrate_sqlite_to_postgres.sh main maplewind.db ...` — PASS, row counts matched.
 - `scripts/migrate_sqlite_to_postgres.sh chatbot chatbot.db ...` — PASS, row counts matched.
