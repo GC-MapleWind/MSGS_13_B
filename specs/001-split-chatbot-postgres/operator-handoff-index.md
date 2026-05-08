@@ -73,10 +73,12 @@ credential lacks `workflow` scope.
 
 ## Latest observable checkpoint
 
-- Gate-check input main ref before this evidence-sync commit: `origin/dev` `8cb72879907dbca14ec3a182c89b2ff9d0585222`
+- Gate-check input main ref after the Gate A closure hard-stop update: `origin/dev` `415235d0fae96eb0bfb22539d843dba07ce4de3d`
 - Gate-check input chatbot ref: `origin/main` `8240db28ff058a216b017da1effb877d81290ee1`
 - `check-external-gates.sh` still exits non-zero because chatbot workflow files are absent on remote, no chatbot Actions run or GHCR package evidence is visible, the current credential lacks `workflow` and `read:packages` scopes, and blocker issues #1/#55 remain open. The GHCR package check currently reports HTTP 404 for `GC-MapleWind/maplewind-chatbot`; deploy.yml tag metadata probes are present but not reached until workflow files exist.
-- Latest linked issue checkpoints: chatbot #1 `#issuecomment-4409629214`; main #55 `#issuecomment-4409629331`.
+- Latest linked issue checkpoints: chatbot #1 `#issuecomment-4409741382`; main #55 `#issuecomment-4409741295`.
+- Later documentation-only sync commits may advance `dev` without changing the
+  external gate state; run the checker below for the current observable status.
 - Documentation link-hygiene checkpoint: commit `f72d9197aca0893c2ac26cfc62c20664c4bafd8f` checked 34 local Markdown links with 0 missing and was echoed to chatbot #1 `#issuecomment-4409355366` and main #55 `#issuecomment-4409355456`.
 
 ## Quick observable status check
