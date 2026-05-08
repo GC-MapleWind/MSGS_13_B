@@ -103,7 +103,8 @@ and local Markdown link from the active objective inputs. This coverage guard is
 documentation-only and does not replace live external gate evidence.
 
 Run `bash specs/001-split-chatbot-postgres/check-completion-readiness.sh` when
-you want both checks in one command. It fails if either the documentation
+you want the coverage guard, parser self-tests, operator helper self-tests, and
+live external diagnostics in one command. It fails if either the documentation
 coverage guard or live external gate diagnostics fail, but it is still not a
 substitute for the evidence transcripts requested by the templates above.
 The external gate checker reads blocker issues with `gh issue view` first and
