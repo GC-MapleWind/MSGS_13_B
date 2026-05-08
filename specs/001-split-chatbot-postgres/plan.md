@@ -20,7 +20,7 @@ httpx, gspread (챗봇 only), google-api-python-client (챗봇 only)
 **Storage**: PostgreSQL 17 단일 인스턴스, DB 2개 (`maplewind`, `chatbot`). 마이그레이션
 도구: pgloader (Docker 이미지 `dimitri/pgloader`)
 **Testing**: 표준 라이브러리 `unittest` (현행), 신규 챗봇 repo 는 `pytest` 도입 검토.
-회귀 검증으로 [scripts/simulate_maesaeng_flow.py](../../scripts/simulate_maesaeng_flow.py)
+회귀 검증으로 `scripts/simulate_maesaeng_flow.py` (현재 챗봇 repo로 이동됨)
 를 PostgreSQL 환경에서 실행
 **Target Platform**: Linux 컨테이너 (docker-compose), 운영은 단일 호스트
 **Project Type**: 백엔드 web service (메인) + 분리된 webhook service (챗봇).

@@ -2,7 +2,7 @@
 
 > Codex (또는 다른 헤드리스 coding agent) 에게 위임할 작업 프롬프트 모음. 각 섹션은
 > 독립적으로 복붙 가능한 하나의 프롬프트다. 모든 프롬프트는 본 repo 의 SDD 산출물
-> ([constitution](../../.specify/memory/constitution.md), [spec](./spec.md),
+> (헌법 문서, [spec](./spec.md),
 > [plan](./plan.md), [tasks](./tasks.md)) 을 기반으로 한다.
 >
 > **사용법**:

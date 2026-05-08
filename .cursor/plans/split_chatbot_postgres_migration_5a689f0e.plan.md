@@ -132,13 +132,13 @@ flowchart LR
 
 ## Phase 1 — 메인 repo Postgres 마이그레이션 (현 repo 내, 챗봇은 그대로 둔 채)
 
-### 1-1. 의존성 변경 ([pyproject.toml](pyproject.toml))
+### 1-1. 의존성 변경 ([pyproject.toml](../../pyproject.toml))
 
 - 추가: `asyncpg>=0.30`, `psycopg[binary]>=3.2` (sync 도구용), `alembic>=1.14`
 - 유지: `sqlalchemy>=2.0.46`, `greenlet>=3.3.1` (Postgres 계열에 쓰임)
 - 제거: `aiosqlite` (Postgres 전환 후 불필요)
 
-### 1-2. docker-compose 에 Postgres 서비스 추가 ([docker-compose.yml](docker-compose.yml))
+### 1-2. docker-compose 에 Postgres 서비스 추가 ([docker-compose.yml](../../docker-compose.yml))
 
 ```yaml
 services:
@@ -169,12 +169,12 @@ services:
 
 | 파일 | 문제 | 조치 |
 |------|------|------|
-| [src/database.py](src/database.py) L11 | 기본값이 SQLite | env var 강제, default 제거하고 fail-fast |
-| [src/database.py](src/database.py) L14~31 | SQLite-only 가드 | 그대로 둠 (Postgres에서는 no-op) |
-| [src/database_chatbot.py](src/database_chatbot.py) L11~28 | SQLite 경로 하드코딩 + PRAGMA 무가드 | `CHATBOT_DATABASE_URL` env var, dialect 가드 추가 |
-| [src/models/chatbot.py](src/models/chatbot.py) L38 | `JSON` 타입 + `server_default='{}'` | Postgres에서는 `JSONB` + `server_default=text("'{}'::jsonb")`. dialect-agnostic 하려면 `from sqlalchemy.dialects.postgresql import JSONB` + `JSON().with_variant(JSONB, "postgresql")` |
-| [src/main.py](src/main.py) L90~131 `migrate_user_student_id_to_username` | SQLite PRAGMA 사용, 이미 dialect 가드(L93) 있음 | 운영에서 한 번 더 실행 후 함수 자체 제거 가능, 일단 유지 |
-| [src/repositories/chatbot_repo.py](src/repositories/chatbot_repo.py) L80 `case()` | SQLAlchemy core, 양쪽 호환 | 변경 불필요 |
+| [src/database.py](../../src/database.py) L11 | 기본값이 SQLite | env var 강제, default 제거하고 fail-fast |
+| [src/database.py](../../src/database.py) L14~31 | SQLite-only 가드 | 그대로 둠 (Postgres에서는 no-op) |
+| `src/database_chatbot.py` L11~28 | SQLite 경로 하드코딩 + PRAGMA 무가드 | `CHATBOT_DATABASE_URL` env var, dialect 가드 추가 |
+| `src/models/chatbot.py` L38 | `JSON` 타입 + `server_default='{}'` | Postgres에서는 `JSONB` + `server_default=text("'{}'::jsonb")`. dialect-agnostic 하려면 `from sqlalchemy.dialects.postgresql import JSONB` + `JSON().with_variant(JSONB, "postgresql")` |
+| [src/main.py](../../src/main.py) L90~131 `migrate_user_student_id_to_username` | SQLite PRAGMA 사용, 이미 dialect 가드(L93) 있음 | 운영에서 한 번 더 실행 후 함수 자체 제거 가능, 일단 유지 |
+| `src/repositories/chatbot_repo.py` L80 `case()` | SQLAlchemy core, 양쪽 호환 | 변경 불필요 |
 
 ### 1-4. Alembic 도입
 
@@ -183,7 +183,7 @@ services:
 - 초기 migration: `alembic revision --autogenerate -m "initial schema"` 으로 현재 SQLite 스키마와 동일한 Postgres DDL 생성.
 - 운영 배포 시 `alembic upgrade head` 가 lifespan 또는 entrypoint 에서 실행.
 
-### 1-5. 데이터 마이그레이션 스크립트 ([scripts/migrate_sqlite_to_postgres.py](scripts/migrate_sqlite_to_postgres.py) 신규)
+### 1-5. 데이터 마이그레이션 스크립트 ([scripts/migrate_sqlite_to_postgres.py](../../scripts/migrate_sqlite_to_postgres.py) 신규)
 
 - 옵션 A (권장): `pgloader` 사용
 
@@ -202,7 +202,7 @@ docker run --rm --network dpbr-main_default \
 
 - 로컬 `docker compose up postgres backend` 로 기동 확인
 - `uv run python -m unittest tests/...` 회귀 테스트 통과
-- 메생결산 시뮬레이션 ([scripts/simulate_maesaeng_flow.py](scripts/simulate_maesaeng_flow.py)) 가 Postgres 위에서 통과하는지 확인 (스크립트의 `os.environ["DATA_DIR"]` 부분은 Postgres 환경 변수로 교체 필요)
+- 메생결산 시뮬레이션 (`scripts/simulate_maesaeng_flow.py`) 가 Postgres 위에서 통과하는지 확인 (스크립트의 `os.environ["DATA_DIR"]` 부분은 Postgres 환경 변수로 교체 필요)
 
 ## Phase 2 — 챗봇 추출 + 신규 repo (Phase 1과 병렬 가능)
 
@@ -243,7 +243,7 @@ maplewind-chatbot/
     deploy.yml
 ```
 
-### 2-2. 신규 repo 의존성 ([maplewind-chatbot/pyproject.toml](maplewind-chatbot/pyproject.toml))
+### 2-2. 신규 repo 의존성 (`maplewind-chatbot/pyproject.toml`)
 
 핵심만:
 
@@ -257,10 +257,10 @@ greenlet
 
 ### 2-3. 신규 repo 코드 변경
 
-- 신규 [src/main.py](maplewind-chatbot/src/main.py): chatbot router 만 등록, lifespan에서 `init_chatbot_db()` (또는 `alembic upgrade head`).
+- 신규 `maplewind-chatbot/src/main.py`: chatbot router 만 등록, lifespan에서 `init_chatbot_db()` (또는 `alembic upgrade head`).
 - import 경로 변경: `from src.database_chatbot import ...` → `from src.database import ...`. 모듈명 컨플릭트 없음.
-- [src/services/chatbot_service.py](src/services/chatbot_service.py) L9 의 `from src.database_chatbot import get_chatbot_db` 도 동일 변경.
-- [src/admin.py](src/admin.py) 에서 챗봇 ModelView (TemporaryImage/EventInfo/InfoList) 부분만 신규 repo로 이동.
+- `src/services/chatbot_service.py` L9 의 `from src.database_chatbot import get_chatbot_db` 도 동일 변경.
+- [src/admin.py](../../src/admin.py) 에서 챗봇 ModelView (TemporaryImage/EventInfo/InfoList) 부분만 신규 repo로 이동.
 
 ### 2-4. git 이력 보존 — `git filter-repo`
 
@@ -292,10 +292,10 @@ git push -u origin main
 다음 파일/항목 삭제 또는 수정:
 
 - 삭제: 위 git filter-repo 의 모든 `--path` 파일들
-- [src/main.py](src/main.py): `from src.controller.v1.chatbot import router as chatbot_router` 줄, `from src.database_chatbot import init_chatbot_db` 줄, `await init_chatbot_db()`, `app.include_router(chatbot_router, ...)` 모두 제거
-- [src/admin.py](src/admin.py): `EventInfoAdmin`, `InfoListAdmin`, `TemporaryImageAdmin` 세 ModelView 와 `add_view` 호출 + import 제거. `chatbot_async_session` import 도 제거
-- [pyproject.toml](pyproject.toml): `gspread`, `google-api-python-client` 제거
-- 운영 [docker-compose.yml](docker-compose.yml): `google-credentials.json` 마운트 제거 가능
+- [src/main.py](../../src/main.py): `from src.controller.v1.chatbot import router as chatbot_router` 줄, `from src.database_chatbot import init_chatbot_db` 줄, `await init_chatbot_db()`, `app.include_router(chatbot_router, ...)` 모두 제거
+- [src/admin.py](../../src/admin.py): `EventInfoAdmin`, `InfoListAdmin`, `TemporaryImageAdmin` 세 ModelView 와 `add_view` 호출 + import 제거. `chatbot_async_session` import 도 제거
+- [pyproject.toml](../../pyproject.toml): `gspread`, `google-api-python-client` 제거
+- 운영 [docker-compose.yml](../../docker-compose.yml): `google-credentials.json` 마운트 제거 가능
 
 ### 2-6. 신규 repo CI/CD
 
@@ -332,8 +332,8 @@ git push -u origin main
 
 ## Phase 4 — 정리
 
-- [docker-compose.dev.yml](docker-compose.dev.yml) 에서 챗봇 관련 마운트 제거
-- [scripts/](scripts/) 폴더 정리 (챗봇 시뮬레이션은 신규 repo로 이동 완료)
+- [docker-compose.dev.yml](../../docker-compose.dev.yml) 에서 챗봇 관련 마운트 제거
+- [scripts/](../../scripts/) 폴더 정리 (챗봇 시뮬레이션은 신규 repo로 이동 완료)
 - 메인 repo `README.md` 에서 챗봇 섹션 → 신규 repo 링크로 변경
 - 신규 repo `README.md` 에 운영 가이드, 환경변수, 카카오 webhook 설정법 작성
 

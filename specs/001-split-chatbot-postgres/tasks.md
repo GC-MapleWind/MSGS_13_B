@@ -80,11 +80,11 @@ The checkboxes below preserve the original implementation plan. Use this overlay
   - `DATABASE_URL` 기본값 제거 (fail-fast)
   - SQLite-only `event.listens_for("connect")` PRAGMA 가드는 dialect 검사로 보존하거나
     함수 자체 제거.
-- [ ] T010 [src/database_chatbot.py](../../src/database_chatbot.py) 정리:
+- [ ] T010 `src/database_chatbot.py` 정리:
   - `CHATBOT_DATABASE_URL` env var 강제. SQLite 경로 하드코딩 제거.
   - PRAGMA `event.listens_for` 가 dialect=sqlite 일 때만 동작하도록 가드 추가 (Phase 3
     에서 신규 repo 로 옮길 때까지 임시 보호).
-- [ ] T011 [src/models/chatbot.py](../../src/models/chatbot.py) JSON 호환성:
+- [ ] T011 `src/models/chatbot.py` JSON 호환성:
   `JSON().with_variant(JSONB, "postgresql")` 적용 + `server_default=text("'{}'::jsonb")`
   로 dialect-aware 기본값 설정.
 - [ ] T012 [src/main.py](../../src/main.py) 의 `migrate_user_student_id_to_username`
@@ -118,13 +118,13 @@ PostgreSQL 환경에서 정상 동작한다.
 ### Implementation for User Story 1
 
 - [ ] T016 [US1] 챗봇 SQLAlchemy 모델 PostgreSQL 호환 검증:
-  [src/models/chatbot.py](../../src/models/chatbot.py) 의 `EventInfo`, `InfoList`,
+  `src/models/chatbot.py` 의 `EventInfo`, `InfoList`,
   `TemporaryImage` 가 PG 에서 alembic-autogenerate 로 정확한 DDL 을 만드는지 확인.
   `func.now()` / `DateTime` 사용 부분이 PG 에서 동작하는지 점검.
-- [ ] T017 [US1] [src/repositories/chatbot_repo.py](../../src/repositories/chatbot_repo.py)
+- [ ] T017 [US1] `src/repositories/chatbot_repo.py`
   의 `case()` 표현식이 PG 에서도 동일하게 동작하는지 회귀 테스트 (`uv run python -m
   unittest tests.test_event_date_gating -v`).
-- [ ] T018 [US1] [scripts/simulate_maesaeng_flow.py](../../scripts/simulate_maesaeng_flow.py)
+- [ ] T018 [US1] `scripts/simulate_maesaeng_flow.py`
   를 PostgreSQL 환경에서 실행하도록 수정:
   - `os.environ["DATABASE_URL"]`, `os.environ["CHATBOT_DATABASE_URL"]` 으로 PG 강제
   - 최종 제출 1건이 Google Sheets mock 으로 정확히 한 번 전달되는지 검증
