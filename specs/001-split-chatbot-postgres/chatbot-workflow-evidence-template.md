@@ -2,14 +2,15 @@
 
 > Purpose: paste this checklist into `GC-MapleWind/maplewind-chatbot#1` when a
 > GitHub credential or app with `workflow` scope applies
-> `chatbot-workflows-pending.patch`. It captures the proof needed for T029/T030
+> `chatbot-workflows-pending.patch`; GHCR evidence also needs either
+> `read:packages` visibility or public package UI/API proof. It captures the proof needed for T029/T030
 > and SC-005. Use `chatbot-workflow-apply-runbook.md` for the commands.
 
 ## Run metadata
 
 - Operator:
 - Credential type: user PAT / GitHub App / other
-- Granted scopes shown by `gh api -i user` or equivalent:
+- Granted scopes shown by `gh api -i user` or equivalent (`workflow` required for applying workflows; `read:packages` or public package evidence required for private GHCR verification):
 - MSGS_13_B dev commit containing the patch: `4f4097cfdb9cd774b67df29f83008f3a10f742fc` or later `dev` descendant containing `chatbot-workflows-pending.patch`
 - Patch SHA-256: `ceb61e156d10e4cde98a6bc9d2cbf903ae2205b1cc790f861881a1f1fe21cac4`
 - Chatbot base commit before applying patch: latest verified base `8240db28ff058a216b017da1effb877d81290ee1`, or a later `main` descendant where `git apply --check` passes
@@ -21,7 +22,7 @@
 ```text
 Command transcript:
 - gh auth status:
-- gh api -i user scope headers, including `workflow` or equivalent GitHub App permission:
+- gh api -i user scope headers, including `workflow` and, for private GHCR API checks, `read:packages` or equivalent GitHub App/package permission:
 - git ls-remote origin refs/heads/main:
 - sha256sum --check for chatbot-workflows-pending.patch:
 - git apply --check chatbot-workflows-pending.patch:
@@ -30,6 +31,7 @@ Command transcript:
 Required result:
 
 - Granted scopes include `workflow` or the GitHub App can write workflow files.
+- GHCR verification will use a credential with `read:packages`, or the package is public and the public package URL/API output is attached.
 - Patch SHA-256 matches the value in `chatbot-workflow-apply-runbook.md`.
 - `git apply --check` passes on current chatbot `main` or a documented
   descendant.
@@ -93,6 +95,9 @@ Required result:
 ```text
 Evidence to paste:
 - Package URL:
+- Credential/package visibility used: read:packages credential / GitHub App / public package UI
+- gh api /orgs/GC-MapleWind/packages/container/maplewind-chatbot output or public package URL screenshot/link:
+- gh api /orgs/GC-MapleWind/packages/container/maplewind-chatbot/versions?per_page=10 output, if API-visible:
 - Image digest:
 - Tags observed: latest, <full sha>, main, main-*
 - Command/API used to confirm tags:
@@ -100,6 +105,7 @@ Evidence to paste:
 
 Required result:
 
+- Package visibility is proven by `read:packages` API output, GitHub App/package permission output, or public package UI evidence.
 - `ghcr.io/gc-maplewind/maplewind-chatbot:latest` exists.
 - `ghcr.io/gc-maplewind/maplewind-chatbot:<full sha>` exists for the workflow
   commit.

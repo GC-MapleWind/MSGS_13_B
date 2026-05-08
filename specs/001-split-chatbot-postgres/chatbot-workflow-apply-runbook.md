@@ -121,6 +121,8 @@ After push:
 gh api 'repos/GC-MapleWind/maplewind-chatbot/actions/runs?branch=main&per_page=5'
 gh run watch --repo GC-MapleWind/maplewind-chatbot <run-id>
 gh run view --repo GC-MapleWind/maplewind-chatbot <run-id> --json conclusion,status,headSha,url
+gh api '/orgs/GC-MapleWind/packages/container/maplewind-chatbot'
+gh api '/orgs/GC-MapleWind/packages/container/maplewind-chatbot/versions?per_page=10'
 ```
 
 Required evidence before closing the workflow blocker:
@@ -129,6 +131,7 @@ Required evidence before closing the workflow blocker:
   chatbot `main`.
 - Chatbot CI run completes successfully.
 - Deploy workflow builds/pushes GHCR image tags `:latest` and `:<full sha>`.
+- GHCR package/tag visibility is confirmed with a `read:packages`-capable credential, GitHub App/package permission, or public package evidence.
 - If production deploy is enabled, deploy job completes successfully and
   `/health` on the deployed chatbot returns 200.
 
