@@ -91,7 +91,8 @@ issue_has_complete_summary() {
               gsub(/^[[:space:]]+|[[:space:]]+$/, "", field_value)
               normalized_value = tolower(field_value)
               gsub(/[`*_[:space:]]+/, "", normalized_value)
-              if (field_value != "" && normalized_value !~ /^(tbd|todo|pending|none|null|na|n\/a|placeholder|replace|replace-me|changeme|unknown|미정|대기|없음)$/) {
+              gsub(/[[:punct:]]+$/, "", normalized_value)
+              if (field_value != "" && normalized_value !~ /^(tbd|todo|pending|none|null|na|n\/a|placeholder|replace|replace-me|replaceme|changeme|unknown|tobedetermined|미정|대기|없음)$/) {
                 field_has_value = 1
               }
             }
@@ -214,6 +215,14 @@ run_self_test() {
       printf 'No comments\n'
       return 0
     fi
+    if [[ "$1" == "api" && "$2" == "repos/example/repo/issues/15" ]]; then
+      printf 'Chatbot workflow evidence summary:\n- Chatbot workflow commit: TBD.\n- CI run URL/conclusion: To be determined\n- Deploy/build run URL/conclusion: replace me\n- GHCR image tags/digest: placeholder.\n- Remote workflow files API result: unknown.\n'
+      return 0
+    fi
+    if [[ "$1" == "api" && "$2" == "repos/example/repo/issues/15/comments?per_page=100" ]]; then
+      printf 'No comments\n'
+      return 0
+    fi
     printf 'unexpected gh call: %s\n' "$*" >&2
     return 127
   }
@@ -251,6 +260,11 @@ run_self_test() {
     pass "detects complete cutover evidence summary with backup field"
   else
     fail "misses complete cutover evidence summary with backup field"
+  fi
+  if issue_has_complete_summary "example/repo" "15" "Chatbot workflow evidence summary:" "${TMP_DIR}/issue_summary_placeholder_variants_selftest.err" "- Chatbot workflow commit:" "- CI run URL/conclusion:" "- Deploy/build run URL/conclusion:" "- GHCR image tags/digest:" "- Remote workflow files API result:"; then
+    fail "unexpectedly accepts punctuated or spaced placeholder evidence field values"
+  else
+    pass "rejects punctuated and spaced placeholder evidence field values"
   fi
   unset -f gh
 
