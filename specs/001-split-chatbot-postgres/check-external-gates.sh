@@ -198,6 +198,14 @@ run_self_test() {
       printf 'No comments\n'
       return 0
     fi
+    if [[ "$1" == "api" && "$2" == "repos/example/repo/issues/13" ]]; then
+      printf 'Cutover evidence summary:\n- Backup filenames/SHA-256: 미정\n- Row-count result: 대기\n- 24h/7d monitoring links: 없음\n'
+      return 0
+    fi
+    if [[ "$1" == "api" && "$2" == "repos/example/repo/issues/13/comments?per_page=100" ]]; then
+      printf 'No comments\n'
+      return 0
+    fi
     printf 'unexpected gh call: %s\n' "$*" >&2
     return 127
   }
@@ -225,6 +233,11 @@ run_self_test() {
     fail "unexpectedly accepts placeholder evidence field values"
   else
     pass "rejects placeholder evidence field values"
+  fi
+  if issue_has_complete_summary "example/repo" "13" "Cutover evidence summary:" "${TMP_DIR}/issue_summary_korean_placeholder_selftest.err" "- Backup filenames/SHA-256:" "- Row-count result:" "- 24h/7d monitoring links:"; then
+    fail "unexpectedly accepts Korean placeholder evidence field values"
+  else
+    pass "rejects Korean placeholder evidence field values"
   fi
   unset -f gh
 
