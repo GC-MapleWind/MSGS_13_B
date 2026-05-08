@@ -85,9 +85,9 @@ credential lacks `workflow` scope.
 
 Run `./specs/001-split-chatbot-postgres/check-external-gates.sh` from a clone with `gh` authenticated to inspect observable remote status: current refs, workflow/read:packages scopes, chatbot workflow files, visible Actions runs, GHCR package/tag visibility, required deploy.yml GHCR tag metadata, and blocker issue state. The script exits non-zero while observable blockers remain, including open blocker issues; that is expected before workflow/cutover evidence exists. It is diagnostic only, so a zero exit code is also not enough for completion proof; use the evidence templates above.
 
-Run `./specs/001-split-chatbot-postgres/check-objective-coverage.py` to verify
-that `completion-audit.md` still maps every task, FR, SC, prompt task ID, and
-local Markdown link from the active objective inputs. This coverage guard is
+Run `python3 specs/001-split-chatbot-postgres/check-objective-coverage.py` to
+verify that `completion-audit.md` still maps every task, FR, SC, prompt task ID,
+and local Markdown link from the active objective inputs. This coverage guard is
 documentation-only and does not replace live external gate evidence.
 
 ## Do not use as completion proof
