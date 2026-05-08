@@ -119,7 +119,7 @@ full final `Cutover evidence summary:` field set from
 `production-cutover-evidence-template.md`, not only representative fields;
 advisory comments, empty headings, empty required-field labels, placeholder
 values such as `TBD`/`pending`, or marker/field fragments split across comments
-do not count.
+do not count. Full-field Gate B checker checkpoint `1b0728df8c84ca788af4c44112638ef66e8f787e` passed dev Actions run `25584011713`; it remains checker evidence only.
 
 ## Final completion audit checklist
 
