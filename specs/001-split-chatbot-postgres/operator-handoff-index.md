@@ -106,8 +106,9 @@ tab-separated issue line for the readiness parser and that issue evidence
 summary markers are detected/rejected correctly. When blocker issues are closed,
 the live checker still fails if the expected Gate A/Gate B evidence summary
 markers are absent as standalone lines in the issue timeline, or if
-representative required fields from the completed summaries are missing;
-advisory comments or empty headings do not count.
+representative required fields are missing from the same issue body/comment
+block; advisory comments, empty headings, or marker/field fragments split across
+comments do not count.
 
 ## Final completion audit checklist
 

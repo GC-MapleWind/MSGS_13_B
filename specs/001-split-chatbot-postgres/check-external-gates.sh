@@ -49,43 +49,56 @@ issue_view_line() {
   return 1
 }
 
-issue_contains_marker() {
+issue_has_complete_summary() {
   repo="$1"
   number="$2"
   marker="$3"
   err_file="$4"
+  shift 4
 
   {
+    printf '<<<OMX_ISSUE_BLOCK>>>\n'
     gh api "repos/${repo}/issues/${number}" --jq '.body // ""'
-    gh api "repos/${repo}/issues/${number}/comments?per_page=100" --paginate --jq '.[].body // ""'
+    gh api "repos/${repo}/issues/${number}/comments?per_page=100" --paginate --jq '"<<<OMX_ISSUE_BLOCK>>>\n" + (.body // "")'
   } >"${err_file}.body" 2>"${err_file}.api" || {
     tr '\n' ' ' <"${err_file}.api" >"${err_file}"
     return 1
   }
 
-  grep -Fxq "${marker}" "${err_file}.body"
-}
+  fields_join="$(printf '%s\034' "$@")"
+  fields_join="${fields_join%$'\034'}"
+  if awk -v marker="${marker}" -v fields_join="${fields_join}" '
+    BEGIN {
+      RS = "<<<OMX_ISSUE_BLOCK>>>"
+      FS = "\n"
+      fields_count = split(fields_join, fields, "\034")
+    }
+    {
+      has_marker = 0
+      for (i = 1; i <= NF; i++) {
+        if ($i == marker) {
+          has_marker = 1
+        }
+      }
+      if (has_marker) {
+        has_fields = 1
+        for (i = 1; i <= fields_count; i++) {
+          if (index($0, fields[i]) == 0) {
+            has_fields = 0
+          }
+        }
+        if (has_fields) {
+          found = 1
+        }
+      }
+    }
+    END { exit found ? 0 : 1 }
+  ' "${err_file}.body"; then
+    return 0
+  fi
 
-issue_contains_required_fields() {
-  repo="$1"
-  number="$2"
-  err_file="$3"
-  shift 3
-
-  {
-    gh api "repos/${repo}/issues/${number}" --jq '.body // ""'
-    gh api "repos/${repo}/issues/${number}/comments?per_page=100" --paginate --jq '.[].body // ""'
-  } >"${err_file}.body" 2>"${err_file}.api" || {
-    tr '\n' ' ' <"${err_file}.api" >"${err_file}"
-    return 1
-  }
-
-  for field in "$@"; do
-    if ! grep -Fq -- "${field}" "${err_file}.body"; then
-      printf 'missing field: %s' "${field}" >"${err_file}"
-      return 1
-    fi
-  done
+  printf 'missing complete summary block for marker: %s' "${marker}" >"${err_file}"
+  return 1
 }
 
 ghcr_tag_visible() {
@@ -148,28 +161,31 @@ run_self_test() {
       printf 'Advisory note mentions `Cutover evidence summary:` but is not the evidence heading\n'
       return 0
     fi
+    if [[ "$1" == "api" && "$2" == "repos/example/repo/issues/10" ]]; then
+      printf 'Chatbot workflow evidence summary:\n'
+      return 0
+    fi
+    if [[ "$1" == "api" && "$2" == "repos/example/repo/issues/10/comments?per_page=100" ]]; then
+      printf '- CI run URL/conclusion:\n- Deploy/build run URL/conclusion:\n- GHCR image tags/digest:\n'
+      return 0
+    fi
     printf 'unexpected gh call: %s\n' "$*" >&2
     return 127
   }
-  if issue_contains_marker "example/repo" "8" "Chatbot workflow evidence summary:" "${TMP_DIR}/issue_marker_positive_selftest.err"; then
-    pass "detects evidence marker in issue comments"
+  if issue_has_complete_summary "example/repo" "8" "Chatbot workflow evidence summary:" "${TMP_DIR}/issue_summary_positive_selftest.err" "- CI run URL/conclusion:" "- Deploy/build run URL/conclusion:" "- GHCR image tags/digest:"; then
+    pass "detects complete evidence summary in one issue block"
   else
-    fail "misses evidence marker in issue comments"
+    fail "misses complete evidence summary in one issue block"
   fi
-  if issue_contains_required_fields "example/repo" "8" "${TMP_DIR}/issue_fields_positive_selftest.err" "- CI run URL/conclusion:" "- Deploy/build run URL/conclusion:" "- GHCR image tags/digest:"; then
-    pass "detects required evidence fields in issue comments"
-  else
-    fail "misses required evidence fields in issue comments"
-  fi
-  if issue_contains_marker "example/repo" "9" "Cutover evidence summary:" "${TMP_DIR}/issue_marker_negative_selftest.err"; then
+  if issue_has_complete_summary "example/repo" "9" "Cutover evidence summary:" "${TMP_DIR}/issue_summary_advisory_selftest.err" "- Row-count result:" "- 24h/7d monitoring links:"; then
     fail "unexpectedly detects advisory marker mention as evidence"
   else
     pass "rejects advisory marker mention without standalone evidence heading"
   fi
-  if issue_contains_required_fields "example/repo" "9" "${TMP_DIR}/issue_fields_negative_selftest.err" "- Row-count result:" "- 24h/7d monitoring links:"; then
-    fail "unexpectedly accepts missing required evidence fields"
+  if issue_has_complete_summary "example/repo" "10" "Chatbot workflow evidence summary:" "${TMP_DIR}/issue_summary_split_selftest.err" "- CI run URL/conclusion:" "- Deploy/build run URL/conclusion:" "- GHCR image tags/digest:"; then
+    fail "unexpectedly accepts marker and fields split across issue blocks"
   else
-    pass "rejects missing required evidence fields"
+    pass "rejects marker and fields split across issue blocks"
   fi
   unset -f gh
 
@@ -310,15 +326,10 @@ for item in "${CHATBOT_REPO} 1 workflow" "${MAIN_REPO} 55 cutover"; do
       fields=("- Row-count result:" "- Backend health/core APIs:" "- Chatbot health:" "- 24h/7d monitoring links:")
     fi
     if [[ -n "${marker}" ]]; then
-      if issue_contains_marker "${repo}" "${number}" "${marker}" "${TMP_DIR}/issue_marker_${number}.err"; then
-        pass "${label} evidence summary marker is present in issue timeline"
+      if issue_has_complete_summary "${repo}" "${number}" "${marker}" "${TMP_DIR}/issue_summary_${number}.err" "${fields[@]}"; then
+        pass "${label} evidence summary marker and required fields are present in one issue timeline block"
       else
-        fail "${label} evidence summary marker is missing from issue timeline: ${marker}"
-      fi
-      if issue_contains_required_fields "${repo}" "${number}" "${TMP_DIR}/issue_fields_${number}.err" "${fields[@]}"; then
-        pass "${label} evidence summary required fields are present in issue timeline"
-      else
-        fail "${label} evidence summary required fields are missing from issue timeline: $(tr '\n' ' ' <"${TMP_DIR}/issue_fields_${number}.err")"
+        fail "${label} evidence summary block is incomplete or missing from issue timeline: $(tr '\n' ' ' <"${TMP_DIR}/issue_summary_${number}.err")"
       fi
     fi
   fi
