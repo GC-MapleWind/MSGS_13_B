@@ -66,6 +66,28 @@ issue_contains_marker() {
   grep -Fxq "${marker}" "${err_file}.body"
 }
 
+issue_contains_required_fields() {
+  repo="$1"
+  number="$2"
+  err_file="$3"
+  shift 3
+
+  {
+    gh api "repos/${repo}/issues/${number}" --jq '.body // ""'
+    gh api "repos/${repo}/issues/${number}/comments?per_page=100" --paginate --jq '.[].body // ""'
+  } >"${err_file}.body" 2>"${err_file}.api" || {
+    tr '\n' ' ' <"${err_file}.api" >"${err_file}"
+    return 1
+  }
+
+  for field in "$@"; do
+    if ! grep -Fq -- "${field}" "${err_file}.body"; then
+      printf 'missing field: %s' "${field}" >"${err_file}"
+      return 1
+    fi
+  done
+}
+
 ghcr_tag_visible() {
   pattern="$1"
   printf '%s\n' "${versions}" | awk -F'tags=' 'NF > 1 {print $2}' | tr ',' '\n' | grep -Eq "${pattern}"
@@ -115,7 +137,7 @@ run_self_test() {
       return 0
     fi
     if [[ "$1" == "api" && "$2" == "repos/example/repo/issues/8/comments?per_page=100" ]]; then
-      printf 'Chatbot workflow evidence summary:\n'
+      printf 'Chatbot workflow evidence summary:\n- CI run URL/conclusion:\n- Deploy/build run URL/conclusion:\n- GHCR image tags/digest:\n'
       return 0
     fi
     if [[ "$1" == "api" && "$2" == "repos/example/repo/issues/9" ]]; then
@@ -134,10 +156,20 @@ run_self_test() {
   else
     fail "misses evidence marker in issue comments"
   fi
+  if issue_contains_required_fields "example/repo" "8" "${TMP_DIR}/issue_fields_positive_selftest.err" "- CI run URL/conclusion:" "- Deploy/build run URL/conclusion:" "- GHCR image tags/digest:"; then
+    pass "detects required evidence fields in issue comments"
+  else
+    fail "misses required evidence fields in issue comments"
+  fi
   if issue_contains_marker "example/repo" "9" "Cutover evidence summary:" "${TMP_DIR}/issue_marker_negative_selftest.err"; then
     fail "unexpectedly detects advisory marker mention as evidence"
   else
     pass "rejects advisory marker mention without standalone evidence heading"
+  fi
+  if issue_contains_required_fields "example/repo" "9" "${TMP_DIR}/issue_fields_negative_selftest.err" "- Row-count result:" "- 24h/7d monitoring links:"; then
+    fail "unexpectedly accepts missing required evidence fields"
+  else
+    pass "rejects missing required evidence fields"
   fi
   unset -f gh
 
@@ -272,14 +304,21 @@ for item in "${CHATBOT_REPO} 1 workflow" "${MAIN_REPO} 55 cutover"; do
     marker=""
     if [[ "${label}" == "workflow" ]]; then
       marker="Chatbot workflow evidence summary:"
+      fields=("- CI run URL/conclusion:" "- Deploy/build run URL/conclusion:" "- GHCR image tags/digest:")
     elif [[ "${label}" == "cutover" ]]; then
       marker="Cutover evidence summary:"
+      fields=("- Row-count result:" "- Backend health/core APIs:" "- Chatbot health:" "- 24h/7d monitoring links:")
     fi
     if [[ -n "${marker}" ]]; then
       if issue_contains_marker "${repo}" "${number}" "${marker}" "${TMP_DIR}/issue_marker_${number}.err"; then
         pass "${label} evidence summary marker is present in issue timeline"
       else
         fail "${label} evidence summary marker is missing from issue timeline: ${marker}"
+      fi
+      if issue_contains_required_fields "${repo}" "${number}" "${TMP_DIR}/issue_fields_${number}.err" "${fields[@]}"; then
+        pass "${label} evidence summary required fields are present in issue timeline"
+      else
+        fail "${label} evidence summary required fields are missing from issue timeline: $(tr '\n' ' ' <"${TMP_DIR}/issue_fields_${number}.err")"
       fi
     fi
   fi

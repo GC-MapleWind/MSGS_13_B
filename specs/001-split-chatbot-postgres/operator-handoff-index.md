@@ -105,8 +105,9 @@ falls back to the REST issues API if GraphQL is transiently unavailable;
 tab-separated issue line for the readiness parser and that issue evidence
 summary markers are detected/rejected correctly. When blocker issues are closed,
 the live checker still fails if the expected Gate A/Gate B evidence summary
-markers are absent as standalone lines in the issue timeline; advisory comments
-that merely mention a marker string do not count.
+markers are absent as standalone lines in the issue timeline, or if
+representative required fields from the completed summaries are missing;
+advisory comments or empty headings do not count.
 
 ## Final completion audit checklist
 
