@@ -12,6 +12,7 @@
 - Main deploy commit/image/tag/digest:
 - Chatbot deploy commit/image/tag/digest:
 - Gate A evidence issue/comment proving chatbot workflows and GHCR tags are present:
+- Gate A issue #1 state / closure URL:
 - PostgreSQL image:
 - Kakao webhook target after change:
 - Compatibility route expiry date, at least 7 days after cutover:
@@ -22,6 +23,7 @@
 Command transcript:
 - git ls-remote https://github.com/GC-MapleWind/MSGS_13_B.git refs/heads/dev:
 - git ls-remote https://github.com/GC-MapleWind/maplewind-chatbot.git refs/heads/main:
+- gh issue view 1 --repo GC-MapleWind/maplewind-chatbot --json state,title,url:
 - gh api repos/GC-MapleWind/maplewind-chatbot/contents/.github/workflows?ref=main:
 - gh api 'repos/GC-MapleWind/maplewind-chatbot/actions/runs?branch=main&per_page=5':
 - gh api /orgs/GC-MapleWind/packages/container/maplewind-chatbot or package UI link:
@@ -31,10 +33,11 @@ Command transcript:
 
 Required result:
 
+- `GC-MapleWind/maplewind-chatbot#1` is `CLOSED` before production/staging cutover starts.
 - Chatbot `.github/workflows/ci.yml` and `deploy.yml` exist on remote `main`.
 - Chatbot CI/deploy or image-build evidence is linked from `maplewind-chatbot#1`.
 - `ghcr.io/gc-maplewind/maplewind-chatbot:<tag>` exists for the exact tag/digest being deployed.
-- Main and chatbot refs are recorded; latest handoff refs before this template update were main `dev` `22e149c3de1a9b0ecf20361152a45693ee9e0f05` and chatbot `main` `8240db28ff058a216b017da1effb877d81290ee1`.
+- Main and chatbot refs are recorded from fresh `git ls-remote` output; do not rely on stale handoff examples for production evidence.
 
 ## Pre-cutover backups — T001 / FR-003 / FR-012
 

@@ -23,6 +23,7 @@ set -euo pipefail
 git ls-remote https://github.com/GC-MapleWind/MSGS_13_B.git refs/heads/dev
 git ls-remote https://github.com/GC-MapleWind/maplewind-chatbot.git refs/heads/main
 
+gh issue view 1 --repo GC-MapleWind/maplewind-chatbot --json state,title,url
 gh api 'repos/GC-MapleWind/maplewind-chatbot/contents/.github/workflows?ref=main'
 gh api 'repos/GC-MapleWind/maplewind-chatbot/actions/runs?branch=main&per_page=5'
 gh api '/orgs/GC-MapleWind/packages/container/maplewind-chatbot'
@@ -32,10 +33,10 @@ docker manifest inspect ghcr.io/gc-maplewind/msgs_13_b-backend:latest >/tmp/back
 docker manifest inspect ghcr.io/gc-maplewind/maplewind-chatbot:latest >/tmp/chatbot-image.json
 ```
 
-Latest handoff refs before this runbook update: main `dev` `22e149c3de1a9b0ecf20361152a45693ee9e0f05` and chatbot
-`main` `8240db28ff058a216b017da1effb877d81290ee1`. If either branch has advanced, record the new refs and verify
-that the chatbot workflow patch has been applied and successful GHCR evidence
-exists for the image tags being deployed.
+Do not proceed if `GC-MapleWind/maplewind-chatbot#1` is not `CLOSED`.
+Record fresh `git ls-remote` refs for both repositories and verify that the
+chatbot workflow patch has been applied and successful GHCR evidence exists for
+the image tags being deployed.
 
 ## 7-step cutover
 
