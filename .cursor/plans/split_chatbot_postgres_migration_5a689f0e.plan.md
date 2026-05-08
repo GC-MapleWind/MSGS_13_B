@@ -74,7 +74,8 @@ isProject: false
   `25ba79950d452fa07aadf486d253c4c7eb6f3b71` (patch apply, frozen sync, ruff, unittest, Alembic offline/online, Docker build, and `:<full sha>` tag-shape check) and
   applies cleanly; direct push is blocked because the
   current GitHub OAuth credential lacks `workflow` scope
-  (`X-Oauth-Scopes: gist, read:org, repo`). Handoff issue:
+  (`X-Oauth-Scopes: gist, read:org, repo`). evidence capture is templated in
+  `specs/001-split-chatbot-postgres/chatbot-workflow-evidence-template.md`. Handoff issue:
   https://github.com/GC-MapleWind/maplewind-chatbot/issues/1
 - Production/staging cutover, Kakao webhook change, SLA/load validation, and
   24h/7d monitoring gates remain pending operational work; evidence capture is templated in

@@ -2,7 +2,7 @@
 title: "Split chatbot PostgreSQL migration handoff"
 tags: ["split-chatbot", "postgres", "migration", "handoff", "blocked", "ci-cd", "ops"]
 created: 2026-05-08T17:06:44.518Z
-updated: 2026-05-08T19:02:00Z
+updated: 2026-05-08T19:08:00Z
 sources: ["specs/001-split-chatbot-postgres/codex-prompts.md", "specs/001-split-chatbot-postgres/completion-audit.md", "specs/001-split-chatbot-postgres/cutover-runbook.md", "specs/001-split-chatbot-postgres/production-cutover-evidence-template.md", "specs/001-split-chatbot-postgres/cutover-dryrun.md", ".cursor/plans/split_chatbot_postgres_migration_5a689f0e.plan.md", "https://github.com/GC-MapleWind/MSGS_13_B/pull/54", "https://github.com/GC-MapleWind/MSGS_13_B/actions/runs/25567914804", "https://github.com/GC-MapleWind/MSGS_13_B/actions/runs/25570800233", "https://github.com/GC-MapleWind/MSGS_13_B/actions/runs/25571572967", "https://github.com/GC-MapleWind/maplewind-chatbot/issues/1", "https://github.com/GC-MapleWind/MSGS_13_B/issues/55"]
 links: []
 category: session-log
@@ -47,7 +47,7 @@ checkboxes are retained as historical plan text.
    - API check for `repos/GC-MapleWind/maplewind-chatbot/contents/.github/workflows` returned HTTP 404.
    - Current GitHub OAuth scopes are `gist, read:org, repo`; missing required `workflow` scope.
    - Updated workflow patch is preserved in `specs/001-split-chatbot-postgres/chatbot-workflows-pending.patch`.
-- Command-level workflow application steps are documented in `specs/001-split-chatbot-postgres/chatbot-workflow-apply-runbook.md`.
+- Command-level workflow application steps are documented in `specs/001-split-chatbot-postgres/chatbot-workflow-apply-runbook.md`; the required issue evidence fields are in `specs/001-split-chatbot-postgres/chatbot-workflow-evidence-template.md`.
    - Patch recoverability was verified against current chatbot `origin/main` `25ba79950d452fa07aadf486d253c4c7eb6f3b71`: `git apply --check` passed. Patch SHA-256 is `ceb61e156d10e4cde98a6bc9d2cbf903ae2205b1cc790f861881a1f1fe21cac4`; it adds `.github/workflows/ci.yml` and `.github/workflows/deploy.yml` with GHCR `:latest`, `:<full sha>`, `:main`, and `:main-*` tags.
    - Local workflow simulation was re-run against current chatbot `origin/main` `25ba79950d452fa07aadf486d253c4c7eb6f3b71` after the README/T024 lifespan updates: patch application in a temporary worktree, frozen dev sync, ruff, CI-env SQLite unit tests, Alembic offline SQL, Alembic online migration against temporary `postgres:17-alpine`, T030 tag-shape check for `type=sha,format=long,prefix=`, and `docker build -t chatbot-ci-local:workflow-patch-25ba799 .` all succeeded. Evidence: https://github.com/GC-MapleWind/maplewind-chatbot/issues/1#issuecomment-4408932960. Remaining gap is remote application/execution with a workflow-scoped credential.
    - Tracking issue: `https://github.com/GC-MapleWind/maplewind-chatbot/issues/1`.

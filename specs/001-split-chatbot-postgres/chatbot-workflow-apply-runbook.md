@@ -4,6 +4,7 @@
 > `GC-MapleWind/maplewind-chatbot` once a GitHub credential or GitHub App with
 > `workflow` scope is available. This runbook does **not** perform production
 > cutover.
+> Capture the result with `chatbot-workflow-evidence-template.md`.
 
 ## Preconditions
 
