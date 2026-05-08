@@ -25,6 +25,19 @@ def ids(pattern: str, text: str) -> list[str]:
     return sorted(set(re.findall(pattern, text)))
 
 
+def task_ids_with_ranges(text: str) -> list[str]:
+    """Return task IDs, expanding forms like T005-T015 and T005–T015."""
+
+    found = set(re.findall(r"\bT\d{3}\b", text))
+    for start, end in re.findall(r"\bT(\d{3})\s*[-–]\s*T(\d{3})\b", text):
+        start_num = int(start)
+        end_num = int(end)
+        if start_num > end_num:
+            start_num, end_num = end_num, start_num
+        found.update(f"T{num:03d}" for num in range(start_num, end_num + 1))
+    return sorted(found)
+
+
 def check_id_coverage(label: str, expected: list[str], audit: str) -> int:
     missing = [item for item in expected if item not in audit]
     if missing:
@@ -113,7 +126,7 @@ def main() -> int:
     status |= check_id_coverage("tasks", ids(r"\bT\d{3}\b", tasks), audit)
     status |= check_id_coverage("functional requirements", ids(r"\bFR-\d{3}\b", spec), audit)
     status |= check_id_coverage("success criteria", ids(r"\bSC-\d{3}\b", spec), audit)
-    status |= check_id_coverage("prompt task IDs", ids(r"\bT\d{3}\b", prompts), audit)
+    status |= check_id_coverage("prompt task IDs", task_ids_with_ranges(prompts), audit)
     status |= check_local_markdown_links()
     status |= check_blocker_language(audit)
 
