@@ -57,6 +57,7 @@ isProject: false
 - Dev workflow evidence checkpoint: run `25582341603` succeeded for checker commit `2018d8b49c613172098ac3f2b010bc63eb4fbb8a`, including `Build and Push Dev Image`, `Deploy to Dev Server`, and `Health Check`, after adding Korean placeholder rejection self-test coverage. This remains main-dev evidence only.
 - Dev workflow evidence checkpoint: run `25582554521` succeeded for checker commit `5b0749a8d640a648139734fda349ed7e8157537a`, including `Build and Push Dev Image`, `Deploy to Dev Server`, and `Health Check`, after requiring the Gate B cutover `SQLite backup SHA-256 files` evidence field. This remains main-dev evidence only.
 - Dev workflow evidence checkpoint: run `25582744289` succeeded for checker commit `eb57624ee378289f329942e471013222caaaa2d8`, including `Build and Push Dev Image`, `Deploy to Dev Server`, and `Health Check`, after requiring Gate A workflow commit and remote workflow-files API evidence fields. This remains main-dev evidence only.
+- Dev workflow evidence checkpoint: run `25582935740` succeeded for checker commit `93f7bb3565978a0c27ab39849df64e842b1d92ab`, including `Build and Push Dev Image` and `Deploy to Dev Server`, after rejecting punctuated/spaced placeholder variants in required evidence fields. This remains main-dev evidence only.
 
 - Main repo PR #54 is merged into `dev` as merge commit `eafce94c`; the
   post-merge dev workflow run `25567914804` passed `Build and Push Dev Image`

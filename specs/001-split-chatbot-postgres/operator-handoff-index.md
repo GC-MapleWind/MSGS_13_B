@@ -80,6 +80,7 @@ credential lacks `workflow` scope.
 - Later documentation-only sync commits may advance `dev` without changing the
   external gate state; run the checker below for the current observable status.
 - Documentation link-hygiene checkpoint: commit `f72d9197aca0893c2ac26cfc62c20664c4bafd8f` checked 34 local Markdown links with 0 missing and was echoed to chatbot #1 `#issuecomment-4409355366` and main #55 `#issuecomment-4409355456`.
+- Placeholder-evidence checker checkpoint: commit `93f7bb3565978a0c27ab39849df64e842b1d92ab` rejects punctuated/spaced placeholder variants in required evidence fields; dev Actions run `25582935740` succeeded. This is main-dev checker evidence only and does not close external gates.
 
 ## Quick observable status check
 
