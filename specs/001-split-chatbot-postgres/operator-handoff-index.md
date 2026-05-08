@@ -21,6 +21,7 @@ Use these files in order:
 1. `chatbot-workflow-apply-runbook.md` — apply the prepared workflow patch with
    a credential or GitHub App that can write `.github/workflows/*`.
 2. `chatbot-workflows-pending.patch` — adds chatbot `ci.yml` and `deploy.yml`.
+   Patch SHA-256: `ceb61e156d10e4cde98a6bc9d2cbf903ae2205b1cc790f861881a1f1fe21cac4`.
 3. `chatbot-workflow-evidence-template.md` — paste the completed evidence into
    issue #1.
 
@@ -63,6 +64,7 @@ deprecation warnings need cleanup, use:
 
 1. `main-workflow-runtime-refresh-runbook.md` — apply instructions.
 2. `main-workflow-runtime-refresh-pending.patch` — prepared `.github/workflows/deploy.yml` update.
+   Patch SHA-256: `f52d29ef07b1164abf185c403f8d862862c3aca5cc899ca9bb9254cbcba9e2ee`.
 
 The current session could not push this workflow-file change because the OAuth
 credential lacks `workflow` scope.

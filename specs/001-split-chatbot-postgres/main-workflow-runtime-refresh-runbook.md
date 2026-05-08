@@ -22,6 +22,8 @@ Directly pushing `.github/workflows/deploy.yml` failed with the current OAuth
 credential because it lacks `workflow` scope. The prepared patch is preserved at
 `main-workflow-runtime-refresh-pending.patch` for a workflow-scoped operator.
 
+Expected patch SHA-256: `f52d29ef07b1164abf185c403f8d862862c3aca5cc899ca9bb9254cbcba9e2ee`.
+
 ## Apply
 
 ```bash
@@ -34,6 +36,7 @@ cd msgs-main-workflow-refresh
 git checkout dev
 git pull --ff-only origin dev
 
+sha256sum "$PATCH_SOURCE"
 git apply --check "$PATCH_SOURCE"
 git apply "$PATCH_SOURCE"
 
