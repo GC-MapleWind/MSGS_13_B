@@ -56,6 +56,7 @@ isProject: false
 - Dev workflow evidence checkpoint: run `25576285116` succeeded for commit `e87e71863a1dacc0662e995696ae9e348ce61426`, including `Build and Push Dev Image` and `Deploy to Dev Server`, after preserving `scripts/migrate_sqlite_to_postgres.sh` as executable. Earlier runs `25574864234` and `25574451603` also succeeded.
 - Dev workflow evidence checkpoint: run `25582341603` succeeded for checker commit `2018d8b49c613172098ac3f2b010bc63eb4fbb8a`, including `Build and Push Dev Image`, `Deploy to Dev Server`, and `Health Check`, after adding Korean placeholder rejection self-test coverage. This remains main-dev evidence only.
 - Dev workflow evidence checkpoint: run `25582554521` succeeded for checker commit `5b0749a8d640a648139734fda349ed7e8157537a`, including `Build and Push Dev Image`, `Deploy to Dev Server`, and `Health Check`, after requiring the Gate B cutover `SQLite backup SHA-256 files` evidence field. This remains main-dev evidence only.
+- Dev workflow evidence checkpoint: run `25582744289` succeeded for checker commit `eb57624ee378289f329942e471013222caaaa2d8`, including `Build and Push Dev Image`, `Deploy to Dev Server`, and `Health Check`, after requiring Gate A workflow commit and remote workflow-files API evidence fields. This remains main-dev evidence only.
 
 - Main repo PR #54 is merged into `dev` as merge commit `eafce94c`; the
   post-merge dev workflow run `25567914804` passed `Build and Push Dev Image`
