@@ -53,8 +53,8 @@ Use the SDD artifacts in `specs/001-split-chatbot-postgres/`, `codex-prompts.md`
 
 ## Blocking gaps before goal completion
 
-1. `GC-MapleWind/maplewind-chatbot` remote main now has history-adopting merge commit `5e6c20d`, but CI/CD workflow files remain on local branch `workflows-pending-scope` commit `6ab860c` and as patch artifact `chatbot-workflows-pending.patch`; pushing that branch failed because the OAuth credential lacks GitHub `workflow` scope for `.github/workflows/ci.yml`.
-2. Production cutover, webhook update, SLA tests, and 24h/7d monitoring are manual/production operations and have not run in this local session.
+1. `GC-MapleWind/maplewind-chatbot` remote main now has history-adopting merge commit `5e6c20d`, but CI/CD workflow files remain on local branch `workflows-pending-scope` commit `6ab860c` and as patch artifact `chatbot-workflows-pending.patch`; pushing that branch failed because the OAuth credential lacks GitHub `workflow` scope for `.github/workflows/ci.yml`. Handoff issue: https://github.com/GC-MapleWind/maplewind-chatbot/issues/1
+2. Production cutover, webhook update, SLA tests, and 24h/7d monitoring are manual/production operations and have not run in this local session. Handoff issue: https://github.com/GC-MapleWind/MSGS_13_B/issues/55
 
 ## Current conclusion
 

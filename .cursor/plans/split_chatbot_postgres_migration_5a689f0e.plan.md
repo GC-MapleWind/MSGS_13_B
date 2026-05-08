@@ -62,9 +62,11 @@ isProject: false
   `workflows-pending-scope` commit `6ab860c` and preserved as
   `specs/001-split-chatbot-postgres/chatbot-workflows-pending.patch`; direct
   push is blocked because the current GitHub OAuth credential lacks
-  `workflow` scope.
+  `workflow` scope. Handoff issue:
+  https://github.com/GC-MapleWind/maplewind-chatbot/issues/1
 - Production/staging cutover, Kakao webhook change, SLA/load validation, and
-  24h/7d monitoring gates remain pending operational work.
+  24h/7d monitoring gates remain pending operational work. Handoff issue:
+  https://github.com/GC-MapleWind/MSGS_13_B/issues/55
 
 ## 큰 그림
 
