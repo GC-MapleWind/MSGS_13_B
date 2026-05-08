@@ -47,8 +47,11 @@ isProject: false
 ## Execution status — 2026-05-09
 
 - Main feature branch is pushed to `origin/feat/split-chatbot-postgres-migration`
-  at `5311d02` with migration runbooks, dry-run evidence, and the blocked
-  chatbot workflow patch artifact.
+  at `735ddaa` with migration runbooks, dry-run evidence, the blocked
+  chatbot workflow patch artifact, and this tracked Cursor plan status.
+- Main repo PR #54 is open at `735ddaa`; build/test jobs passed, but GitHub
+  still reports the PR as `UNSTABLE` while `Deploy to Dev Server` is pending
+  or in progress.
 - Chatbot remote `GC-MapleWind/maplewind-chatbot` `main` is pushed to runtime
   commit `b3d80a9`; local verification on that commit passed lint, unittest,
   SQLite fallback simulation, and PostgreSQL-backed 메생결산 simulation.
