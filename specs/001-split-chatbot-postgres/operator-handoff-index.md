@@ -56,6 +56,10 @@ Minimum evidence to close this gate:
 - Chatbot-only redeploy evidence showing no backend restart and <=60s redeploy.
 - Backup retention/cold-storage owner/date.
 
+## Quick observable status check
+
+Run `./specs/001-split-chatbot-postgres/check-external-gates.sh` from a clone with `gh` authenticated to inspect observable remote status: current refs, workflow scope, chatbot workflow files, visible Actions runs, and blocker issue state. This script is diagnostic only; use the evidence templates above for completion proof.
+
 ## Do not use as completion proof
 
 - Local dry-run row counts alone.
