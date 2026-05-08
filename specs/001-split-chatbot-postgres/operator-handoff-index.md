@@ -58,7 +58,7 @@ Minimum evidence to close this gate:
 
 ## Quick observable status check
 
-Run `./specs/001-split-chatbot-postgres/check-external-gates.sh` from a clone with `gh` authenticated to inspect observable remote status: current refs, workflow scope, chatbot workflow files, visible Actions runs, and blocker issue state. This script is diagnostic only; use the evidence templates above for completion proof.
+Run `./specs/001-split-chatbot-postgres/check-external-gates.sh` from a clone with `gh` authenticated to inspect observable remote status: current refs, workflow scope, chatbot workflow files, visible Actions runs, and blocker issue state. The script exits non-zero while observable blockers remain; that is expected before workflow/cutover evidence exists. It is diagnostic only, so a zero exit code is also not enough for completion proof; use the evidence templates above.
 
 ## Do not use as completion proof
 
