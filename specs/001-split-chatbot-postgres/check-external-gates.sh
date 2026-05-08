@@ -14,6 +14,8 @@ failures=0
 warnings=0
 has_workflow_scope=0
 workflow_files_present=0
+TMP_DIR="$(mktemp -d "${TMPDIR:-/tmp}/split-chatbot-gates.XXXXXX")"
+trap 'rm -rf "${TMP_DIR}"' EXIT
 
 section() { printf '\n== %s ==\n' "$1"; }
 pass() { printf 'PASS %s\n' "$1"; }
@@ -59,8 +61,8 @@ else
 fi
 
 section "Chatbot workflow files on remote"
-if gh api "repos/${CHATBOT_REPO}/contents/.github/workflows?ref=${CHATBOT_BRANCH}" >/tmp/chatbot_workflow_gate.json 2>/tmp/chatbot_workflow_gate.err; then
-  paths="$(gh api "repos/${CHATBOT_REPO}/contents/.github/workflows?ref=${CHATBOT_BRANCH}" --jq '.[].path' 2>/tmp/chatbot_workflow_gate.err || true)"
+if gh api "repos/${CHATBOT_REPO}/contents/.github/workflows?ref=${CHATBOT_BRANCH}" >"${TMP_DIR}/chatbot_workflow_gate.json" 2>"${TMP_DIR}/chatbot_workflow_gate.err"; then
+  paths="$(gh api "repos/${CHATBOT_REPO}/contents/.github/workflows?ref=${CHATBOT_BRANCH}" --jq '.[].path' 2>"${TMP_DIR}/chatbot_workflow_gate.err" || true)"
   printf '%s\n' "${paths}"
   if printf '%s\n' "${paths}" | grep -qx '.github/workflows/ci.yml'; then pass "ci.yml exists"; else fail "ci.yml missing"; fi
   if printf '%s\n' "${paths}" | grep -qx '.github/workflows/deploy.yml'; then pass "deploy.yml exists"; else fail "deploy.yml missing"; fi
@@ -68,7 +70,7 @@ if gh api "repos/${CHATBOT_REPO}/contents/.github/workflows?ref=${CHATBOT_BRANCH
     workflow_files_present=1
   fi
 else
-  fail "${CHATBOT_REPO} .github/workflows is not readable on ${CHATBOT_BRANCH}: $(tr '\n' ' ' </tmp/chatbot_workflow_gate.err)"
+  fail "${CHATBOT_REPO} .github/workflows is not readable on ${CHATBOT_BRANCH}: $(tr '\n' ' ' <"${TMP_DIR}/chatbot_workflow_gate.err")"
 fi
 
 if [[ "${workflow_files_present}" -eq 0 && "${has_workflow_scope}" -eq 0 ]]; then
@@ -76,10 +78,10 @@ if [[ "${workflow_files_present}" -eq 0 && "${has_workflow_scope}" -eq 0 ]]; the
 fi
 
 section "Chatbot Actions runs"
-run_lines="$(gh run list --repo "${CHATBOT_REPO}" --limit 10 --json name,status,conclusion,headSha,url --jq '.[] | "\(.name) status=\(.status) conclusion=\(.conclusion) head=\(.headSha) url=\(.url)"' 2>/tmp/chatbot_runs_gate.err || true)"
+run_lines="$(gh run list --repo "${CHATBOT_REPO}" --limit 10 --json name,status,conclusion,headSha,url --jq '.[] | "\(.name) status=\(.status) conclusion=\(.conclusion) head=\(.headSha) url=\(.url)"' 2>"${TMP_DIR}/chatbot_runs_gate.err" || true)"
 success_count="$(gh run list --repo "${CHATBOT_REPO}" --limit 10 --json conclusion --jq '[.[] | select(.conclusion == "success")] | length' 2>/dev/null || printf '0')"
 if [[ -z "${run_lines}" ]]; then
-  warn "no chatbot Actions runs visible or gh run list failed: $(tr '\n' ' ' </tmp/chatbot_runs_gate.err)"
+  warn "no chatbot Actions runs visible or gh run list failed: $(tr '\n' ' ' <"${TMP_DIR}/chatbot_runs_gate.err")"
 else
   printf '%s\n' "${run_lines}"
   if [[ "${success_count}" -gt 0 ]]; then pass "at least one successful chatbot Actions run is visible"; else warn "no successful chatbot Actions run visible"; fi
@@ -89,9 +91,9 @@ section "Blocker issues"
 for item in "${CHATBOT_REPO} 1 workflow" "${MAIN_REPO} 55 cutover"; do
   set -- ${item}
   repo="$1"; number="$2"; label="$3"
-  issue_line="$(gh issue view "${number}" --repo "${repo}" --json state,title,url --jq '.state + "\t" + .title + "\t" + .url' 2>/tmp/issue_gate.err || true)"
+  issue_line="$(gh issue view "${number}" --repo "${repo}" --json state,title,url --jq '.state + "\t" + .title + "\t" + .url' 2>"${TMP_DIR}/issue_gate.err" || true)"
   if [[ -z "${issue_line}" ]]; then
-    fail "cannot read ${repo}#${number}: $(tr '\n' ' ' </tmp/issue_gate.err)"
+    fail "cannot read ${repo}#${number}: $(tr '\n' ' ' <"${TMP_DIR}/issue_gate.err")"
     continue
   fi
   IFS=$'\t' read -r state title url <<<"${issue_line}"
