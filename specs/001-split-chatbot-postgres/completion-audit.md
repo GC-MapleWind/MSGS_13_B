@@ -81,6 +81,7 @@ This table maps `spec.md` FR/SC items directly to evidence. It intentionally doe
 - PR #54 merged into `dev` as merge commit `eafce94c3c0930c5dbd420bb95cf455af319215f`; post-merge dev workflow run `25567914804` passed `Build and Push Dev Image` and `Deploy to Dev Server`.
 - Dependency graph check: `grep -RIn "aiosqlite\|gspread\|google-api-python-client\|googleapiclient" pyproject.toml src tests` and `grep -n "aiosqlite" uv.lock` returned no matches after the dependency cleanup.
 - Compose isolation check: `docker compose --env-file <placeholder> -f docker-compose.yml config --format json` showed backend environment contains `DATABASE_URL` only for database access and no `CHATBOT_*`/`GOOGLE_*`; chatbot contains `CHATBOT_DATABASE_URL` and no `DATABASE_URL`.
+- Dev GitHub Actions run `25571572967` for `Backend CI/CD (Docker)` completed with conclusion `success` after the compose environment isolation fix.
 - Durable handoff evidence is published from `dev` at `omx_wiki/split-chatbot-postgresql-migration-handoff.md`; verify the current `dev` hash with `git ls-remote origin refs/heads/dev` instead of treating this audit text as the moving branch pointer.
 - `scripts/migrate_sqlite_to_postgres.sh main maplewind.db ...` — PASS, row counts matched.
 - `scripts/migrate_sqlite_to_postgres.sh chatbot chatbot.db ...` — PASS, row counts matched.
