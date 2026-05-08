@@ -20,13 +20,31 @@ services:
       timeout: 5s
       retries: 12
 
+  postgres-init:
+    image: postgres:17-alpine
+    depends_on:
+      postgres:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?POSTGRES_USER is required}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+    volumes:
+      - ./scripts/postgres-init.sql:/scripts/postgres-init.sql:ro
+    command:
+      - sh
+      - -c
+      - PGPASSWORD="$${POSTGRES_PASSWORD}" psql -h postgres -U "$${POSTGRES_USER}" -d postgres -f /scripts/postgres-init.sql
+    restart: "no"
+
   backend:
     image: ghcr.io/gc-maplewind/msgs_13_b-backend:latest
     container_name: dpbr-backend
     restart: unless-stopped
     depends_on:
-      postgres:
-        condition: service_healthy
+      postgres-init:
+        condition: service_completed_successfully
     ports:
       - "127.0.0.1:8013:8000"
     volumes:
@@ -61,8 +79,8 @@ services:
     container_name: maplewind-chatbot
     restart: unless-stopped
     depends_on:
-      postgres:
-        condition: service_healthy
+      postgres-init:
+        condition: service_completed_successfully
     ports:
       - "127.0.0.1:8014:8000"
     volumes:

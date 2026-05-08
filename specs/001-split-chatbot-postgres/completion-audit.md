@@ -54,7 +54,7 @@ Use the SDD artifacts in `specs/001-split-chatbot-postgres/`, `codex-prompts.md`
 
 1. `GC-MapleWind/maplewind-chatbot` remote main now has runtime commit `b3d80a9`, but CI/CD workflow files remain on local branch `workflows-pending-scope` commit `6ab860c` and as patch artifact `chatbot-workflows-pending.patch`; pushing that branch failed because the OAuth credential lacks GitHub `workflow` scope for `.github/workflows/ci.yml`.
 2. History-preserving extraction is evidenced on non-destructive remote branches (`history-preserved-extract`, `archive/chinbabang-submission-filtered`) and local repo `../chatbot-history-extract`, but the chatbot remote `main` branch itself is still not the filtered-history branch.
-3. Main repo PR [#54](https://github.com/GC-MapleWind/MSGS_13_B/pull/54) is open; build/test jobs pass on the feature branch, but GitHub still reports the PR as `UNSTABLE` while the `Deploy to Dev Server` job is pending.
+3. Main repo PR [#54](https://github.com/GC-MapleWind/MSGS_13_B/pull/54) is open; build/test jobs pass on the feature branch. A previous `Deploy to Dev Server` run failed because the existing dev PostgreSQL volume did not contain database `maplewind`; `docker-compose.dev.yml` and `docker-compose.yml` now include an idempotent `postgres-init` one-shot service so existing volumes create missing `maplewind`/`chatbot` databases before app startup. The fresh PR deploy result still needs to be observed.
 4. Production cutover, webhook update, SLA tests, and 24h/7d monitoring are manual/production operations and have not run in this local session.
 
 ## Current conclusion
