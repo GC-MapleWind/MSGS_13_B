@@ -47,7 +47,7 @@ checkboxes are retained as historical plan text.
    - Current GitHub OAuth scopes are `gist, read:org, repo`; missing required `workflow` scope.
    - Workflow patch is preserved in `specs/001-split-chatbot-postgres/chatbot-workflows-pending.patch`.
    - Patch recoverability was verified against current chatbot `origin/main` `4c5c121979b111326a9e8534b9712722664a6664`: `git apply --check` passed. Patch SHA-256 is `43baf797f0057ef4b8631370f400929482a9615c60e87be75d8502b42fc8e12e`; it adds `.github/workflows/ci.yml` and `.github/workflows/deploy.yml`.
-   - Local workflow simulation passed against current chatbot `origin/main` `4c5c121`: frozen dev sync, ruff, SQLite unit tests, Alembic offline SQL, Alembic online migration against temporary `postgres:17-alpine`, and Docker build all succeeded. Remaining gap is remote application/execution with a workflow-scoped credential.
+   - Local workflow simulation was re-run against current chatbot `origin/main` `4c5c121979b111326a9e8534b9712722664a6664` after the README docs update: patch application in a temporary worktree, frozen dev sync, ruff, CI-env SQLite unit tests, Alembic offline SQL, Alembic online migration against temporary `postgres:17-alpine`, and `docker build -t chatbot-ci-local:workflow-patch-latest .` all succeeded. Evidence: https://github.com/GC-MapleWind/maplewind-chatbot/issues/1#issuecomment-4408873871. Remaining gap is remote application/execution with a workflow-scoped credential.
    - Tracking issue: `https://github.com/GC-MapleWind/maplewind-chatbot/issues/1`.
 
 2. Production/staging cutover has not been executed.
