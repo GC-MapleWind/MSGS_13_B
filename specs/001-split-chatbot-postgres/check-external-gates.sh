@@ -199,10 +199,18 @@ run_self_test() {
       return 0
     fi
     if [[ "$1" == "api" && "$2" == "repos/example/repo/issues/13" ]]; then
-      printf 'Cutover evidence summary:\n- Backup filenames/SHA-256: 미정\n- Row-count result: 대기\n- 24h/7d monitoring links: 없음\n'
+      printf 'Cutover evidence summary:\n- SQLite backup SHA-256 files: 미정\n- Row-count result: 대기\n- 24h/7d monitoring links: 없음\n'
       return 0
     fi
     if [[ "$1" == "api" && "$2" == "repos/example/repo/issues/13/comments?per_page=100" ]]; then
+      printf 'No comments\n'
+      return 0
+    fi
+    if [[ "$1" == "api" && "$2" == "repos/example/repo/issues/14" ]]; then
+      printf 'Cutover evidence summary:\n- SQLite backup SHA-256 files: maplewind.db.bak sha256:abc chatbot.db.bak sha256:def\n- Row-count result: all counts match\n- Backend health/core APIs: /health /v1/characters /v1/settlements success\n- Chatbot health: /health success\n- 24h/7d monitoring links: https://example.test/monitoring\n'
+      return 0
+    fi
+    if [[ "$1" == "api" && "$2" == "repos/example/repo/issues/14/comments?per_page=100" ]]; then
       printf 'No comments\n'
       return 0
     fi
@@ -234,10 +242,15 @@ run_self_test() {
   else
     pass "rejects placeholder evidence field values"
   fi
-  if issue_has_complete_summary "example/repo" "13" "Cutover evidence summary:" "${TMP_DIR}/issue_summary_korean_placeholder_selftest.err" "- Backup filenames/SHA-256:" "- Row-count result:" "- 24h/7d monitoring links:"; then
+  if issue_has_complete_summary "example/repo" "13" "Cutover evidence summary:" "${TMP_DIR}/issue_summary_korean_placeholder_selftest.err" "- SQLite backup SHA-256 files:" "- Row-count result:" "- 24h/7d monitoring links:"; then
     fail "unexpectedly accepts Korean placeholder evidence field values"
   else
     pass "rejects Korean placeholder evidence field values"
+  fi
+  if issue_has_complete_summary "example/repo" "14" "Cutover evidence summary:" "${TMP_DIR}/issue_summary_cutover_positive_selftest.err" "- SQLite backup SHA-256 files:" "- Row-count result:" "- Backend health/core APIs:" "- Chatbot health:" "- 24h/7d monitoring links:"; then
+    pass "detects complete cutover evidence summary with backup field"
+  else
+    fail "misses complete cutover evidence summary with backup field"
   fi
   unset -f gh
 
@@ -375,7 +388,7 @@ for item in "${CHATBOT_REPO} 1 workflow" "${MAIN_REPO} 55 cutover"; do
       fields=("- CI run URL/conclusion:" "- Deploy/build run URL/conclusion:" "- GHCR image tags/digest:")
     elif [[ "${label}" == "cutover" ]]; then
       marker="Cutover evidence summary:"
-      fields=("- Row-count result:" "- Backend health/core APIs:" "- Chatbot health:" "- 24h/7d monitoring links:")
+      fields=("- SQLite backup SHA-256 files:" "- Row-count result:" "- Backend health/core APIs:" "- Chatbot health:" "- 24h/7d monitoring links:")
     fi
     if [[ -n "${marker}" ]]; then
       if issue_has_complete_summary "${repo}" "${number}" "${marker}" "${TMP_DIR}/issue_summary_${number}.err" "${fields[@]}"; then
