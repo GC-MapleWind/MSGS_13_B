@@ -24,6 +24,7 @@ checkboxes are retained as historical plan text.
 
 - Main repo PR #54 was merged into `dev` as merge commit `eafce94c3c0930c5dbd420bb95cf455af319215f`.
 - This handoff page is published from `dev` and linked from both open blocker issues.
+- Latest gate checkpoint comments are chatbot #1 `#issuecomment-4409522721` and main #55 `#issuecomment-4409522898`; they reference main `dev` `96af07881de00df7f70ae21aaab40656508d696f` and chatbot `main` `8240db28ff058a216b017da1effb877d81290ee1` and confirm both external gates remain open.
 - Latest dependency-cleanup evidence commit is `7d70ea9ae35fc6ddc884b0af88dcf051bff20ff0`; verify the current moving `dev` branch pointer with `git ls-remote origin refs/heads/dev` because evidence-only commits may advance the branch without changing implementation state.
 - Main `.env.example` includes both `DATABASE_URL` and integration-level `CHATBOT_DATABASE_URL`; the chatbot repo `.env.example` carries the chatbot service-specific environment contract.
 - Chatbot at `8240db28ff058a216b017da1effb877d81290ee1` documents the integrated compose handoff and FR-009 compatibility route, runs Alembic from lifespan before serving, tolerates missing/malformed Google credentials at startup, and uses a named volume for dev PostgreSQL; chatbot ruff, unittest, PostgreSQL-backed startup smoke, and dev compose `/health` boot passed after the updates.
