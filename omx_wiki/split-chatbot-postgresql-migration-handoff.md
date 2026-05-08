@@ -2,8 +2,8 @@
 title: "Split chatbot PostgreSQL migration handoff"
 tags: ["split-chatbot", "postgres", "migration", "handoff", "blocked", "ci-cd", "ops"]
 created: 2026-05-08T17:06:44.518Z
-updated: 2026-05-08T19:20:00Z
-sources: ["specs/001-split-chatbot-postgres/codex-prompts.md", "specs/001-split-chatbot-postgres/completion-audit.md", "specs/001-split-chatbot-postgres/operator-handoff-index.md", "specs/001-split-chatbot-postgres/check-external-gates.sh", "specs/001-split-chatbot-postgres/cutover-runbook.md", "specs/001-split-chatbot-postgres/production-cutover-evidence-template.md", "specs/001-split-chatbot-postgres/cutover-dryrun.md", ".cursor/plans/split_chatbot_postgres_migration_5a689f0e.plan.md", "https://github.com/GC-MapleWind/MSGS_13_B/pull/54", "https://github.com/GC-MapleWind/MSGS_13_B/actions/runs/25567914804", "https://github.com/GC-MapleWind/MSGS_13_B/actions/runs/25570800233", "https://github.com/GC-MapleWind/MSGS_13_B/actions/runs/25571572967", "https://github.com/GC-MapleWind/maplewind-chatbot/issues/1", "https://github.com/GC-MapleWind/MSGS_13_B/issues/55"]
+updated: 2026-05-08T19:50:00Z
+sources: ["specs/001-split-chatbot-postgres/codex-prompts.md", "specs/001-split-chatbot-postgres/completion-audit.md", "specs/001-split-chatbot-postgres/operator-handoff-index.md", "specs/001-split-chatbot-postgres/check-external-gates.sh", "specs/001-split-chatbot-postgres/cutover-runbook.md", "specs/001-split-chatbot-postgres/production-cutover-evidence-template.md", "specs/001-split-chatbot-postgres/cutover-dryrun.md", ".cursor/plans/split_chatbot_postgres_migration_5a689f0e.plan.md", "https://github.com/GC-MapleWind/MSGS_13_B/pull/54", "https://github.com/GC-MapleWind/MSGS_13_B/actions/runs/25567914804", "https://github.com/GC-MapleWind/MSGS_13_B/actions/runs/25570800233", "https://github.com/GC-MapleWind/MSGS_13_B/actions/runs/25571572967", "https://github.com/GC-MapleWind/MSGS_13_B/actions/runs/25574451603", "https://github.com/GC-MapleWind/maplewind-chatbot/issues/1", "https://github.com/GC-MapleWind/MSGS_13_B/issues/55"]
 links: []
 category: session-log
 confidence: high
@@ -30,6 +30,7 @@ checkboxes are retained as historical plan text.
 - Dev GitHub Actions run `25567914804` for `Backend CI/CD (Docker)` completed with conclusion `success` on `2026-05-08T16:52:37Z`.
 - Dev GitHub Actions run `25570800233` for `Backend CI/CD (Docker)` completed with conclusion `success` after the FR-007/SC-006 dependency cleanup.
 - Dev GitHub Actions run `25571572967` for `Backend CI/CD (Docker)` completed with conclusion `success` after the compose environment isolation fix.
+- Dev GitHub Actions run `25574451603` for `Backend CI/CD (Docker)` completed with conclusion `success` on `2caab4ae2c51cb0193e0810fa3e67af9d9715e2c`; it built/pushed the dev image and deployed to the dev server with health check after the external gate checker temp-file hardening.
 - Main dependency graph now removes `aiosqlite` completely: `pyproject.toml` and `uv.lock` are clean, and runtime-seeding tests run against temporary `postgres:17-alpine`.
 - Chatbot repo `GC-MapleWind/maplewind-chatbot` remote `main` is `25ba79950d452fa07aadf486d253c4c7eb6f3b71`, a documentation descendant of history-adopting merge commit `5e6c20df8b0c047f716ad02be249a99ce367838e`.
 - Archive/history refs now satisfy FR-014:
