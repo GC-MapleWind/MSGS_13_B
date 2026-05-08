@@ -60,9 +60,11 @@ isProject: false
   메생결산 simulation.
 - Chatbot CI/CD workflow files are staged in local branch
   `workflows-pending-scope` commit `6ab860c` and preserved as
-  `specs/001-split-chatbot-postgres/chatbot-workflows-pending.patch`; direct
-  push is blocked because the current GitHub OAuth credential lacks
-  `workflow` scope (`X-Oauth-Scopes: gist, read:org, repo`). Handoff issue:
+  `specs/001-split-chatbot-postgres/chatbot-workflows-pending.patch`. The
+  patch was rechecked against chatbot `origin/main` `5e6c20d` with
+  `git apply --check` and applies cleanly; direct push is blocked because the
+  current GitHub OAuth credential lacks `workflow` scope
+  (`X-Oauth-Scopes: gist, read:org, repo`). Handoff issue:
   https://github.com/GC-MapleWind/maplewind-chatbot/issues/1
 - Production/staging cutover, Kakao webhook change, SLA/load validation, and
   24h/7d monitoring gates remain pending operational work. Handoff issue:
