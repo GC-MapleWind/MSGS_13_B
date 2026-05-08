@@ -69,6 +69,13 @@ deprecation warnings need cleanup, use:
 The current session could not push this workflow-file change because the OAuth
 credential lacks `workflow` scope.
 
+## Latest observable checkpoint
+
+- Main `dev`: `3f9912b304bd241a224a7a801b5549028046a26a`
+- Chatbot `main`: `25ba79950d452fa07aadf486d253c4c7eb6f3b71`
+- `check-external-gates.sh` still exits non-zero because chatbot workflow files are absent on remote and the current credential lacks `workflow` scope.
+- Latest linked issue checkpoints: chatbot #1 `#issuecomment-4409311035`; main #55 `#issuecomment-4409311161`.
+
 ## Quick observable status check
 
 Run `./specs/001-split-chatbot-postgres/check-external-gates.sh` from a clone with `gh` authenticated to inspect observable remote status: current refs, workflow scope, chatbot workflow files, visible Actions runs, and blocker issue state. The script exits non-zero while observable blockers remain; that is expected before workflow/cutover evidence exists. It is diagnostic only, so a zero exit code is also not enough for completion proof; use the evidence templates above.
