@@ -37,7 +37,7 @@ checkboxes are retained as historical plan text.
 - Local dry-run evidence, row counts, tests, and runbooks are recorded under `specs/001-split-chatbot-postgres/`.
 - Chatbot README documents required env vars, Kakao webhook endpoint, operations notes, and `scripts/simulate_maesaeng_flow.py` usage.
 - Production `docker-compose.yml` is the integrated compose design for T034: it pulls both GHCR images, shares PostgreSQL, runs Alembic before app startup, and uses isolated backend/chatbot environment blocks. Backend no longer receives `CHATBOT_*`/`GOOGLE_*`; chatbot no longer receives `DATABASE_URL`.
-- `specs/001-split-chatbot-postgres/completion-audit.md` now includes explicit FR-001~FR-016 and SC-001~SC-007 coverage, with only workflow-credential and production/staging ops gaps remaining.
+- `specs/001-split-chatbot-postgres/completion-audit.md` now includes explicit FR-001~FR-016 and SC-001~SC-007 coverage, including exact admin isolation evidence for FR-015, with only workflow-credential and production/staging ops gaps remaining.
 
 ## Remaining blockers
 
