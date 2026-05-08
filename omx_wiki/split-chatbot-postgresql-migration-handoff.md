@@ -15,6 +15,8 @@ schemaVersion: 1
 ## Current status
 
 The repo-local implementation and verified development-lane evidence are complete, but the overall migration objective is not complete. Remaining gates are blocked by external authority/ops actions.
+`specs/001-split-chatbot-postgres/tasks.md` has an execution status overlay; the original
+checkboxes are retained as historical plan text.
 
 ## Verified completed evidence
 

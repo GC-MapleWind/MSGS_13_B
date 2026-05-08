@@ -20,6 +20,23 @@ description: "Task list for split-chatbot-postgres feature"
 - **[Story]**: US1 = 메생결산 무중단 (P1) / US2 = 챗봇 독립 배포 (P2) / US3 = SLA 격리 (P3)
 - 파일 경로는 메인 repo 기준 (`./` = 현 repo 루트). 신규 repo 경로는 `chatbot-repo/...` 표기
 
+## Execution status overlay — 2026-05-09
+
+The checkboxes below preserve the original implementation plan. Use this overlay plus
+[completion-audit.md](./completion-audit.md) as the current execution state:
+
+- **Verified complete**: T002-T028, T031-T033.
+- **Prepared but externally blocked**: T029-T030. The workflow patch is preserved in
+  [chatbot-workflows-pending.patch](./chatbot-workflows-pending.patch) and applies
+  cleanly to chatbot `origin/main`, but pushing workflow files requires a GitHub
+  credential/app with `workflow` scope.
+- **Production/ops-gated**: T001, T034-T039, T042-T043. These require production or
+  staging authority, backup/cutover execution, webhook/SLA/monitoring evidence, or
+  post-run retention cleanup.
+- **Documentation complete**: T040-T041. Main README and chatbot README/env docs are
+  present; production runbooks and handoff issues remain the operational source of
+  truth.
+
 ---
 
 ## Phase 1: Setup (Shared Infrastructure)

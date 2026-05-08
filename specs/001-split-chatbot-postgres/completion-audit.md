@@ -8,6 +8,9 @@ Use the SDD artifacts in `specs/001-split-chatbot-postgres/`, `codex-prompts.md`
 
 ## Prompt-to-artifact checklist
 
+`tasks.md` now includes an execution status overlay. Its original checkboxes remain as the
+historical plan text; use the overlay and this audit as the current task ledger.
+
 | Requirement / task | Evidence inspected | Status |
 | --- | --- | --- |
 | T005 dependencies: main repo has asyncpg, psycopg, alembic and no runtime Google chatbot deps | `pyproject.toml`; `grep` for `gspread`, `google-api-python-client`, `googleapiclient` in main `src`/`pyproject.toml` | PASS for runtime; `aiosqlite` remains in dev dependencies for SQLite tests |
