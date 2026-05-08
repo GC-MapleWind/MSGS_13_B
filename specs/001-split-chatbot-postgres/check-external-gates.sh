@@ -78,13 +78,35 @@ if [[ "${workflow_files_present}" -eq 0 && "${has_workflow_scope}" -eq 0 ]]; the
 fi
 
 section "Chatbot Actions runs"
-run_lines="$(gh run list --repo "${CHATBOT_REPO}" --limit 10 --json name,status,conclusion,headSha,url --jq '.[] | "\(.name) status=\(.status) conclusion=\(.conclusion) head=\(.headSha) url=\(.url)"' 2>"${TMP_DIR}/chatbot_runs_gate.err" || true)"
-success_count="$(gh run list --repo "${CHATBOT_REPO}" --limit 10 --json conclusion --jq '[.[] | select(.conclusion == "success")] | length' 2>/dev/null || printf '0')"
-if [[ -z "${run_lines}" ]]; then
-  warn "no chatbot Actions runs visible or gh run list failed: $(tr '\n' ' ' <"${TMP_DIR}/chatbot_runs_gate.err")"
+runs_json="${TMP_DIR}/chatbot_runs_gate.json"
+if gh api "repos/${CHATBOT_REPO}/actions/runs?branch=${CHATBOT_BRANCH}&per_page=10" >"${runs_json}" 2>"${TMP_DIR}/chatbot_runs_gate.err"; then
+  run_lines="$(gh api "repos/${CHATBOT_REPO}/actions/runs?branch=${CHATBOT_BRANCH}&per_page=10" --jq '.workflow_runs[] | "\(.name) status=\(.status) conclusion=\(.conclusion) head=\(.head_sha) url=\(.html_url)"' 2>/dev/null || true)"
+  success_count="$(gh api "repos/${CHATBOT_REPO}/actions/runs?branch=${CHATBOT_BRANCH}&per_page=10" --jq '[.workflow_runs[] | select(.conclusion == "success")] | length' 2>/dev/null || printf '0')"
+  if [[ -z "${run_lines}" ]]; then
+    warn "no chatbot Actions runs visible on ${CHATBOT_BRANCH}"
+  else
+    printf '%s\n' "${run_lines}"
+    if [[ "${success_count}" -gt 0 ]]; then pass "at least one successful chatbot Actions run is visible"; else warn "no successful chatbot Actions run visible"; fi
+  fi
 else
-  printf '%s\n' "${run_lines}"
-  if [[ "${success_count}" -gt 0 ]]; then pass "at least one successful chatbot Actions run is visible"; else warn "no successful chatbot Actions run visible"; fi
+  warn "cannot list chatbot Actions runs via API: $(tr '\n' ' ' <"${TMP_DIR}/chatbot_runs_gate.err")"
+fi
+
+section "Chatbot GHCR package"
+chatbot_owner="${CHATBOT_REPO%%/*}"
+chatbot_package="${CHATBOT_REPO##*/}"
+if gh api "/orgs/${chatbot_owner}/packages/container/${chatbot_package}" >"${TMP_DIR}/chatbot_ghcr_package.json" 2>"${TMP_DIR}/chatbot_ghcr_package.err"; then
+  pass "GHCR package ${chatbot_owner}/${chatbot_package} is visible"
+  versions="$(gh api "/orgs/${chatbot_owner}/packages/container/${chatbot_package}/versions?per_page=10" --jq '.[] | "version=\(.id) updated=\(.updated_at) tags=\(.metadata.container.tags | join(","))"' 2>"${TMP_DIR}/chatbot_ghcr_versions.err" || true)"
+  if [[ -n "${versions}" ]]; then
+    printf '%s\n' "${versions}"
+    if printf '%s\n' "${versions}" | grep -Eq 'tags=.*(^|,)latest(,|$)'; then pass "GHCR latest tag is visible"; else warn "GHCR latest tag not visible in recent versions"; fi
+    if printf '%s\n' "${versions}" | grep -Eq 'tags=.*(^|,)main(,|$)'; then pass "GHCR main tag is visible"; else warn "GHCR main tag not visible in recent versions"; fi
+  else
+    warn "GHCR package visible but versions/tags not readable: $(tr '\n' ' ' <"${TMP_DIR}/chatbot_ghcr_versions.err")"
+  fi
+else
+  fail "GHCR package ${chatbot_owner}/${chatbot_package} is not visible/readable: $(tr '\n' ' ' <"${TMP_DIR}/chatbot_ghcr_package.err")"
 fi
 
 section "Blocker issues"
