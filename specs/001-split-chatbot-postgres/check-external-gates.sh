@@ -34,7 +34,7 @@ issue_view_line() {
     return 0
   fi
 
-  info "gh issue view failed for ${repo}#${number}; trying REST fallback"
+  info "gh issue view failed for ${repo}#${number}; trying REST fallback" >&2
   if line="$(gh api "repos/${repo}/issues/${number}" --jq '(.state | ascii_upcase) + "\t" + .title + "\t" + .html_url' 2>"${err_file}.rest")" && [[ -n "${line}" ]]; then
     printf '%s\n' "${line}"
     return 0
@@ -69,6 +69,27 @@ run_self_test() {
   if ghcr_tag_visible '^latest$'; then fail "unexpectedly matches non-exact latest tag"; else pass "rejects non-exact latest tag"; fi
   if ghcr_tag_visible '^main$'; then fail "unexpectedly matches non-exact main tag"; else pass "rejects non-exact main tag"; fi
   if ghcr_tag_visible '^main-[0-9a-f]{7,40}$'; then fail "unexpectedly matches too-short main-* tag"; else pass "rejects too-short main-* tag"; fi
+
+  section "Issue reader fallback self-test"
+  gh() {
+    if [[ "$1" == "issue" && "$2" == "view" ]]; then
+      printf 'simulated GraphQL outage\n' >&2
+      return 1
+    fi
+    if [[ "$1" == "api" && "$2" == "repos/example/repo/issues/7" ]]; then
+      printf 'CLOSED\tFallback title\thttps://example.test/issues/7\n'
+      return 0
+    fi
+    printf 'unexpected gh call: %s\n' "$*" >&2
+    return 127
+  }
+  issue_line="$(issue_view_line "example/repo" "7" "${TMP_DIR}/issue_fallback_selftest.err" 2>"${TMP_DIR}/issue_fallback_selftest.info" || true)"
+  if [[ "${issue_line}" == $'CLOSED\tFallback title\thttps://example.test/issues/7' ]]; then
+    pass "REST fallback returns a clean issue line"
+  else
+    fail "REST fallback returned unexpected issue line: ${issue_line}"
+  fi
+  unset -f gh
 
   section "Self-test summary"
   info "failures=${failures} warnings=${warnings}"
