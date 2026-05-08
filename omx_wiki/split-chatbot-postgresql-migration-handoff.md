@@ -24,12 +24,12 @@ checkboxes are retained as historical plan text.
 - This handoff page is published from `dev` and linked from both open blocker issues.
 - Latest dependency-cleanup evidence commit is `7d70ea9ae35fc6ddc884b0af88dcf051bff20ff0`; verify the current moving `dev` branch pointer with `git ls-remote origin refs/heads/dev` because evidence-only commits may advance the branch without changing implementation state.
 - Main `.env.example` includes both `DATABASE_URL` and integration-level `CHATBOT_DATABASE_URL`; the chatbot repo `.env.example` carries the chatbot service-specific environment contract.
-- Chatbot at `dff9dfd2b23be4c5e562e0ca65219df530081b57` now documents the main-repo integrated compose deployment handoff and FR-009 seven-day reverse-proxy compatibility route, and its `src/main.py` lifespan runs Alembic `upgrade head` before serving requests; chatbot ruff, unittest, and a PostgreSQL-backed startup smoke passed after the update.
+- Chatbot at `25ba79950d452fa07aadf486d253c4c7eb6f3b71` documents the integrated compose handoff and FR-009 compatibility route, runs Alembic from lifespan before serving, tolerates missing/malformed Google credentials at startup, and uses a named volume for dev PostgreSQL; chatbot ruff, unittest, PostgreSQL-backed startup smoke, and dev compose `/health` boot passed after the updates.
 - Dev GitHub Actions run `25567914804` for `Backend CI/CD (Docker)` completed with conclusion `success` on `2026-05-08T16:52:37Z`.
 - Dev GitHub Actions run `25570800233` for `Backend CI/CD (Docker)` completed with conclusion `success` after the FR-007/SC-006 dependency cleanup.
 - Dev GitHub Actions run `25571572967` for `Backend CI/CD (Docker)` completed with conclusion `success` after the compose environment isolation fix.
 - Main dependency graph now removes `aiosqlite` completely: `pyproject.toml` and `uv.lock` are clean, and runtime-seeding tests run against temporary `postgres:17-alpine`.
-- Chatbot repo `GC-MapleWind/maplewind-chatbot` remote `main` is `dff9dfd2b23be4c5e562e0ca65219df530081b57`, a documentation descendant of history-adopting merge commit `5e6c20df8b0c047f716ad02be249a99ce367838e`.
+- Chatbot repo `GC-MapleWind/maplewind-chatbot` remote `main` is `25ba79950d452fa07aadf486d253c4c7eb6f3b71`, a documentation descendant of history-adopting merge commit `5e6c20df8b0c047f716ad02be249a99ce367838e`.
 - Archive/history refs now satisfy FR-014:
   - Main `GC-MapleWind/MSGS_13_B` `archive/chinbabang-submission` -> `387cb221da0e18c9bcefe595d3fb119f18f0ea05`
   - Chatbot `GC-MapleWind/maplewind-chatbot` `archive/chinbabang-submission` -> `b357aeaa6bc201fa693c871b31c6ad823b66e4c7`
@@ -37,7 +37,7 @@ checkboxes are retained as historical plan text.
   - Chatbot `archive/chinbabang-submission-filtered` -> `d725f8fa1fafe2ef78adcb4e89b3b8fa930af71f`
 - Local dry-run evidence, row counts, tests, and runbooks are recorded under `specs/001-split-chatbot-postgres/`.
 - Chatbot README documents required env vars, Kakao webhook endpoint, operations notes, and `scripts/simulate_maesaeng_flow.py` usage.
-- Objective done-criteria grep audit passed on the latest remotes: main `src/` has no chatbot refs, main `src`/`pyproject.toml` has no removed chatbot/SQLite deps, required env examples are present, chatbot lifespan/admin/Dockerfile checks pass, and the workflow patch applies with the required GHCR tag shapes.
+- Objective done-criteria grep audit passed on the latest remotes: main `src/` has no chatbot refs, main `src`/`pyproject.toml` has no removed chatbot/SQLite deps, required env examples are present, chatbot lifespan/admin/Dockerfile/dev-compose checks pass, and the workflow patch applies with the required GHCR tag shapes.
 - Production `docker-compose.yml` is the integrated compose design for T034: it pulls both GHCR images, shares PostgreSQL, runs Alembic before app startup, and uses isolated backend/chatbot environment blocks. Backend no longer receives `CHATBOT_*`/`GOOGLE_*`; chatbot no longer receives `DATABASE_URL`.
 - `specs/001-split-chatbot-postgres/completion-audit.md` now includes explicit FR-001~FR-016 and SC-001~SC-007 coverage, including exact admin isolation evidence for FR-015, with only workflow-credential and production/staging ops gaps remaining.
 
@@ -47,8 +47,8 @@ checkboxes are retained as historical plan text.
    - API check for `repos/GC-MapleWind/maplewind-chatbot/contents/.github/workflows` returned HTTP 404.
    - Current GitHub OAuth scopes are `gist, read:org, repo`; missing required `workflow` scope.
    - Updated workflow patch is preserved in `specs/001-split-chatbot-postgres/chatbot-workflows-pending.patch`.
-   - Patch recoverability was verified against current chatbot `origin/main` `dff9dfd2b23be4c5e562e0ca65219df530081b57`: `git apply --check` passed. Patch SHA-256 is `ceb61e156d10e4cde98a6bc9d2cbf903ae2205b1cc790f861881a1f1fe21cac4`; it adds `.github/workflows/ci.yml` and `.github/workflows/deploy.yml` with GHCR `:latest`, `:<full sha>`, `:main`, and `:main-*` tags.
-   - Local workflow simulation was re-run against current chatbot `origin/main` `dff9dfd2b23be4c5e562e0ca65219df530081b57` after the README/T024 lifespan updates: patch application in a temporary worktree, frozen dev sync, ruff, CI-env SQLite unit tests, Alembic offline SQL, Alembic online migration against temporary `postgres:17-alpine`, T030 tag-shape check for `type=sha,format=long,prefix=`, and `docker build -t chatbot-ci-local:workflow-patch-t030 .` all succeeded. Evidence: https://github.com/GC-MapleWind/maplewind-chatbot/issues/1#issuecomment-4408932960. Remaining gap is remote application/execution with a workflow-scoped credential.
+   - Patch recoverability was verified against current chatbot `origin/main` `25ba79950d452fa07aadf486d253c4c7eb6f3b71`: `git apply --check` passed. Patch SHA-256 is `ceb61e156d10e4cde98a6bc9d2cbf903ae2205b1cc790f861881a1f1fe21cac4`; it adds `.github/workflows/ci.yml` and `.github/workflows/deploy.yml` with GHCR `:latest`, `:<full sha>`, `:main`, and `:main-*` tags.
+   - Local workflow simulation was re-run against current chatbot `origin/main` `25ba79950d452fa07aadf486d253c4c7eb6f3b71` after the README/T024 lifespan updates: patch application in a temporary worktree, frozen dev sync, ruff, CI-env SQLite unit tests, Alembic offline SQL, Alembic online migration against temporary `postgres:17-alpine`, T030 tag-shape check for `type=sha,format=long,prefix=`, and `docker build -t chatbot-ci-local:workflow-patch-25ba799 .` all succeeded. Evidence: https://github.com/GC-MapleWind/maplewind-chatbot/issues/1#issuecomment-4408932960. Remaining gap is remote application/execution with a workflow-scoped credential.
    - Tracking issue: `https://github.com/GC-MapleWind/maplewind-chatbot/issues/1`.
 
 2. Production/staging cutover has not been executed.

@@ -61,17 +61,17 @@ isProject: false
   with `git ls-remote origin refs/heads/dev` because evidence-only commits may
   advance the branch without changing implementation state.
 - Chatbot remote `GC-MapleWind/maplewind-chatbot` `main` is
-  `dff9dfd2b23be4c5e562e0ca65219df530081b57`, a documentation descendant of
+  `25ba79950d452fa07aadf486d253c4c7eb6f3b71`, a documentation descendant of
   history-adopting merge commit `5e6c20d` with runtime parent `b3d80a9` and
   filtered-history parent `d725f8f`; `git diff 5e6c20d^1 5e6c20d` was empty,
   so the runtime tree was preserved. Local verification on runtime commit
   `b3d80a9` passed lint, unittest, SQLite fallback simulation, and
-  PostgreSQL-backed 메생결산 simulation. The chatbot README now documents env, Kakao webhook, operations, simulation usage, integrated compose deployment ownership, and the 7-day compatibility route; `src/main.py` lifespan now runs Alembic `upgrade head` before serving requests while preserving `AUTO_CREATE_TABLES=true` as a local fallback.
+  PostgreSQL-backed 메생결산 simulation. The chatbot README now documents env, Kakao webhook, operations, simulation usage, integrated compose deployment ownership, and the 7-day compatibility route; `src/main.py` lifespan now runs Alembic `upgrade head` before serving requests, dev compose uses a named PostgreSQL volume, and local compose `/health` boot passes even with dummy Google credentials.
 - Chatbot CI/CD workflow files originated from local branch
   `workflows-pending-scope` commit `6ab860c`; the updated patch is preserved as
   `specs/001-split-chatbot-postgres/chatbot-workflows-pending.patch`. The
   patch was rechecked and locally simulated against current chatbot `origin/main`
-  `dff9dfd2b23be4c5e562e0ca65219df530081b57` (patch apply, frozen sync, ruff, unittest, Alembic offline/online, Docker build, and `:<full sha>` tag-shape check) and
+  `25ba79950d452fa07aadf486d253c4c7eb6f3b71` (patch apply, frozen sync, ruff, unittest, Alembic offline/online, Docker build, and `:<full sha>` tag-shape check) and
   applies cleanly; direct push is blocked because the
   current GitHub OAuth credential lacks `workflow` scope
   (`X-Oauth-Scopes: gist, read:org, repo`). Handoff issue:
