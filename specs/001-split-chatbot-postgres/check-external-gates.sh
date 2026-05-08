@@ -12,6 +12,8 @@ CHATBOT_BRANCH="${CHATBOT_BRANCH:-main}"
 
 failures=0
 warnings=0
+has_workflow_scope=0
+workflow_files_present=0
 
 section() { printf '\n== %s ==\n' "$1"; }
 pass() { printf 'PASS %s\n' "$1"; }
@@ -49,9 +51,10 @@ else
   scopes="$(printf '%s\n' "${headers}" | awk 'BEGIN{IGNORECASE=1}/^X-Oauth-Scopes:/{sub(/^[^:]+:[[:space:]]*/, ""); print}')"
   info "X-Oauth-Scopes: ${scopes:-<none>}"
   if printf '%s' "${scopes}" | grep -Eq '(^|, *)workflow(,|$)'; then
+    has_workflow_scope=1
     pass "credential includes workflow scope"
   else
-    fail "credential lacks workflow scope; chatbot workflow push is expected to be blocked"
+    warn "credential lacks workflow scope; workflow-file application is expected to be blocked if workflows are still absent"
   fi
 fi
 
@@ -61,8 +64,15 @@ if gh api "repos/${CHATBOT_REPO}/contents/.github/workflows?ref=${CHATBOT_BRANCH
   printf '%s\n' "${paths}"
   if printf '%s\n' "${paths}" | grep -qx '.github/workflows/ci.yml'; then pass "ci.yml exists"; else fail "ci.yml missing"; fi
   if printf '%s\n' "${paths}" | grep -qx '.github/workflows/deploy.yml'; then pass "deploy.yml exists"; else fail "deploy.yml missing"; fi
+  if printf '%s\n' "${paths}" | grep -qx '.github/workflows/ci.yml' && printf '%s\n' "${paths}" | grep -qx '.github/workflows/deploy.yml'; then
+    workflow_files_present=1
+  fi
 else
   fail "${CHATBOT_REPO} .github/workflows is not readable on ${CHATBOT_BRANCH}: $(tr '\n' ' ' </tmp/chatbot_workflow_gate.err)"
+fi
+
+if [[ "${workflow_files_present}" -eq 0 && "${has_workflow_scope}" -eq 0 ]]; then
+  fail "workflow files are absent and current credential cannot apply them"
 fi
 
 section "Chatbot Actions runs"
