@@ -55,6 +55,7 @@ def check_required_files() -> int:
         ROOT / "tasks.md",
         ROOT / "completion-audit.md",
         ROOT / "operator-handoff-index.md",
+        ROOT / "check-completion-readiness.sh",
         ROOT / "check-external-gates.sh",
         REPO / ".cursor/plans/split_chatbot_postgres_migration_5a689f0e.plan.md",
     ]
