@@ -28,11 +28,13 @@ Use these files in order:
 Minimum evidence to close this gate:
 
 - `workflow` authority proof or GitHub App write authority for workflow files.
+- `read:packages` authority, GitHub App/package permission, or public package UI/API proof for GHCR visibility.
 - `.github/workflows/ci.yml` and `.github/workflows/deploy.yml` exist on chatbot
   `main`.
-- GitHub Actions CI run URL and success conclusion for the workflow commit.
-- Deploy/build run URL and conclusion.
-- GHCR image evidence for `:latest` and `:<full sha>` tags.
+- GitHub Actions CI run URL and `success` conclusion for the workflow commit.
+- Deploy/build run URL and expected conclusion for the workflow commit.
+- Remote `deploy.yml` preserves GHCR tag metadata for `:latest`, `:<full sha>`, and `:main-*`.
+- GHCR image evidence for `:latest`, `:<full sha>`, `:main`, and `:main-*` tags, including visibility method and digest.
 
 ## Gate B — Production/staging cutover
 
