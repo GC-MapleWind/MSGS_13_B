@@ -6,6 +6,23 @@ Date: 2026-05-09
 
 Use the SDD artifacts in `specs/001-split-chatbot-postgres/`, `codex-prompts.md`, and `.cursor/plans/split_chatbot_postgres_migration_5a689f0e.plan.md` to split the Kakao chatbot into `GC-MapleWind/maplewind-chatbot` and migrate both the main backend and chatbot from SQLite to one PostgreSQL 17 instance with two databases (`maplewind`, `chatbot`) while preserving data.
 
+
+## Objective input-to-artifact checklist — 2026-05-09
+
+This section audits the active objective's named inputs before relying on the task/FR tables below. It maps each prompt source, named artifact, explicit command/gate family, and external deliverable to concrete evidence rather than treating prior progress as completion proof.
+
+| Objective input / explicit requirement | Concrete evidence inspected | Coverage status |
+| --- | --- | --- |
+| `specs/001-split-chatbot-postgres/codex-prompts.md` Bootstrap prompt: mandatory SDD reading, 3-layer rule, async-first rule, typing style, tests/secrets/git/production-data constraints | This audit cross-checks `spec.md`, `plan.md`, `tasks.md`, `.cursor/plans/split_chatbot_postgres_migration_5a689f0e.plan.md`, and the task/FR tables below; main code cleanup keeps controller/service/repository boundaries and no `.env`/secret contents are captured in evidence | PASS for documented audit coverage; no new code edits in this audit pass |
+| `codex-prompts.md` Phase 2 work order T005-T015: PostgreSQL 17 infra, dependency swap, env examples, Alembic, pgloader wrapper, local verification | Task rows T005-T015 below; `pyproject.toml`, `uv.lock`, `docker-compose.yml`, `docker-compose.dev.yml`, `.env.example`, `src/database.py`, `src/alembic`, `scripts/postgres-init.sql`, `scripts/migrate_sqlite_to_postgres.sh`, and `cutover-dryrun.md` | PASS locally; production backup/cutover remains T001/T038 |
+| `codex-prompts.md` Phase 3 work order T016-T020: chatbot PostgreSQL compatibility, event-date tests, 메생결산 simulation, dry-run report, rollback runbook | Task rows T016-T020 below; chatbot Alembic/test/simulation evidence; `cutover-dryrun.md`; `cutover-runbook.md`; `production-cutover-evidence-template.md` | PASS for local verification and runbook; production execution remains GAP/ops |
+| `codex-prompts.md` Phase 4a/4b work orders T021-T033: history-preserving chatbot extraction, standalone chatbot repo, CI/CD, main cleanup, admin/model/test removal | Task rows T021-T033 below; chatbot remote refs/archive refs; `chatbot-workflows-pending.patch`; `chatbot-workflow-apply-runbook.md`; main cleanup grep/tests/CI evidence | PASS except remote chatbot workflow application/execution remains GAP/external credential |
+| `codex-prompts.md` Sanity prompts: constitution check and Spec↔tasks coverage check | `completion-audit.md` maps all T001-T043 and FR-001-FR-016 / SC-001-SC-007; `operator-handoff-index.md` and `omx_wiki/split-chatbot-postgresql-migration-handoff.md` preserve remaining gate handoff | PASS for coverage mapping; not a completion substitute for open gates |
+| Named specs directory `specs/001-split-chatbot-postgres/` as a deliverable set | Local-link hygiene previously checked 34 Markdown links with 0 missing; gate/runbook/template artifacts are present and referenced from blocker issues | PASS for handoff documentation integrity |
+| `.cursor/plans/split_chatbot_postgres_migration_5a689f0e.plan.md` as execution ledger | Current plan states remaining external gates, latest checked refs, dev CI evidence, chatbot workflow-patch status, and production/cutover pending state | PASS as ledger; `phase3-us1` and `phase4-cleanup` status fields remain historical UI metadata while the execution-status section is authoritative |
+| Required verification commands and gates from prompts/tasks | Evidence includes ruff, unittest, Alembic offline/online, Docker build, compose health, pgloader dry-run, local-link audit, `git diff --check`, and `check-external-gates.sh` outputs; command-specific evidence is listed below | PASS for local/dev gates; external workflow and production gates remain open |
+| External completion gates: chatbot workflows/GHCR and production cutover/monitoring | `check-external-gates.sh` on main `dev` `96af07881de00df7f70ae21aaab40656508d696f` and chatbot `main` `8240db28ff058a216b017da1effb877d81290ee1` exits `1`; latest issue comments `#issuecomment-4409522721` and `#issuecomment-4409522898` confirm missing workflow/GHCR/cutover evidence | GAP; goal must not be marked complete |
+
 ## Prompt-to-artifact checklist
 
 `tasks.md` now includes an execution status overlay. Its original checkboxes remain as the
