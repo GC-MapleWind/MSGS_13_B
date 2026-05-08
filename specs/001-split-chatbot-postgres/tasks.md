@@ -14,6 +14,7 @@ description: "Task list for split-chatbot-postgres feature"
 **Organization**: 헌법의 SDD lifecycle 에 따라 User Story 단위로 그룹화. P1 (메생결산
 무중단 + 데이터 보존) 이 MVP 기준선이며, P2/P3 는 분리 배포 / SLA 격리 가치를 추가한다.
 
+
 ## Format: `[ID] [P?] [Story] Description`
 
 - **[P]**: Can run in parallel (different files, no dependencies)
@@ -22,10 +23,10 @@ description: "Task list for split-chatbot-postgres feature"
 
 ## Execution status overlay — 2026-05-09
 
-The checkboxes below preserve the original implementation plan. Use this overlay plus
+The checkboxes below now mirror this overlay: only items with concrete local, merged-to-dev, or documented remote evidence are checked. Use this overlay plus
 [completion-audit.md](./completion-audit.md) as the current execution state:
 
-- **Verified complete**: T002-T028, T031-T034.
+- **Verified complete**: T002-T028, T031-T034, T040-T041.
 - **Prepared but externally blocked**: T029-T030. The workflow patch is preserved in
   [chatbot-workflows-pending.patch](./chatbot-workflows-pending.patch) and applies
   cleanly to chatbot `origin/main`, but pushing workflow files requires a GitHub
@@ -33,9 +34,7 @@ The checkboxes below preserve the original implementation plan. Use this overlay
 - **Production/ops-gated**: T001, T035-T039, T042-T043. These require production or
   staging authority, backup/cutover execution, webhook/SLA/monitoring evidence, or
   post-run retention cleanup.
-- **Documentation complete**: T040-T041. Main README and chatbot README/env/webhook/simulation docs are
-  present; production runbooks and handoff issues remain the operational source of
-  truth.
+- **Documentation/runbooks complete**: Main README, chatbot README/env/webhook/simulation docs, production runbooks, and handoff issues are present; final operational evidence still belongs in the blocker issues.
 
 ---
 
@@ -45,11 +44,11 @@ The checkboxes below preserve the original implementation plan. Use this overlay
 
 - [ ] T001 운영 SQLite 백업 확보: 운영 호스트에서 `data/maplewind.db` / `data/chatbot.db`
   를 `*.bak.YYYY-MM-DD` 로 복사 후 로컬로 다운로드. 30일 이상 보존 정책 명시.
-- [ ] T002 신규 repo 생성: GitHub 조직 `GC-MapleWind` 에 `maplewind-chatbot` (private)
+- [x] T002 신규 repo 생성: GitHub 조직 `GC-MapleWind` 에 `maplewind-chatbot` (private)
   빈 repo 생성. `archive/chinbabang-submission` 보존 의지 README 한 줄 추가.
-- [ ] T003 [P] pgloader 동작 검증: 로컬에서 `docker run --rm dimitri/pgloader:latest --version`
+- [x] T003 [P] pgloader 동작 검증: 로컬에서 `docker run --rm dimitri/pgloader:latest --version`
   실행. 백업한 SQLite 사본으로 1차 dry-run 수행하여 변환 가능 여부 확인.
-- [ ] T004 [P] PostgreSQL 17 이미지 결정: `postgres:17-alpine` 으로 고정. 추가 확장
+- [x] T004 [P] PostgreSQL 17 이미지 결정: `postgres:17-alpine` 으로 고정. 추가 확장
   (`pgvector` 등) 불필요 확인.
 
 **Checkpoint**: 백업 / 신규 repo / pgloader 모두 준비 완료. Phase 2 부터 본격적 코드
@@ -64,42 +63,42 @@ The checkboxes below preserve the original implementation plan. Use this overlay
 
 **⚠️ CRITICAL**: 이 phase 가 끝나야 어떤 user story 도 진행할 수 없다.
 
-- [ ] T005 [P] [pyproject.toml](../../pyproject.toml) 의존성 갱신:
+- [x] T005 [P] [pyproject.toml](../../pyproject.toml) 의존성 갱신:
   - `uv add asyncpg "psycopg[binary]" alembic`
   - `uv remove aiosqlite`
-- [ ] T006 [P] [docker-compose.yml](../../docker-compose.yml) 에 `postgres` 서비스 추가:
+- [x] T006 [P] [docker-compose.yml](../../docker-compose.yml) 에 `postgres` 서비스 추가:
   `postgres:17-alpine`, named volume `./data/pg`, `postgres-init.sql` 마운트, healthcheck
   (`pg_isready`).
-- [ ] T007 [scripts/postgres-init.sql](../../scripts/postgres-init.sql) 생성:
+- [x] T007 [scripts/postgres-init.sql](../../scripts/postgres-init.sql) 생성:
   `CREATE DATABASE maplewind;` + `CREATE DATABASE chatbot;` (postgres 컨테이너 첫 기동 시
   자동 실행).
-- [ ] T008 [.env.example](../../.env.example) 갱신: `POSTGRES_USER`, `POSTGRES_PASSWORD`,
+- [x] T008 [.env.example](../../.env.example) 갱신: `POSTGRES_USER`, `POSTGRES_PASSWORD`,
   `DATABASE_URL=postgresql+asyncpg://...`, `CHATBOT_DATABASE_URL=postgresql+asyncpg://...`
   추가. SQLite 관련 항목 제거.
-- [ ] T009 [src/database.py](../../src/database.py) 정리:
+- [x] T009 [src/database.py](../../src/database.py) 정리:
   - `DATABASE_URL` 기본값 제거 (fail-fast)
   - SQLite-only `event.listens_for("connect")` PRAGMA 가드는 dialect 검사로 보존하거나
     함수 자체 제거.
-- [ ] T010 `src/database_chatbot.py` 정리:
+- [x] T010 `src/database_chatbot.py` 정리:
   - `CHATBOT_DATABASE_URL` env var 강제. SQLite 경로 하드코딩 제거.
   - PRAGMA `event.listens_for` 가 dialect=sqlite 일 때만 동작하도록 가드 추가 (Phase 3
     에서 신규 repo 로 옮길 때까지 임시 보호).
-- [ ] T011 `src/models/chatbot.py` JSON 호환성:
+- [x] T011 `src/models/chatbot.py` JSON 호환성:
   `JSON().with_variant(JSONB, "postgresql")` 적용 + `server_default=text("'{}'::jsonb")`
   로 dialect-aware 기본값 설정.
-- [ ] T012 [src/main.py](../../src/main.py) 의 `migrate_user_student_id_to_username`
+- [x] T012 [src/main.py](../../src/main.py) 의 `migrate_user_student_id_to_username`
   검토: SQLite PRAGMA 사용 부분이 dialect 가드 (`if engine.dialect.name == "sqlite"`)
   로 이미 보호되는지 재확인. 운영에서 한 번 더 실행 후 함수 자체 제거 가능.
-- [ ] T013 Alembic 도입 — 메인 repo:
+- [x] T013 Alembic 도입 — 메인 repo:
   - `uv run alembic init src/alembic`
   - `src/alembic/env.py` 에서 `target_metadata = Base.metadata` 설정 (챗봇 metadata 는
     Phase 4 에서 신규 repo 로 빠지므로 메인 repo 에서는 메인만)
   - 첫 revision: `uv run alembic revision --autogenerate -m "initial schema"` 후
     SQLite 백업과 동일한 DDL 인지 수동 검토.
-- [ ] T014 [scripts/migrate_sqlite_to_postgres.sh](../../scripts/migrate_sqlite_to_postgres.sh)
+- [x] T014 [scripts/migrate_sqlite_to_postgres.sh](../../scripts/migrate_sqlite_to_postgres.sh)
   생성: pgloader Docker 호출 + 환경변수로 SQLite 경로 / Postgres URL 지정 + row count
   비교 로직 (`sqlite3` 와 `psql` 출력 비교).
-- [ ] T015 로컬 검증: `docker compose up postgres backend` → `alembic upgrade head` →
+- [x] T015 로컬 검증: `docker compose up postgres backend` → `alembic upgrade head` →
   `migrate_sqlite_to_postgres.sh` 1회 실행 → row count 매치 확인.
 
 **Checkpoint**: 메인 backend 가 PostgreSQL 위에서 기동 가능하고, 운영 백업 데이터를
@@ -117,23 +116,23 @@ PostgreSQL 환경에서 정상 동작한다.
 
 ### Implementation for User Story 1
 
-- [ ] T016 [US1] 챗봇 SQLAlchemy 모델 PostgreSQL 호환 검증:
+- [x] T016 [US1] 챗봇 SQLAlchemy 모델 PostgreSQL 호환 검증:
   `src/models/chatbot.py` 의 `EventInfo`, `InfoList`,
   `TemporaryImage` 가 PG 에서 alembic-autogenerate 로 정확한 DDL 을 만드는지 확인.
   `func.now()` / `DateTime` 사용 부분이 PG 에서 동작하는지 점검.
-- [ ] T017 [US1] `src/repositories/chatbot_repo.py`
+- [x] T017 [US1] `src/repositories/chatbot_repo.py`
   의 `case()` 표현식이 PG 에서도 동일하게 동작하는지 회귀 테스트 (`uv run python -m
   unittest tests.test_event_date_gating -v`).
-- [ ] T018 [US1] `scripts/simulate_maesaeng_flow.py`
+- [x] T018 [US1] `scripts/simulate_maesaeng_flow.py`
   를 PostgreSQL 환경에서 실행하도록 수정:
   - `os.environ["DATABASE_URL"]`, `os.environ["CHATBOT_DATABASE_URL"]` 으로 PG 강제
   - 최종 제출 1건이 Google Sheets mock 으로 정확히 한 번 전달되는지 검증
   - DB 에 남는 임시 세션/사진 row count 는 시뮬 종료 후 초기값으로 돌아오는지 검증
-- [ ] T019 [US1] pgloader 마이그 스크립트 운영 dry-run:
+- [x] T019 [US1] pgloader 마이그 스크립트 운영 dry-run:
   `scripts/migrate_sqlite_to_postgres.sh` 를 운영 백업 사본으로 실행 후 핵심 테이블
   (`users`, `characters`, `settlements`, `event_info`, `info_list`, `temporary_image`)
   의 샘플 행을 SQLite ↔ PG 비교.
-- [ ] T020 [US1] 컷오버 절차 문서화: `specs/001-split-chatbot-postgres/cutover-runbook.md`
+- [x] T020 [US1] 컷오버 절차 문서화: `specs/001-split-chatbot-postgres/cutover-runbook.md`
   (선택) 또는 plan.md 의 Phase 3 섹션을 운영 runbook 형태로 정리. 롤백 명령 포함.
 
 **Checkpoint**: 메인 + 챗봇이 같은 repo / 같은 컨테이너인 채로 PostgreSQL 위에서
@@ -152,7 +151,7 @@ docker-compose 가 두 이미지를 pull 하여 함께 기동 → 메인 backend
 
 ### Implementation for User Story 2
 
-- [ ] T021 [US2] `git filter-repo` 로 챗봇 파일 추출:
+- [x] T021 [US2] `git filter-repo` 로 챗봇 파일 추출:
   ```bash
   git clone https://github.com/GC-MapleWind/msgs_13_b chatbot-extract
   cd chatbot-extract
@@ -168,34 +167,34 @@ docker-compose 가 두 이미지를 pull 하여 함께 기동 → 메인 backend
     --path scripts/simulate_maesaeng_flow.py
   ```
   추출 결과를 `chatbot-extract/` 에 보관.
-- [ ] T022 [P] [US2] 신규 repo 디렉토리 재배치 (chatbot-extract 내부):
+- [x] T022 [P] [US2] 신규 repo 디렉토리 재배치 (chatbot-extract 내부):
   - `src/database_chatbot.py` → `src/database.py` 로 rename
   - import 경로 일괄 갱신 (`src.database_chatbot` → `src.database`)
   - 디렉토리 구조를 plan.md 의 신규 repo 트리에 맞춤
-- [ ] T023 [P] [US2] 신규 repo `chatbot-repo/pyproject.toml` 작성:
+- [x] T023 [P] [US2] 신규 repo `chatbot-repo/pyproject.toml` 작성:
   fastapi, uvicorn[standard], sqlalchemy>=2.0.46, asyncpg, alembic, httpx,
   google-api-python-client, gspread, sqladmin, itsdangerous, python-dotenv, greenlet.
-- [ ] T024 [P] [US2] 신규 repo `chatbot-repo/src/main.py` 작성: FastAPI 앱, lifespan
+- [x] T024 [P] [US2] 신규 repo `chatbot-repo/src/main.py` 작성: FastAPI 앱, lifespan
   에서 `alembic upgrade head` 실행, chatbot router 등록, sqladmin setup. 메인 repo
   의 `main.py` 를 참조하여 동일 패턴 유지.
-- [ ] T025 [P] [US2] 신규 repo `chatbot-repo/src/admin.py` 작성: `EventInfoAdmin`,
+- [x] T025 [P] [US2] 신규 repo `chatbot-repo/src/admin.py` 작성: `EventInfoAdmin`,
   `InfoListAdmin`, `TemporaryImageAdmin` 등록 (메인 repo 의 `admin.py` 에서 추출).
-- [ ] T026 [US2] 신규 repo Alembic 도입:
+- [x] T026 [US2] 신규 repo Alembic 도입:
   - `chatbot-repo/src/alembic/` 초기화
   - `target_metadata = ChatbotBase.metadata`
   - 첫 revision 으로 `event_info`, `info_list`, `temporary_image` 테이블 DDL 생성.
-- [ ] T027 [P] [US2] 신규 repo `chatbot-repo/Dockerfile` + `docker-compose.dev.yml`
+- [x] T027 [P] [US2] 신규 repo `chatbot-repo/Dockerfile` + `docker-compose.dev.yml`
   작성: 메인 repo Dockerfile 패턴 재사용 + postgres 서비스 포함 (개발용).
-- [ ] T028 [P] [US2] 신규 repo `chatbot-repo/.env.example`: `CHATBOT_DATABASE_URL`,
+- [x] T028 [P] [US2] 신규 repo `chatbot-repo/.env.example`: `CHATBOT_DATABASE_URL`,
   `GOOGLE_CREDENTIALS_PATH`, `GOOGLE_SHEET_ID`, `KAKAO_*` 등 챗봇이 필요한 모든 환경변수.
 - [ ] T029 [P] [US2] 신규 repo `chatbot-repo/.github/workflows/ci.yml`: ruff lint +
   unittest (또는 pytest) + Postgres service container 로 통합 테스트.
 - [ ] T030 [P] [US2] 신규 repo `chatbot-repo/.github/workflows/deploy.yml`: `main`
   push 시 GHCR 이미지 빌드 (`ghcr.io/gc-maplewind/maplewind-chatbot:<sha>`,
   `:latest`) + 운영 SSH 배포.
-- [ ] T031 [US2] 신규 repo 첫 push: `git push -u origin main` + `archive/chinbabang-submission`
+- [x] T031 [US2] 신규 repo 첫 push: `git push -u origin main` + `archive/chinbabang-submission`
   브랜치 동시 push (FR-014).
-- [ ] T032 [US2] 메인 repo 청소 — 챗봇 파일 삭제 PR:
+- [x] T032 [US2] 메인 repo 청소 — 챗봇 파일 삭제 PR:
   - 삭제: T021 의 `--path` 인자 9개 파일 모두
   - [src/main.py](../../src/main.py): chatbot router import, `init_chatbot_db()` 호출,
     `app.include_router(chatbot_router, ...)` 제거
@@ -205,7 +204,7 @@ docker-compose 가 두 이미지를 pull 하여 함께 기동 → 메인 backend
     + `uv lock`
   - [docker-compose.yml](../../docker-compose.yml): `google-credentials.json` 마운트 제거
   - [scripts/](../../scripts/) 의 `simulate_maesaeng_flow.py` 는 신규 repo로 이동했으므로 삭제
-- [ ] T033 [US2] 메인 repo `tests/` 정리: `test_event_date_gating.py` 삭제 (신규 repo
+- [x] T033 [US2] 메인 repo `tests/` 정리: `test_event_date_gating.py` 삭제 (신규 repo
   로 이동 완료).
 
 **Checkpoint**: US1 + US2 양쪽 가치 달성. 두 repo 가 독립적으로 진화 가능. 메인 repo
@@ -222,7 +221,7 @@ docker-compose 가 두 이미지를 pull 하여 함께 기동 → 메인 backend
 
 ### Implementation for User Story 3
 
-- [ ] T034 [US3] 운영 통합 docker-compose 설계: 두 GHCR 이미지를 pull 하는 단일
+- [x] T034 [US3] 운영 통합 docker-compose 설계: 두 GHCR 이미지를 pull 하는 단일
   `docker-compose.prod.yml` 작성. 두 컨테이너가 동일 PostgreSQL 인스턴스를 공유하되
   각자 별도 DB URL 을 환경변수로 받음.
   - 위치: `gc-maplewind/deployment` 별도 repo 또는 메인 repo `deploy/` 폴더 (의사결정
@@ -255,9 +254,9 @@ docker-compose 가 두 이미지를 pull 하여 함께 기동 → 메인 backend
   7. 메생결산 1회 발화 → 구글 시트 기록 확인
 - [ ] T039 [P] 운영 검증 24시간 모니터링: SC-003 (챗봇 응답 p95/p99), SC-004 (메인
   5xx 비율) 측정. 임계 초과 시 롤백 검토.
-- [ ] T040 [P] 메인 repo `README.md` 갱신: 챗봇 섹션 → 신규 repo 링크로 변경. 운영
+- [x] T040 [P] 메인 repo `README.md` 갱신: 챗봇 섹션 → 신규 repo 링크로 변경. 운영
   통합 docker-compose 사용법 추가.
-- [ ] T041 [P] 신규 repo `chatbot-repo/README.md` 작성: 운영 가이드, 환경변수, 카카오
+- [x] T041 [P] 신규 repo `chatbot-repo/README.md` 작성: 운영 가이드, 환경변수, 카카오
   webhook 설정법, 시뮬레이션 스크립트 사용법.
 - [ ] T042 메인 repo 의 `migrate_user_student_id_to_username` 함수 제거 (T012 후속):
   운영에서 1회 더 실행되어 정상 동작 확인되면 함수 자체 삭제.
