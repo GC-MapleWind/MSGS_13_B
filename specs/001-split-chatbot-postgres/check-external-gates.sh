@@ -56,13 +56,13 @@ else
 fi
 
 section "Chatbot workflow files on remote"
-paths="$(gh api "repos/${CHATBOT_REPO}/contents/.github/workflows?ref=${CHATBOT_BRANCH}" --jq '.[].path' 2>/tmp/chatbot_workflow_gate.err || true)"
-if [[ -z "${paths}" ]]; then
-  fail "${CHATBOT_REPO} .github/workflows is not readable on ${CHATBOT_BRANCH}: $(tr '\n' ' ' </tmp/chatbot_workflow_gate.err)"
-else
+if gh api "repos/${CHATBOT_REPO}/contents/.github/workflows?ref=${CHATBOT_BRANCH}" >/tmp/chatbot_workflow_gate.json 2>/tmp/chatbot_workflow_gate.err; then
+  paths="$(gh api "repos/${CHATBOT_REPO}/contents/.github/workflows?ref=${CHATBOT_BRANCH}" --jq '.[].path' 2>/tmp/chatbot_workflow_gate.err || true)"
   printf '%s\n' "${paths}"
   if printf '%s\n' "${paths}" | grep -qx '.github/workflows/ci.yml'; then pass "ci.yml exists"; else fail "ci.yml missing"; fi
   if printf '%s\n' "${paths}" | grep -qx '.github/workflows/deploy.yml'; then pass "deploy.yml exists"; else fail "deploy.yml missing"; fi
+else
+  fail "${CHATBOT_REPO} .github/workflows is not readable on ${CHATBOT_BRANCH}: $(tr '\n' ' ' </tmp/chatbot_workflow_gate.err)"
 fi
 
 section "Chatbot Actions runs"
