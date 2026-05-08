@@ -513,23 +513,42 @@ fi
 section "Chatbot GHCR package"
 chatbot_owner="${CHATBOT_REPO%%/*}"
 chatbot_package="${CHATBOT_REPO##*/}"
-if gh api "/orgs/${chatbot_owner}/packages/container/${chatbot_package}" >"${TMP_DIR}/chatbot_ghcr_package.json" 2>"${TMP_DIR}/chatbot_ghcr_package.err"; then
+ghcr_package_api="/orgs/${chatbot_owner}/packages/container/${chatbot_package}"
+ghcr_versions_api="/orgs/${chatbot_owner}/packages/container/${chatbot_package}/versions?per_page=10"
+if gh_api_retry_to_file "${ghcr_package_api}" "${TMP_DIR}/chatbot_ghcr_package.json" "${TMP_DIR}/chatbot_ghcr_package.err" 3; then
   pass "GHCR package ${chatbot_owner}/${chatbot_package} is visible"
-  versions="$(gh api "/orgs/${chatbot_owner}/packages/container/${chatbot_package}/versions?per_page=10" --jq '.[] | "version=\(.id) updated=\(.updated_at) tags=\(.metadata.container.tags | join(","))"' 2>"${TMP_DIR}/chatbot_ghcr_versions.err" || true)"
-  if [[ -n "${versions}" ]]; then
-    printf '%s\n' "${versions}"
-    if ghcr_tag_visible '^latest$'; then pass "GHCR latest tag is visible"; else fail "GHCR latest tag not visible in recent versions"; fi
-    if ghcr_tag_visible '^[0-9a-f]{40}$'; then pass "GHCR full-sha tag is visible"; else fail "GHCR full-sha tag not visible in recent versions"; fi
-    if ghcr_tag_visible '^main$'; then pass "GHCR main tag is visible"; else fail "GHCR main tag not visible in recent versions"; fi
-    if ghcr_tag_visible '^main-[0-9a-f]{7,40}$'; then pass "GHCR main-* tag is visible"; else fail "GHCR main-* tag not visible in recent versions"; fi
+  if gh_api_retry_to_file "${ghcr_versions_api}" "${TMP_DIR}/chatbot_ghcr_versions.json" "${TMP_DIR}/chatbot_ghcr_versions.err" 3; then
+    versions="$(python3 - "${TMP_DIR}/chatbot_ghcr_versions.json" <<'PY_GHCR_VERSIONS'
+import json
+import sys
+from pathlib import Path
+payload = json.loads(Path(sys.argv[1]).read_text())
+for version in payload:
+    tags = version.get("metadata", {}).get("container", {}).get("tags", []) or []
+    print(f"version={version.get('id')} updated={version.get('updated_at')} tags={','.join(tags)}")
+PY_GHCR_VERSIONS
+)"
+    if [[ -n "${versions}" ]]; then
+      printf '%s
+' "${versions}"
+      if ghcr_tag_visible '^latest$'; then pass "GHCR latest tag is visible"; else fail "GHCR latest tag not visible in recent versions"; fi
+      if ghcr_tag_visible '^[0-9a-f]{40}$'; then pass "GHCR full-sha tag is visible"; else fail "GHCR full-sha tag not visible in recent versions"; fi
+      if ghcr_tag_visible '^main$'; then pass "GHCR main tag is visible"; else fail "GHCR main tag not visible in recent versions"; fi
+      if ghcr_tag_visible '^main-[0-9a-f]{7,40}$'; then pass "GHCR main-* tag is visible"; else fail "GHCR main-* tag not visible in recent versions"; fi
+    else
+      fail "GHCR package visible but no recent versions/tags were returned"
+    fi
   else
-    fail "GHCR package visible but versions/tags not readable: $(tr '\n' ' ' <"${TMP_DIR}/chatbot_ghcr_versions.err")"
+    fail "GHCR package visible but versions/tags not readable after retries: $(tr '
+' ' ' <"${TMP_DIR}/chatbot_ghcr_versions.err")"
   fi
 else
   if [[ "${has_read_packages_scope}" -eq 0 ]]; then
-    fail "GHCR package ${chatbot_owner}/${chatbot_package} is not visible/readable with current credential, and credential lacks read:packages scope: $(tr '\n' ' ' <"${TMP_DIR}/chatbot_ghcr_package.err")"
+    fail "GHCR package ${chatbot_owner}/${chatbot_package} is not visible/readable with current credential after retries, and credential lacks read:packages scope: $(tr '
+' ' ' <"${TMP_DIR}/chatbot_ghcr_package.err")"
   else
-    fail "GHCR package ${chatbot_owner}/${chatbot_package} is not visible/readable despite read:packages scope: $(tr '\n' ' ' <"${TMP_DIR}/chatbot_ghcr_package.err")"
+    fail "GHCR package ${chatbot_owner}/${chatbot_package} is not visible/readable despite read:packages scope after retries: $(tr '
+' ' ' <"${TMP_DIR}/chatbot_ghcr_package.err")"
   fi
 fi
 
