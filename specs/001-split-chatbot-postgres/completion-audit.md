@@ -24,7 +24,7 @@ Use the SDD artifacts in `specs/001-split-chatbot-postgres/`, `codex-prompts.md`
 | T020 cutover runbook with rollback | `specs/001-split-chatbot-postgres/cutover-runbook.md` | PASS |
 | T021 git history-preserving extraction | Local filtered repo `../chatbot-history-extract` has 42 commits; remote evidence branches `history-preserved-extract` and `archive/chinbabang-submission-filtered` point to filtered commit `d725f8fa1fafe2ef78adcb4e89b3b8fa930af71f` | PASS for evidence branch; remote `main` is still not history-preserved |
 | T022-T028 chatbot repo structure/env/Dockerfile/dev compose | `../maplewind-chatbot` file tree; runtime commit `b3d80a935f82427d13432ad56107dd51189931e0` pushed to remote `main` | PASS |
-| T029/T030 chatbot CI/CD workflows | local branch `workflows-pending-scope` commit `6ab860c` contains `.github/workflows/ci.yml` and `deploy.yml`; push rejected by GitHub token missing `workflow` scope | GAP for remote workflow availability |
+| T029/T030 chatbot CI/CD workflows | local branch `workflows-pending-scope` commit `6ab860c` contains `.github/workflows/ci.yml` and `deploy.yml`; direct push rejected by GitHub token missing `workflow` scope; patch preserved in `specs/001-split-chatbot-postgres/chatbot-workflows-pending.patch` | GAP for remote workflow availability |
 | T031 push new repo + archive branch | chatbot remote `main` now points to runtime commit `b3d80a935f82427d13432ad56107dd51189931e0`; `archive/chinbabang-submission` pushed at `b357aea`; filtered-history evidence branches pushed at `d725f8fa1fafe2ef78adcb4e89b3b8fa930af71f`; workflow branch push rejected by remote workflow-scope policy | PARTIAL |
 | T032/T033 main repo cleanup | main `src/` has no chatbot/google refs; tracked chatbot files absent; main tests pass | PASS |
 | T034-T037 SLA isolation | requires deployed/staging environment and load test | GAP |
@@ -52,7 +52,7 @@ Use the SDD artifacts in `specs/001-split-chatbot-postgres/`, `codex-prompts.md`
 
 ## Blocking gaps before goal completion
 
-1. `GC-MapleWind/maplewind-chatbot` remote main now has runtime commit `b3d80a9`, but CI/CD workflow files remain only on local branch `workflows-pending-scope` commit `6ab860c`; pushing that branch failed because the OAuth credential lacks GitHub `workflow` scope for `.github/workflows/ci.yml`.
+1. `GC-MapleWind/maplewind-chatbot` remote main now has runtime commit `b3d80a9`, but CI/CD workflow files remain on local branch `workflows-pending-scope` commit `6ab860c` and as patch artifact `chatbot-workflows-pending.patch`; pushing that branch failed because the OAuth credential lacks GitHub `workflow` scope for `.github/workflows/ci.yml`.
 2. History-preserving extraction is evidenced on non-destructive remote branches (`history-preserved-extract`, `archive/chinbabang-submission-filtered`) and local repo `../chatbot-history-extract`, but the chatbot remote `main` branch itself is still not the filtered-history branch.
 3. Production cutover, webhook update, SLA tests, and 24h/7d monitoring are manual/production operations and have not run in this local session.
 
