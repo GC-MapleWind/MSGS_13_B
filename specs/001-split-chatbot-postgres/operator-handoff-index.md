@@ -71,8 +71,8 @@ credential lacks `workflow` scope.
 
 ## Latest observable checkpoint
 
-- Main `dev`: `3f9912b304bd241a224a7a801b5549028046a26a`
-- Chatbot `main`: `25ba79950d452fa07aadf486d253c4c7eb6f3b71`
+- Gate-check input main ref: `origin/dev` `3f9912b304bd241a224a7a801b5549028046a26a`
+- Gate-check input chatbot ref: `origin/main` `25ba79950d452fa07aadf486d253c4c7eb6f3b71`
 - `check-external-gates.sh` still exits non-zero because chatbot workflow files are absent on remote and the current credential lacks `workflow` scope.
 - Latest linked issue checkpoints: chatbot #1 `#issuecomment-4409311035`; main #55 `#issuecomment-4409311161`.
 

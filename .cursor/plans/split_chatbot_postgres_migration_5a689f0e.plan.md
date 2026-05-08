@@ -47,7 +47,7 @@ isProject: false
 ## Execution status — 2026-05-09
 
 - Remaining external gates and their evidence templates are indexed in `specs/001-split-chatbot-postgres/operator-handoff-index.md`; observable remote status can be checked with `specs/001-split-chatbot-postgres/check-external-gates.sh`.
-- Latest evidence-only head: `3f9912b304bd241a224a7a801b5549028046a26a`; it fixes the T020 runbook reference and records the latest gate status. No new implementation state is implied by this docs-only head.
+- Latest external-gate check input was `origin/dev` `3f9912b304bd241a224a7a801b5549028046a26a`; later docs-only audit commits may advance `dev` without changing implementation state.
 - Latest dev workflow evidence: run `25574864234` succeeded for commit `7d1ba3b9f6735602d8e560dc60c2ac30779aa229`, including dev image build/push and dev server deploy health check. Earlier run `25574451603` succeeded for commit `2caab4ae2c51cb0193e0810fa3e67af9d9715e2c`.
 
 - Main repo PR #54 is merged into `dev` as merge commit `eafce94c`; the
