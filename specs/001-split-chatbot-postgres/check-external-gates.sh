@@ -392,6 +392,29 @@ if [[ "${workflow_files_present}" -eq 0 && "${has_workflow_scope}" -eq 0 ]]; the
   fail "workflow files are absent and current credential cannot apply them"
 fi
 
+section "Chatbot workflow files via direct clone"
+chatbot_tree_dir="${TMP_DIR}/chatbot-remote-tree"
+if gh repo clone "${CHATBOT_REPO}" "${chatbot_tree_dir}" -- --depth 1 --branch "${CHATBOT_BRANCH}" >"${TMP_DIR}/chatbot_clone.out" 2>"${TMP_DIR}/chatbot_clone.err"; then
+  pass "direct shallow clone of ${CHATBOT_REPO}@${CHATBOT_BRANCH} succeeded"
+  if [[ -d "${chatbot_tree_dir}/.github/workflows" ]]; then
+    clone_paths="$(cd "${chatbot_tree_dir}" && find .github/workflows -maxdepth 1 -type f | sed 's#^./##' | sort)"
+    printf '%s
+' "${clone_paths}"
+    if printf '%s
+' "${clone_paths}" | grep -qx '.github/workflows/ci.yml' && printf '%s
+' "${clone_paths}" | grep -qx '.github/workflows/deploy.yml'; then
+      pass "direct clone contains required chatbot workflow files"
+    else
+      fail "direct clone is missing one or more required chatbot workflow files"
+    fi
+  else
+    fail "direct shallow clone confirms ${CHATBOT_REPO}@${CHATBOT_BRANCH} has no .github/workflows directory"
+  fi
+else
+  warn "direct shallow clone of ${CHATBOT_REPO}@${CHATBOT_BRANCH} failed; API workflow check remains authoritative for this run: $(tr '
+' ' ' <"${TMP_DIR}/chatbot_clone.err")"
+fi
+
 section "Chatbot Actions runs"
 runs_json="${TMP_DIR}/chatbot_runs_gate.json"
 if gh api "repos/${CHATBOT_REPO}/actions/runs?branch=${CHATBOT_BRANCH}&per_page=10" >"${runs_json}" 2>"${TMP_DIR}/chatbot_runs_gate.err"; then
