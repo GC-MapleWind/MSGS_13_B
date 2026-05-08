@@ -73,8 +73,7 @@ credential lacks `workflow` scope.
 
 ## Latest observable checkpoint
 
-- Gate-check input main ref after the Gate A closure hard-stop update: `origin/dev` `415235d0fae96eb0bfb22539d843dba07ce4de3d`
-- Gate-check input chatbot ref: `origin/main` `8240db28ff058a216b017da1effb877d81290ee1`
+- Historical gate-check input after the Gate A closure hard-stop update: `origin/dev` `415235d0fae96eb0bfb22539d843dba07ce4de3d` and chatbot `origin/main` `8240db28ff058a216b017da1effb877d81290ee1`.
 - `check-external-gates.sh` still exits non-zero because chatbot workflow files are absent on remote, no chatbot Actions run or GHCR package evidence is visible, the current credential lacks `workflow` and `read:packages` scopes, and blocker issues #1/#55 remain open. The GHCR package check currently reports HTTP 404 for `GC-MapleWind/maplewind-chatbot`; if the package later becomes visible, missing `latest`, full-sha, `main`, or `main-*` tags fail the checker.
 - Linked issue checkpoints are advisory handoff notes; rerun `check-completion-readiness.sh` for current status and use the issue timeline for the newest comment.
 - Later documentation-only sync commits may advance `dev` without changing the
@@ -105,8 +104,33 @@ falls back to the REST issues API if GraphQL is transiently unavailable;
 `check-external-gates.sh --self-test` verifies the fallback emits a clean
 tab-separated issue line for the readiness parser.
 
+## Final completion audit checklist
+
+Before closing the overall split-chatbot-postgres objective or calling any goal
+complete, perform all of the following on the current branches:
+
+1. Restate the objective as concrete deliverables: chatbot repo/workflows/GHCR,
+   PostgreSQL migration evidence, production/staging cutover, rollback/retention,
+   and monitoring/SLA gates.
+2. Rerun `python3 specs/001-split-chatbot-postgres/check-objective-coverage.py`
+   and confirm it still covers every task ID, FR, SC, prompt task ID, and local
+   Markdown link from `codex-prompts.md`, `spec.md`, `tasks.md`, `plan.md`, and
+   `.cursor/plans/split_chatbot_postgres_migration_5a689f0e.plan.md`.
+3. Rerun `bash specs/001-split-chatbot-postgres/check-completion-readiness.sh`
+   and require exit code `0`; if it exits non-zero, stop and treat the objective
+   as incomplete.
+4. Inspect issue #1 and issue #55 directly. Do not treat "CLOSED" as sufficient
+   unless the issue timeline contains the completed template evidence listed in
+   Gate A and Gate B above.
+5. Verify the cited Actions, GHCR package/tag/digest, backup/hash, row-count,
+   health-smoke, webhook, monitoring, and backup-retention links are current and
+   correspond to the same branch refs being audited.
+6. Update `completion-audit.md` with the final evidence refs and any residual
+   risks. Only then may the objective be considered complete.
+
 ## Do not use as completion proof
 
+- Closed blocker issues without their completed evidence templates.
 - Local dry-run row counts alone.
 - Local workflow patch simulation alone.
 - A green main-repo CI run alone.
