@@ -2,8 +2,8 @@
 title: "Split chatbot PostgreSQL migration handoff"
 tags: ["split-chatbot", "postgres", "migration", "handoff", "blocked", "ci-cd", "ops"]
 created: 2026-05-08T17:06:44.518Z
-updated: 2026-05-08T17:06:44.518Z
-sources: ["specs/001-split-chatbot-postgres/codex-prompts.md", "specs/001-split-chatbot-postgres/completion-audit.md", "specs/001-split-chatbot-postgres/cutover-runbook.md", "specs/001-split-chatbot-postgres/cutover-dryrun.md", ".cursor/plans/split_chatbot_postgres_migration_5a689f0e.plan.md", "https://github.com/GC-MapleWind/MSGS_13_B/pull/54", "https://github.com/GC-MapleWind/MSGS_13_B/actions/runs/25567914804", "https://github.com/GC-MapleWind/maplewind-chatbot/issues/1", "https://github.com/GC-MapleWind/MSGS_13_B/issues/55"]
+updated: 2026-05-08T17:54:10Z
+sources: ["specs/001-split-chatbot-postgres/codex-prompts.md", "specs/001-split-chatbot-postgres/completion-audit.md", "specs/001-split-chatbot-postgres/cutover-runbook.md", "specs/001-split-chatbot-postgres/cutover-dryrun.md", ".cursor/plans/split_chatbot_postgres_migration_5a689f0e.plan.md", "https://github.com/GC-MapleWind/MSGS_13_B/pull/54", "https://github.com/GC-MapleWind/MSGS_13_B/actions/runs/25567914804", "https://github.com/GC-MapleWind/MSGS_13_B/actions/runs/25570800233", "https://github.com/GC-MapleWind/maplewind-chatbot/issues/1", "https://github.com/GC-MapleWind/MSGS_13_B/issues/55"]
 links: []
 category: session-log
 confidence: high
@@ -22,9 +22,11 @@ checkboxes are retained as historical plan text.
 
 - Main repo PR #54 was merged into `dev` as merge commit `eafce94c3c0930c5dbd420bb95cf455af319215f`.
 - This handoff page is published from `dev` and linked from both open blocker issues.
-- Verify the current `dev` hash with `git ls-remote origin refs/heads/dev`; evidence-only commits may advance the branch without changing implementation state.
+- Current `dev` evidence head is `7d70ea9ae35fc6ddc884b0af88dcf051bff20ff0`; verify it with `git ls-remote origin refs/heads/dev` because evidence-only commits may advance the branch without changing implementation state.
 - Main `.env.example` includes both `DATABASE_URL` and integration-level `CHATBOT_DATABASE_URL`; the chatbot repo `.env.example` carries the chatbot service-specific environment contract.
 - Dev GitHub Actions run `25567914804` for `Backend CI/CD (Docker)` completed with conclusion `success` on `2026-05-08T16:52:37Z`.
+- Dev GitHub Actions run `25570800233` for `Backend CI/CD (Docker)` completed with conclusion `success` after the FR-007/SC-006 dependency cleanup.
+- Main dependency graph now removes `aiosqlite` completely: `pyproject.toml` and `uv.lock` are clean, and runtime-seeding tests run against temporary `postgres:17-alpine`.
 - Chatbot repo `GC-MapleWind/maplewind-chatbot` remote `main` is `6c76fbad89bfadaca4fe2eef5edaeca061e9640b`, a docs-only descendant of history-adopting merge commit `5e6c20df8b0c047f716ad02be249a99ce367838e`.
 - Chatbot history/archive refs exist:
   - `archive/chinbabang-submission` -> `b357aeaa6bc201fa693c871b31c6ad823b66e4c7`
@@ -33,6 +35,7 @@ checkboxes are retained as historical plan text.
 - Local dry-run evidence, row counts, tests, and runbooks are recorded under `specs/001-split-chatbot-postgres/`.
 - Chatbot README documents required env vars, Kakao webhook endpoint, operations notes, and `scripts/simulate_maesaeng_flow.py` usage.
 - Production `docker-compose.yml` is the integrated compose design for T034: it pulls both GHCR images, shares PostgreSQL, and uses separate backend/chatbot DB URLs.
+- `specs/001-split-chatbot-postgres/completion-audit.md` now includes explicit FR-001~FR-016 and SC-001~SC-007 coverage, with only workflow-credential and production/staging ops gaps remaining.
 
 ## Remaining blockers
 

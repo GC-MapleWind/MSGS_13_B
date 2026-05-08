@@ -40,7 +40,7 @@ todos:
     status: pending
   - id: phase4-cleanup
     content: "Phase 4: 문서/도커 설정 정리 + README 업데이트"
-    status: in_progress
+    status: completed
 isProject: false
 ---
 
@@ -49,6 +49,12 @@ isProject: false
 - Main repo PR #54 is merged into `dev` as merge commit `eafce94c`; the
   post-merge dev workflow run `25567914804` passed `Build and Push Dev Image`
   and `Deploy to Dev Server`.
+- Current `dev` evidence head is `7d70ea9ae35fc6ddc884b0af88dcf051bff20ff0`.
+  That commit closes the remaining local FR-007/SC-006 gap by removing
+  `aiosqlite` from `pyproject.toml`/`uv.lock`, switching runtime-seeding tests
+  to temporary `postgres:17-alpine`, and adding explicit FR/SC coverage to
+  `specs/001-split-chatbot-postgres/completion-audit.md`. Dev CI/CD run
+  `25570800233` completed successfully.
 - Durable handoff evidence is published from `dev` at
   `omx_wiki/split-chatbot-postgresql-migration-handoff.md`, and both open
   blocker issues link back to that handoff page. Verify the current `dev` hash
@@ -74,7 +80,7 @@ isProject: false
 - Production/staging cutover, Kakao webhook change, SLA/load validation, and
   24h/7d monitoring gates remain pending operational work. Handoff issue:
   https://github.com/GC-MapleWind/MSGS_13_B/issues/55
-- README docs are complete; T042/T043 remain post-cutover cleanup/retention gates.
+- README/docs/audit cleanup is complete; phase4-cleanup is marked completed. T042/T043 remain post-cutover cleanup/retention gates.
 - T042 removal of `migrate_user_student_id_to_username` remains gated by the
   post-cutover/post-run verification prerequisite in `tasks.md`; do not remove
   it as an isolated local cleanup before that operational evidence exists.
