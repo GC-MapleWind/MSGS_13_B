@@ -54,6 +54,13 @@ else
   helper_failures=$((helper_failures + 1))
 fi
 
+if specs/001-split-chatbot-postgres/prepare-chatbot-workflows.sh --self-test >/dev/null; then
+  printf 'PASS prepare-chatbot-workflows self-test\n'
+else
+  printf 'FAIL prepare-chatbot-workflows self-test\n'
+  helper_failures=$((helper_failures + 1))
+fi
+
 if specs/001-split-chatbot-postgres/validate-cutover-evidence-summary.sh --self-test >/dev/null; then
   printf 'PASS cutover evidence validator self-test\n'
 else

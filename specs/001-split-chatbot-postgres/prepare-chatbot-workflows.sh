@@ -10,6 +10,7 @@ RUN_LOCAL_CHECKS=0
 CREATE_COMMIT=0
 PUSH=0
 ALLOW_MISSING_WORKFLOW_SCOPE=0
+SELF_TEST=0
 
 usage() {
   cat <<'USAGE'
@@ -28,6 +29,7 @@ Options:
   --commit                           Create the Lore-protocol workflow commit after applying the patch.
   --push                             Push HEAD to chatbot main; implies --commit.
   --allow-missing-workflow-scope      Allow local-only preparation without workflow scope; push remains blocked.
+  --self-test                         Validate helper-local commit body rendering and exit.
   -h, --help                         Show this help.
 
 Evidence still required after push: remote workflow files, successful chatbot CI,
@@ -60,6 +62,10 @@ while [[ $# -gt 0 ]]; do
       ;;
     --allow-missing-workflow-scope)
       ALLOW_MISSING_WORKFLOW_SCOPE=1
+      shift
+      ;;
+    --self-test)
+      SELF_TEST=1
       shift
       ;;
     -h|--help)
@@ -98,6 +104,41 @@ has_oauth_scope() {
     END { exit ok ? 0 : 1 }
   '
 }
+
+
+build_commit_body() {
+  local tested_detail="$1"
+  cat <<EOF_COMMIT_BODY
+Apply the prepared workflow patch so chatbot main can lint, test, build GHCR images, and deploy independently.
+
+Constraint: Requires a GitHub credential or app with workflow scope.
+Rejected: Keeping workflows as a patch artifact | SC-005 requires remote workflow execution evidence.
+Confidence: high
+Scope-risk: narrow
+Directive: Preserve GHCR tags :latest, :<full sha>, :main, and :main-* unless deploy consumers are updated.
+Tested: ${tested_detail}.
+Not-tested: Production deploy until GitHub Actions run completes.
+Co-authored-by: OmX <omx@oh-my-codex.dev>
+EOF_COMMIT_BODY
+}
+
+if [[ "$SELF_TEST" -eq 1 ]]; then
+  self_test_body="$(build_commit_body 'git apply --check; GHCR tag metadata check')"
+  if grep -F '\n' <<<"$self_test_body" >/dev/null; then
+    echo 'FAIL commit body contains literal backslash-n sequences' >&2
+    exit 1
+  fi
+  if ! grep -Fx 'Co-authored-by: OmX <omx@oh-my-codex.dev>' <<<"$self_test_body" >/dev/null; then
+    echo 'FAIL commit body missing OmX co-author trailer' >&2
+    exit 1
+  fi
+  if ! grep -Fx 'Tested: git apply --check; GHCR tag metadata check.' <<<"$self_test_body" >/dev/null; then
+    echo 'FAIL commit body missing tested detail' >&2
+    exit 1
+  fi
+  echo 'PASS prepare-chatbot-workflows commit body self-test'
+  exit 0
+fi
 
 repo_root="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 if [[ -z "$PATCH_SOURCE" ]]; then
@@ -204,19 +245,7 @@ if [[ "$CREATE_COMMIT" -eq 1 ]]; then
     tested_detail="$tested_detail; uv sync --dev --frozen; uv run ruff check .; uv run python -m unittest discover -s tests -v; uv run alembic upgrade head --sql"
   fi
   git add .github/workflows/ci.yml .github/workflows/deploy.yml
-  commit_body=$(cat <<EOF_COMMIT_BODY
-Apply the prepared workflow patch so chatbot main can lint, test, build GHCR images, and deploy independently.
-
-Constraint: Requires a GitHub credential or app with workflow scope.
-Rejected: Keeping workflows as a patch artifact | SC-005 requires remote workflow execution evidence.
-Confidence: high
-Scope-risk: narrow
-Directive: Preserve GHCR tags :latest, :<full sha>, :main, and :main-* unless deploy consumers are updated.
-Tested: $tested_detail.
-Not-tested: Production deploy until GitHub Actions run completes.
-Co-authored-by: OmX <omx@oh-my-codex.dev>
-EOF_COMMIT_BODY
-)
+  commit_body="$(build_commit_body "$tested_detail")"
 
   git commit -m "Enable chatbot CI/CD workflows" -m "$commit_body"
 fi
