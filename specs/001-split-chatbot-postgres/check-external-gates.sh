@@ -70,8 +70,7 @@ gh_api_retry_to_file() {
       return 0
     fi
 
-    err_text="$(tr '
-' ' ' <"${err_file}" 2>/dev/null || true)"
+    err_text="$(tr '\n' ' ' <"${err_file}" 2>/dev/null || true)"
     if ! printf '%s' "${err_text}" | grep -Eiq '(i/o timeout|timed out|timeout|connection reset|TLS handshake timeout|502|503|504)'; then
       return 1
     fi
@@ -419,14 +418,6 @@ else
   main_owner="${MAIN_REPO%%/*}"
   promotion_head="${main_owner}:${MAIN_BRANCH}"
   promotion_prs="$(gh pr list --repo "${MAIN_REPO}" --state open --base "${MAIN_PRODUCTION_BRANCH}" --head "${promotion_head}" --json number,title,url --jq '.[] | "#" + (.number|tostring) + " " + .title + " " + .url' 2>"${TMP_DIR}/main_promotion_prs.err" || true)"
-  if [[ -n "${promotion_prs}" ]]; then
-    printf '%s
-' "${promotion_prs}"
-    pass "open ${MAIN_BRANCH} -> ${MAIN_PRODUCTION_BRANCH} promotion PR exists"
-  else
-    fail "no open ${MAIN_BRANCH} -> ${MAIN_PRODUCTION_BRANCH} promotion PR is visible: $(tr '
-' ' ' <"${TMP_DIR}/main_promotion_prs.err")"
-  fi
 
   compare_json="${TMP_DIR}/main_promotion_compare.json"
   compare_api="repos/${MAIN_REPO}/compare/${MAIN_PRODUCTION_BRANCH}...${MAIN_BRANCH}"
@@ -460,13 +451,30 @@ PY_AHEAD
       pass "${MAIN_BRANCH} is not behind ${MAIN_PRODUCTION_BRANCH}"
     fi
     if [[ "${ahead_by}" -gt 0 ]]; then
-      warn "${MAIN_BRANCH} is ahead of ${MAIN_PRODUCTION_BRANCH} by ${ahead_by} commits; dev success is not production evidence until promotion completes"
+      fail "${MAIN_BRANCH} has ${ahead_by} unpromoted commits relative to ${MAIN_PRODUCTION_BRANCH}; production promotion is incomplete"
+      if [[ -n "${promotion_prs}" ]]; then
+        printf '%s\n' "${promotion_prs}"
+        pass "open ${MAIN_BRANCH} -> ${MAIN_PRODUCTION_BRANCH} promotion PR exists"
+      else
+        fail "no open ${MAIN_BRANCH} -> ${MAIN_PRODUCTION_BRANCH} promotion PR is visible: $(tr '\n' ' ' <"${TMP_DIR}/main_promotion_prs.err")"
+      fi
     else
       pass "${MAIN_BRANCH} has no unpromoted commits relative to ${MAIN_PRODUCTION_BRANCH}"
+      if [[ -n "${promotion_prs}" ]]; then
+        printf '%s\n' "${promotion_prs}"
+        info "open promotion PR is visible but no unpromoted commits remain"
+      else
+        info "no open ${MAIN_BRANCH} -> ${MAIN_PRODUCTION_BRANCH} promotion PR is required because no unpromoted commits remain"
+      fi
     fi
   else
-    fail "cannot compare ${MAIN_PRODUCTION_BRANCH}...${MAIN_BRANCH} after retries: $(tr '
-' ' ' <"${TMP_DIR}/main_promotion_compare.err")"
+    fail "cannot compare ${MAIN_PRODUCTION_BRANCH}...${MAIN_BRANCH} after retries: $(tr '\n' ' ' <"${TMP_DIR}/main_promotion_compare.err")"
+    if [[ -n "${promotion_prs}" ]]; then
+      printf '%s\n' "${promotion_prs}"
+      pass "open ${MAIN_BRANCH} -> ${MAIN_PRODUCTION_BRANCH} promotion PR exists"
+    else
+      fail "no open ${MAIN_BRANCH} -> ${MAIN_PRODUCTION_BRANCH} promotion PR is visible: $(tr '\n' ' ' <"${TMP_DIR}/main_promotion_prs.err")"
+    fi
   fi
 fi
 
@@ -521,11 +529,8 @@ if gh repo clone "${CHATBOT_REPO}" "${chatbot_tree_dir}" -- --depth 1 --branch "
   pass "direct shallow clone of ${CHATBOT_REPO}@${CHATBOT_BRANCH} succeeded"
   if [[ -d "${chatbot_tree_dir}/.github/workflows" ]]; then
     clone_paths="$(cd "${chatbot_tree_dir}" && find .github/workflows -maxdepth 1 -type f | sed 's#^./##' | sort)"
-    printf '%s
-' "${clone_paths}"
-    if printf '%s
-' "${clone_paths}" | grep -qx '.github/workflows/ci.yml' && printf '%s
-' "${clone_paths}" | grep -qx '.github/workflows/deploy.yml'; then
+    printf '%s\n' "${clone_paths}"
+    if printf '%s\n' "${clone_paths}" | grep -qx '.github/workflows/ci.yml' && printf '%s\n' "${clone_paths}" | grep -qx '.github/workflows/deploy.yml'; then
       pass "direct clone contains required chatbot workflow files"
     else
       fail "direct clone is missing one or more required chatbot workflow files"
@@ -534,8 +539,7 @@ if gh repo clone "${CHATBOT_REPO}" "${chatbot_tree_dir}" -- --depth 1 --branch "
     fail "direct shallow clone confirms ${CHATBOT_REPO}@${CHATBOT_BRANCH} has no .github/workflows directory"
   fi
 else
-  warn "direct shallow clone of ${CHATBOT_REPO}@${CHATBOT_BRANCH} failed; API workflow check remains authoritative for this run: $(tr '
-' ' ' <"${TMP_DIR}/chatbot_clone.err")"
+  warn "direct shallow clone of ${CHATBOT_REPO}@${CHATBOT_BRANCH} failed; API workflow check remains authoritative for this run: $(tr '\n' ' ' <"${TMP_DIR}/chatbot_clone.err")"
 fi
 
 section "Chatbot Actions runs"
@@ -562,13 +566,11 @@ PY_ACTION_COUNT
   if [[ -z "${run_lines}" ]]; then
     fail "no chatbot Actions runs visible on ${CHATBOT_BRANCH}"
   else
-    printf '%s
-' "${run_lines}"
+    printf '%s\n' "${run_lines}"
     if [[ "${success_count}" -gt 0 ]]; then pass "at least one successful chatbot Actions run is visible"; else fail "no successful chatbot Actions run visible"; fi
   fi
 else
-  fail "cannot list chatbot Actions runs via API after retries: $(tr '
-' ' ' <"${TMP_DIR}/chatbot_runs_gate.err")"
+  fail "cannot list chatbot Actions runs via API after retries: $(tr '\n' ' ' <"${TMP_DIR}/chatbot_runs_gate.err")"
 fi
 
 section "Chatbot GHCR package"
@@ -590,8 +592,7 @@ for version in payload:
 PY_GHCR_VERSIONS
 )"
     if [[ -n "${versions}" ]]; then
-      printf '%s
-' "${versions}"
+      printf '%s\n' "${versions}"
       if ghcr_tag_visible '^latest$'; then pass "GHCR latest tag is visible"; else fail "GHCR latest tag not visible in recent versions"; fi
       if ghcr_tag_visible '^[0-9a-f]{40}$'; then pass "GHCR full-sha tag is visible"; else fail "GHCR full-sha tag not visible in recent versions"; fi
       if ghcr_tag_visible '^main$'; then pass "GHCR main tag is visible"; else fail "GHCR main tag not visible in recent versions"; fi
@@ -600,16 +601,13 @@ PY_GHCR_VERSIONS
       fail "GHCR package visible but no recent versions/tags were returned"
     fi
   else
-    fail "GHCR package visible but versions/tags not readable after retries: $(tr '
-' ' ' <"${TMP_DIR}/chatbot_ghcr_versions.err")"
+    fail "GHCR package visible but versions/tags not readable after retries: $(tr '\n' ' ' <"${TMP_DIR}/chatbot_ghcr_versions.err")"
   fi
 else
   if [[ "${has_read_packages_scope}" -eq 0 ]]; then
-    fail "GHCR package ${chatbot_owner}/${chatbot_package} is not visible/readable with current credential after retries, and credential lacks read:packages scope: $(tr '
-' ' ' <"${TMP_DIR}/chatbot_ghcr_package.err")"
+    fail "GHCR package ${chatbot_owner}/${chatbot_package} is not visible/readable with current credential after retries, and credential lacks read:packages scope: $(tr '\n' ' ' <"${TMP_DIR}/chatbot_ghcr_package.err")"
   else
-    fail "GHCR package ${chatbot_owner}/${chatbot_package} is not visible/readable despite read:packages scope after retries: $(tr '
-' ' ' <"${TMP_DIR}/chatbot_ghcr_package.err")"
+    fail "GHCR package ${chatbot_owner}/${chatbot_package} is not visible/readable despite read:packages scope after retries: $(tr '\n' ' ' <"${TMP_DIR}/chatbot_ghcr_package.err")"
   fi
 fi
 

@@ -125,14 +125,10 @@ info "origin/${PROD_BRANCH}=${prod_ref}"
 owner="${MAIN_REPO%%/*}"
 promotion_head="${owner}:${DEV_BRANCH}"
 prs="$(gh pr list --repo "${MAIN_REPO}" --state open --base "${PROD_BRANCH}" --head "${promotion_head}" --json number,title,url --jq '.[] | "#" + (.number|tostring) + " " + .title + " " + .url' 2>/dev/null || true)"
-if [[ -n "${prs}" ]]; then
-  pass "open ${DEV_BRANCH} -> ${PROD_BRANCH} promotion PR exists"
-  printf '%s\n' "${prs}"
-else
-  fail "no open ${DEV_BRANCH} -> ${PROD_BRANCH} promotion PR is visible" || true
-fi
 
 compare_json="$(mktemp "${TMPDIR:-/tmp}/main-promotion-compare.XXXXXX")"
+ahead_by=""
+behind_by=""
 if gh api "repos/${MAIN_REPO}/compare/${PROD_BRANCH}...${DEV_BRANCH}" >"${compare_json}"; then
   python3 - "${compare_json}" <<'PY'
 import json, sys
@@ -141,10 +137,40 @@ p=json.loads(Path(sys.argv[1]).read_text())
 print(f"INFO {p.get('html_url')}")
 print(f"INFO status={p.get('status')} ahead_by={p.get('ahead_by')} behind_by={p.get('behind_by')}")
 PY
+  ahead_by="$(python3 - "${compare_json}" <<'PY'
+import json, sys
+from pathlib import Path
+print(json.loads(Path(sys.argv[1]).read_text()).get('ahead_by', 0))
+PY
+)"
+  behind_by="$(python3 - "${compare_json}" <<'PY'
+import json, sys
+from pathlib import Path
+print(json.loads(Path(sys.argv[1]).read_text()).get('behind_by', 0))
+PY
+)"
 else
   fail "cannot compare ${PROD_BRANCH}...${DEV_BRANCH}"
 fi
 rm -f "${compare_json}"
+
+if [[ "${ahead_by:-1}" -gt 0 ]]; then
+  fail "origin/${DEV_BRANCH} has ${ahead_by} unpromoted commits relative to origin/${PROD_BRANCH}" || true
+  if [[ -n "${prs}" ]]; then
+    pass "open ${DEV_BRANCH} -> ${PROD_BRANCH} promotion PR exists"
+    printf '%s\n' "${prs}"
+  else
+    fail "no open ${DEV_BRANCH} -> ${PROD_BRANCH} promotion PR is visible" || true
+  fi
+else
+  pass "origin/${DEV_BRANCH} has no unpromoted commits relative to origin/${PROD_BRANCH}"
+  if [[ -n "${prs}" ]]; then
+    info "open promotion PR is visible but no unpromoted commits remain"
+    printf '%s\n' "${prs}"
+  else
+    info "no open ${DEV_BRANCH} -> ${PROD_BRANCH} promotion PR is required because no unpromoted commits remain"
+  fi
+fi
 
 behind_count="$(git rev-list --count "origin/${DEV_BRANCH}..origin/${PROD_BRANCH}")"
 if [[ "${behind_count}" -gt 0 ]]; then
