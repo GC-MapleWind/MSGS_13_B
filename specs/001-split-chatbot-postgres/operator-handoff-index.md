@@ -110,6 +110,7 @@ coverage guard or live external gate diagnostics fail, but it is still not a
 substitute for the evidence transcripts requested by the templates above.
 The main repo release branch is also not promoted: latest preflight found no open PRs in `GC-MapleWind/MSGS_13_B`; `main` is protected at `51853f8284a0d0b30f891e45c37dfae55b0ab14b`; `main...dev` is diverged and `check-external-gates.sh` checks this as a live `Main promotion gate`. The two `main`-only merge commits are `c3fd0298c2baa5b1061c81fca688d387eff1391c` (#52) and `51853f8284a0d0b30f891e45c37dfae55b0ab14b` (#53); a non-committal merge rehearsal from current `origin/dev` completed cleanly with no worktree diff. Dev workflow success still remains pre-production evidence only until operators reconcile and approve that promotion path.
 Use `specs/001-split-chatbot-postgres/prepare-main-promotion.sh` to rerun that promotion dry-run. It is intentionally non-destructive: it fetches refs, checks for an open promotion PR, reports compare status, runs a temporary no-commit merge rehearsal, and exits non-zero while the gate is still blocked.
+The helper self-test was hardened in `5b7e938e5cd044ad65696fd1fa31253be019f8b2` and passed dev Actions run `25589034684`; `prepare-main-promotion.sh --self-test` now covers both a clean no-diff rehearsal and a dirty rehearsal that must be detected.
 
 The external gate checker reads blocker issues with `gh issue view` first and
 falls back to the REST issues API if GraphQL is transiently unavailable;
