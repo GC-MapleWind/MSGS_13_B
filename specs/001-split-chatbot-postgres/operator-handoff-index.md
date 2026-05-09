@@ -108,6 +108,8 @@ you want the coverage guard, parser self-tests, operator helper self-tests (incl
 live external diagnostics in one command. It fails if either the documentation
 coverage guard or live external gate diagnostics fail, but it is still not a
 substitute for the evidence transcripts requested by the templates above.
+The main repo release branch is also not promoted: latest preflight found no open PRs in `GC-MapleWind/MSGS_13_B`; `main` is protected at `51853f8284a0d0b30f891e45c37dfae55b0ab14b`; `main...dev` is diverged with `dev` ahead by 177 commits and behind by 2. Treat dev workflow success as pre-production evidence only until operators reconcile and approve that promotion path.
+
 The external gate checker reads blocker issues with `gh issue view` first and
 falls back to the REST issues API if GraphQL is transiently unavailable;
 `check-external-gates.sh --self-test` verifies the fallback emits a clean
