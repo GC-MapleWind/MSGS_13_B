@@ -34,6 +34,29 @@ need_cmd() {
   command -v "$1" >/dev/null 2>&1 || fail "missing required command: $1"
 }
 
+check_promotion_pr_decision() {
+  ahead_by="$1"
+  prs="$2"
+
+  if [[ "${ahead_by:-1}" -gt 0 ]]; then
+    fail "origin/${DEV_BRANCH} has ${ahead_by} unpromoted commits relative to origin/${PROD_BRANCH}" || true
+    if [[ -n "${prs}" ]]; then
+      pass "open ${DEV_BRANCH} -> ${PROD_BRANCH} promotion PR exists"
+      printf '%s\n' "${prs}"
+    else
+      fail "no open ${DEV_BRANCH} -> ${PROD_BRANCH} promotion PR is visible" || true
+    fi
+  else
+    pass "origin/${DEV_BRANCH} has no unpromoted commits relative to origin/${PROD_BRANCH}"
+    if [[ -n "${prs}" ]]; then
+      info "open promotion PR is visible but no unpromoted commits remain"
+      printf '%s\n' "${prs}"
+    else
+      info "no open ${DEV_BRANCH} -> ${PROD_BRANCH} promotion PR is required because no unpromoted commits remain"
+    fi
+  fi
+}
+
 run_self_test() {
   tmp="$(mktemp -d "${TMPDIR:-/tmp}/main-promotion-helper-test.XXXXXX")"
   trap 'rm -rf "${tmp}"' RETURN
@@ -95,6 +118,37 @@ run_self_test() {
   else
     pass "self-test dirty no-commit rehearsal detects a diff"
   fi
+
+  before_failures="${failures}"
+  check_promotion_pr_decision 0 "" >"${tmp}/decision_complete.out" 2>&1
+  if [[ "${failures}" -eq "${before_failures}" ]]; then
+    pass "self-test completed promotion does not require stale PR"
+  else
+    fail "self-test completed promotion unexpectedly required a PR"
+    return 1
+  fi
+
+  before_failures="${failures}"
+  check_promotion_pr_decision 2 "" >"${tmp}/decision_unpromoted_no_pr.out" 2>&1
+  added_failures=$((failures - before_failures))
+  failures="${before_failures}"
+  if [[ "${added_failures}" -eq 2 ]]; then
+    pass "self-test unpromoted commits without PR fail"
+  else
+    fail "self-test unpromoted commits without PR did not add two failures"
+    return 1
+  fi
+
+  before_failures="${failures}"
+  check_promotion_pr_decision 2 "#123 Promote https://example.test/pr/123" >"${tmp}/decision_unpromoted_with_pr.out" 2>&1
+  added_failures=$((failures - before_failures))
+  failures="${before_failures}"
+  if [[ "${added_failures}" -eq 1 ]]; then
+    pass "self-test unpromoted commits with PR still fail"
+  else
+    fail "self-test unpromoted commits with PR did not add one failure"
+    return 1
+  fi
 }
 
 if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
@@ -154,23 +208,7 @@ else
 fi
 rm -f "${compare_json}"
 
-if [[ "${ahead_by:-1}" -gt 0 ]]; then
-  fail "origin/${DEV_BRANCH} has ${ahead_by} unpromoted commits relative to origin/${PROD_BRANCH}" || true
-  if [[ -n "${prs}" ]]; then
-    pass "open ${DEV_BRANCH} -> ${PROD_BRANCH} promotion PR exists"
-    printf '%s\n' "${prs}"
-  else
-    fail "no open ${DEV_BRANCH} -> ${PROD_BRANCH} promotion PR is visible" || true
-  fi
-else
-  pass "origin/${DEV_BRANCH} has no unpromoted commits relative to origin/${PROD_BRANCH}"
-  if [[ -n "${prs}" ]]; then
-    info "open promotion PR is visible but no unpromoted commits remain"
-    printf '%s\n' "${prs}"
-  else
-    info "no open ${DEV_BRANCH} -> ${PROD_BRANCH} promotion PR is required because no unpromoted commits remain"
-  fi
-fi
+check_promotion_pr_decision "${ahead_by}" "${prs}"
 
 behind_count="$(git rev-list --count "origin/${DEV_BRANCH}..origin/${PROD_BRANCH}")"
 if [[ "${behind_count}" -gt 0 ]]; then
