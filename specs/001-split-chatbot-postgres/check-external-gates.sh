@@ -179,6 +179,37 @@ ghcr_tag_visible() {
   printf '%s\n' "${versions}" | awk -F'tags=' 'NF > 1 {print $2}' | tr ',' '\n' | grep -Eq "${pattern}"
 }
 
+check_main_promotion_decision() {
+  ahead_by="$1"
+  behind_by="$2"
+  promotion_prs="$3"
+  pr_err_file="$4"
+
+  if [[ "${behind_by}" -gt 0 ]]; then
+    fail "${MAIN_BRANCH} is behind ${MAIN_PRODUCTION_BRANCH} by ${behind_by} commits; reconcile before production promotion"
+  else
+    pass "${MAIN_BRANCH} is not behind ${MAIN_PRODUCTION_BRANCH}"
+  fi
+
+  if [[ "${ahead_by}" -gt 0 ]]; then
+    fail "${MAIN_BRANCH} has ${ahead_by} unpromoted commits relative to ${MAIN_PRODUCTION_BRANCH}; production promotion is incomplete"
+    if [[ -n "${promotion_prs}" ]]; then
+      printf '%s\n' "${promotion_prs}"
+      pass "open ${MAIN_BRANCH} -> ${MAIN_PRODUCTION_BRANCH} promotion PR exists"
+    else
+      fail "no open ${MAIN_BRANCH} -> ${MAIN_PRODUCTION_BRANCH} promotion PR is visible: $(tr '\n' ' ' <"${pr_err_file}")"
+    fi
+  else
+    pass "${MAIN_BRANCH} has no unpromoted commits relative to ${MAIN_PRODUCTION_BRANCH}"
+    if [[ -n "${promotion_prs}" ]]; then
+      printf '%s\n' "${promotion_prs}"
+      info "open promotion PR is visible but no unpromoted commits remain"
+    else
+      info "no open ${MAIN_BRANCH} -> ${MAIN_PRODUCTION_BRANCH} promotion PR is required because no unpromoted commits remain"
+    fi
+  fi
+}
+
 run_self_test() {
   section "GHCR tag parser self-test"
   versions='version=1 updated=now tags=latest,0123456789abcdef0123456789abcdef01234567,main,main-0123456'
@@ -194,6 +225,36 @@ run_self_test() {
   if ghcr_tag_visible '^latest$'; then fail "unexpectedly matches non-exact latest tag"; else pass "rejects non-exact latest tag"; fi
   if ghcr_tag_visible '^main$'; then fail "unexpectedly matches non-exact main tag"; else pass "rejects non-exact main tag"; fi
   if ghcr_tag_visible '^main-[0-9a-f]{7,40}$'; then fail "unexpectedly matches too-short main-* tag"; else pass "rejects too-short main-* tag"; fi
+
+  section "Main promotion decision self-test"
+  printf '' >"${TMP_DIR}/promotion_prs_empty.err"
+  before_failures="${failures}"
+  check_main_promotion_decision 0 0 "" "${TMP_DIR}/promotion_prs_empty.err" >/"${TMP_DIR}/promotion_complete.out"
+  if [[ "${failures}" -eq "${before_failures}" ]]; then
+    pass "allows completed promotion without stale open PR"
+  else
+    fail "completed promotion without PR should not fail"
+  fi
+
+  before_failures="${failures}"
+  check_main_promotion_decision 3 0 "" "${TMP_DIR}/promotion_prs_empty.err" >/"${TMP_DIR}/promotion_unpromoted.out"
+  added_failures=$((failures - before_failures))
+  failures="${before_failures}"
+  if [[ "${added_failures}" -eq 2 ]]; then
+    pass "fails unpromoted commits without open PR"
+  else
+    fail "unpromoted commits without PR should add two failures"
+  fi
+
+  before_failures="${failures}"
+  check_main_promotion_decision 3 0 "#123 Promote https://example.test/pr/123" "${TMP_DIR}/promotion_prs_empty.err" >/"${TMP_DIR}/promotion_open_pr.out"
+  added_failures=$((failures - before_failures))
+  failures="${before_failures}"
+  if [[ "${added_failures}" -eq 1 ]]; then
+    pass "still fails unpromoted commits even with open PR"
+  else
+    fail "unpromoted commits with PR should still add one failure"
+  fi
 
   section "Issue reader fallback self-test"
   gh() {
@@ -445,28 +506,7 @@ from pathlib import Path
 print(json.loads(Path(sys.argv[1]).read_text()).get('ahead_by', 0))
 PY_AHEAD
 )"
-    if [[ "${behind_by}" -gt 0 ]]; then
-      fail "${MAIN_BRANCH} is behind ${MAIN_PRODUCTION_BRANCH} by ${behind_by} commits; reconcile before production promotion"
-    else
-      pass "${MAIN_BRANCH} is not behind ${MAIN_PRODUCTION_BRANCH}"
-    fi
-    if [[ "${ahead_by}" -gt 0 ]]; then
-      fail "${MAIN_BRANCH} has ${ahead_by} unpromoted commits relative to ${MAIN_PRODUCTION_BRANCH}; production promotion is incomplete"
-      if [[ -n "${promotion_prs}" ]]; then
-        printf '%s\n' "${promotion_prs}"
-        pass "open ${MAIN_BRANCH} -> ${MAIN_PRODUCTION_BRANCH} promotion PR exists"
-      else
-        fail "no open ${MAIN_BRANCH} -> ${MAIN_PRODUCTION_BRANCH} promotion PR is visible: $(tr '\n' ' ' <"${TMP_DIR}/main_promotion_prs.err")"
-      fi
-    else
-      pass "${MAIN_BRANCH} has no unpromoted commits relative to ${MAIN_PRODUCTION_BRANCH}"
-      if [[ -n "${promotion_prs}" ]]; then
-        printf '%s\n' "${promotion_prs}"
-        info "open promotion PR is visible but no unpromoted commits remain"
-      else
-        info "no open ${MAIN_BRANCH} -> ${MAIN_PRODUCTION_BRANCH} promotion PR is required because no unpromoted commits remain"
-      fi
-    fi
+    check_main_promotion_decision "${ahead_by}" "${behind_by}" "${promotion_prs}" "${TMP_DIR}/main_promotion_prs.err"
   else
     fail "cannot compare ${MAIN_PRODUCTION_BRANCH}...${MAIN_BRANCH} after retries: $(tr '\n' ' ' <"${TMP_DIR}/main_promotion_compare.err")"
     if [[ -n "${promotion_prs}" ]]; then

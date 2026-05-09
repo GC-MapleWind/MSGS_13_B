@@ -184,3 +184,11 @@
 ## [2026-05-09T02:45:02Z] lint
 - **Pages:** split-chatbot-postgresql-migration-handoff.md
 - **Summary:** Lint: 1 issues (1 orphan, 0 stale, 0 broken, 0 contradictions)
+
+## [2026-05-09T02:50:00Z] update
+- **Pages:** split-chatbot-postgresql-migration-handoff.md
+- **Summary:** Recorded main promotion checker decision self-test coverage
+
+## [2026-05-09T02:50:02Z] lint
+- **Pages:** split-chatbot-postgresql-migration-handoff.md
+- **Summary:** Lint: 1 issues (1 orphan, 0 stale, 0 broken, 0 contradictions)
