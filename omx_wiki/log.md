@@ -88,3 +88,11 @@
 - **Pages:** split-chatbot-postgresql-migration-handoff.md
 - **Summary:** Lint: 1 issues (1 orphan, 0 stale, 0 broken, 0 contradictions)
 
+
+## [2026-05-09T01:34:00Z] add
+- **Pages:** split-chatbot-postgresql-migration-handoff.md
+- **Summary:** Refreshed wiki index after latest objective/handoff advisory guard sync
+
+## [2026-05-09T01:34:02Z] lint
+- **Pages:** split-chatbot-postgresql-migration-handoff.md
+- **Summary:** Lint: 1 issues (1 orphan, 0 stale, 0 broken, 0 contradictions)
