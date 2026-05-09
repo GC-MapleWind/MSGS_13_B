@@ -96,3 +96,19 @@
 ## [2026-05-09T01:34:02Z] lint
 - **Pages:** split-chatbot-postgresql-migration-handoff.md
 - **Summary:** Lint: 1 issues (1 orphan, 0 stale, 0 broken, 0 contradictions)
+
+## [2026-05-09T01:44:00Z] update
+- **Pages:** split-chatbot-postgresql-migration-handoff.md
+- **Summary:** Synced wiki handoff with readiness wrapper executable guard and latest externally blocked readiness result
+
+## [2026-05-09T01:44:02Z] lint
+- **Pages:** split-chatbot-postgresql-migration-handoff.md
+- **Summary:** Lint: 1 issues (1 orphan, 0 stale, 0 broken, 0 contradictions)
+
+## [2026-05-09T01:49:00Z] update
+- **Pages:** split-chatbot-postgresql-migration-handoff.md
+- **Summary:** Corrected readiness wrapper evidence to distinguish self-check logic from the actual git executable-mode fix
+
+## [2026-05-09T01:49:02Z] lint
+- **Pages:** split-chatbot-postgresql-migration-handoff.md
+- **Summary:** Lint: 1 issues (1 orphan, 0 stale, 0 broken, 0 contradictions)
