@@ -29,6 +29,7 @@ fi
 printf '\n== Operator helper self-tests ==\n'
 helper_failures=0
 for helper in \
+  specs/001-split-chatbot-postgres/check-completion-readiness.sh \
   specs/001-split-chatbot-postgres/prepare-chatbot-workflows.sh \
   specs/001-split-chatbot-postgres/validate-cutover-evidence-summary.sh
  do
