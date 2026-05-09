@@ -122,6 +122,7 @@ def check_required_files() -> int:
         ROOT / "operator-handoff-index.md",
         ROOT / "check-completion-readiness.sh",
         ROOT / "check-external-gates.sh",
+        ROOT / "prepare-main-promotion.sh",
         REPO / ".cursor/plans/split_chatbot_postgres_migration_5a689f0e.plan.md",
     ]
     missing = [path for path in required if not path.exists()]

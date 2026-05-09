@@ -31,6 +31,7 @@ helper_failures=0
 for helper in \
   specs/001-split-chatbot-postgres/check-completion-readiness.sh \
   specs/001-split-chatbot-postgres/prepare-chatbot-workflows.sh \
+  specs/001-split-chatbot-postgres/prepare-main-promotion.sh \
   specs/001-split-chatbot-postgres/validate-cutover-evidence-summary.sh
  do
   if [[ -x "${helper}" ]]; then
@@ -59,6 +60,20 @@ if specs/001-split-chatbot-postgres/prepare-chatbot-workflows.sh --self-test >/d
   printf 'PASS prepare-chatbot-workflows self-test\n'
 else
   printf 'FAIL prepare-chatbot-workflows self-test\n'
+  helper_failures=$((helper_failures + 1))
+fi
+
+if specs/001-split-chatbot-postgres/prepare-main-promotion.sh --help >/dev/null; then
+  printf 'PASS prepare-main-promotion help\n'
+else
+  printf 'FAIL prepare-main-promotion help\n'
+  helper_failures=$((helper_failures + 1))
+fi
+
+if specs/001-split-chatbot-postgres/prepare-main-promotion.sh --self-test >/dev/null; then
+  printf 'PASS prepare-main-promotion self-test\n'
+else
+  printf 'FAIL prepare-main-promotion self-test\n'
   helper_failures=$((helper_failures + 1))
 fi
 
