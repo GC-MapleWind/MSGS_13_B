@@ -48,10 +48,20 @@ git diff -- .github/workflows/deploy.yml
 
 ```bash
 git add .github/workflows/deploy.yml
-git commit -m "Refresh GitHub Actions runtimes" \
-  -m "Move checkout, setup-buildx, login, and metadata actions to Node 24-capable major versions to reduce the runner deprecation risk while leaving build-push pinned because its current major still uses Node 20." \
-  -m "Constraint: GitHub Actions warns that Node 20 actions will be forced toward Node 24 in 2026.\nRejected: Updating docker/build-push-action only for version freshness | v6 still declares node20, so it does not address the warning class.\nConfidence: medium\nScope-risk: narrow\nDirective: Re-check action.yml runtimes before changing build-push-action or future action majors.\nTested: inspected upstream action.yml runtime declarations for checkout v5, setup-buildx v4, login v4, metadata v6, and build-push v6; git diff --check.\nNot-tested: GitHub Actions run is triggered after push." \
-  -m "Co-authored-by: OmX <omx@oh-my-codex.dev>"
+commit_body=$(cat <<'EOF_COMMIT_BODY'
+Move checkout, setup-buildx, login, and metadata actions to Node 24-capable major versions to reduce the runner deprecation risk while leaving build-push pinned because its current major still uses Node 20.
+
+Constraint: GitHub Actions warns that Node 20 actions will be forced toward Node 24 in 2026.
+Rejected: Updating docker/build-push-action only for version freshness | v6 still declares node20, so it does not address the warning class.
+Confidence: medium
+Scope-risk: narrow
+Directive: Re-check action.yml runtimes before changing build-push-action or future action majors.
+Tested: inspected upstream action.yml runtime declarations for checkout v5, setup-buildx v4, login v4, metadata v6, and build-push v6; git diff --check.
+Not-tested: GitHub Actions run is triggered after push.
+Co-authored-by: OmX <omx@oh-my-codex.dev>
+EOF_COMMIT_BODY
+)
+git commit -m "Refresh GitHub Actions runtimes" -m "$commit_body"
 
 git push origin HEAD:dev
 ```
