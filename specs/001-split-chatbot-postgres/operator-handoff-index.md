@@ -103,8 +103,8 @@ verify that `completion-audit.md` still maps every task, FR, SC, prompt task ID,
 and local Markdown link from the active objective inputs. This coverage guard is
 documentation-only and does not replace live external gate evidence.
 
-Run `bash specs/001-split-chatbot-postgres/check-completion-readiness.sh` when
-you want the coverage guard, parser self-tests, operator helper self-tests (including the chatbot workflow helper commit-body self-test), and
+Run `./specs/001-split-chatbot-postgres/check-completion-readiness.sh` (or `bash specs/001-split-chatbot-postgres/check-completion-readiness.sh`) when
+you want the coverage guard, parser self-tests, operator helper self-tests (including the readiness wrapper's own executable-mode check and the chatbot workflow helper commit-body self-test), and
 live external diagnostics in one command. It fails if either the documentation
 coverage guard or live external gate diagnostics fail, but it is still not a
 substitute for the evidence transcripts requested by the templates above.
