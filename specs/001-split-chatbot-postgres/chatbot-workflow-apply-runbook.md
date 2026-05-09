@@ -123,10 +123,20 @@ Use the Lore commit protocol required by the parent project:
 
 ```bash
 git add .github/workflows/ci.yml .github/workflows/deploy.yml
-git commit -m "Enable chatbot CI/CD workflows" \
-  -m "Apply the prepared workflow patch so chatbot main can lint, test, build GHCR images, and deploy independently." \
-  -m "Constraint: Requires a GitHub credential or app with workflow scope.\nRejected: Keeping workflows as a patch artifact | SC-005 requires remote workflow execution evidence.\nConfidence: high\nScope-risk: narrow\nDirective: Preserve GHCR tags :latest, :<full sha>, :main, and :main-* unless deploy consumers are updated.\nTested: git apply --check; uv sync --dev --frozen; uv run ruff check .; uv run python -m unittest discover -s tests -v; uv run alembic upgrade head --sql; docker build -t chatbot-ci-local:workflow-patch-apply .\nNot-tested: Production deploy until GitHub Actions run completes." \
-  -m "Co-authored-by: OmX <omx@oh-my-codex.dev>"
+commit_body=$(cat <<'EOF_COMMIT_BODY'
+Apply the prepared workflow patch so chatbot main can lint, test, build GHCR images, and deploy independently.
+
+Constraint: Requires a GitHub credential or app with workflow scope.
+Rejected: Keeping workflows as a patch artifact | SC-005 requires remote workflow execution evidence.
+Confidence: high
+Scope-risk: narrow
+Directive: Preserve GHCR tags :latest, :<full sha>, :main, and :main-* unless deploy consumers are updated.
+Tested: git apply --check; uv sync --dev --frozen; uv run ruff check .; uv run python -m unittest discover -s tests -v; uv run alembic upgrade head --sql; docker build -t chatbot-ci-local:workflow-patch-apply .
+Not-tested: Production deploy until GitHub Actions run completes.
+Co-authored-by: OmX <omx@oh-my-codex.dev>
+EOF_COMMIT_BODY
+)
+git commit -m "Enable chatbot CI/CD workflows" -m "$commit_body"
 
 git push origin HEAD:main
 ```
