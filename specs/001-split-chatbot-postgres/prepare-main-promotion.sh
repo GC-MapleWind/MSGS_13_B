@@ -38,9 +38,41 @@ run_self_test() {
   tmp="$(mktemp -d "${TMPDIR:-/tmp}/main-promotion-helper-test.XXXXXX")"
   trap 'rm -rf "${tmp}"' RETURN
 
-  git init -q "${tmp}/repo"
-  (
-    cd "${tmp}/repo" || exit 1
+  # Positive case: main is behind only by an equivalent patch that dev already
+  # carries independently, so a no-commit merge must leave no worktree diff.
+  git init -q "${tmp}/clean"
+  if (
+    cd "${tmp}/clean" || exit 1
+    git config user.email test@example.invalid
+    git config user.name 'Test User'
+    printf 'base\n' > file.txt
+    git add file.txt
+    git commit -q -m base
+    git branch main
+    git checkout -q -b dev
+    printf 'shared\n' > shared.txt
+    git add shared.txt
+    git commit -q -m dev-shared
+    git checkout -q main
+    printf 'shared\n' > shared.txt
+    git add shared.txt
+    git commit -q -m main-shared
+    git checkout -q dev
+    git merge --no-commit --no-ff main >/dev/null 2>/dev/null
+    git diff --quiet HEAD
+    git merge --abort >/dev/null
+  ); then
+    pass "self-test clean no-commit rehearsal leaves no diff"
+  else
+    fail "self-test clean no-commit rehearsal unexpectedly produced a diff"
+    return 1
+  fi
+
+  # Negative case: main carries a real additional file, so the same diff check
+  # must detect that a no-commit merge would change the worktree.
+  git init -q "${tmp}/dirty"
+  if (
+    cd "${tmp}/dirty" || exit 1
     git config user.email test@example.invalid
     git config user.name 'Test User'
     printf 'base\n' > file.txt
@@ -56,10 +88,13 @@ run_self_test() {
     git commit -q -m main
     git checkout -q dev
     git merge --no-commit --no-ff main >/dev/null 2>/dev/null
-    git diff --quiet HEAD || exit 2
-    git merge --abort >/dev/null
-  )
-  pass "self-test clean no-commit rehearsal leaves no diff"
+    git diff --quiet HEAD
+  ); then
+    fail "self-test dirty no-commit rehearsal failed to detect a diff"
+    return 1
+  else
+    pass "self-test dirty no-commit rehearsal detects a diff"
+  fi
 }
 
 if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
