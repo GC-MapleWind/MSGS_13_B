@@ -8,6 +8,7 @@ set -u -o pipefail
 MAIN_REPO="${MAIN_REPO:-GC-MapleWind/MSGS_13_B}"
 CHATBOT_REPO="${CHATBOT_REPO:-GC-MapleWind/maplewind-chatbot}"
 MAIN_BRANCH="${MAIN_BRANCH:-dev}"
+MAIN_PRODUCTION_BRANCH="${MAIN_PRODUCTION_BRANCH:-main}"
 CHATBOT_BRANCH="${CHATBOT_BRANCH:-main}"
 
 failures=0
@@ -405,9 +406,69 @@ fi
 
 section "Remote refs"
 main_ref="$(git ls-remote "https://github.com/${MAIN_REPO}.git" "refs/heads/${MAIN_BRANCH}" 2>/dev/null | awk '{print $1}')"
+main_prod_ref="$(git ls-remote "https://github.com/${MAIN_REPO}.git" "refs/heads/${MAIN_PRODUCTION_BRANCH}" 2>/dev/null | awk '{print $1}')"
 chatbot_ref="$(git ls-remote "https://github.com/${CHATBOT_REPO}.git" "refs/heads/${CHATBOT_BRANCH}" 2>/dev/null | awk '{print $1}')"
 if [[ -n "${main_ref}" ]]; then pass "${MAIN_REPO} ${MAIN_BRANCH} ${main_ref}"; else fail "cannot read ${MAIN_REPO} ${MAIN_BRANCH}"; fi
+if [[ -n "${main_prod_ref}" ]]; then pass "${MAIN_REPO} ${MAIN_PRODUCTION_BRANCH} ${main_prod_ref}"; else fail "cannot read ${MAIN_REPO} ${MAIN_PRODUCTION_BRANCH}"; fi
 if [[ -n "${chatbot_ref}" ]]; then pass "${CHATBOT_REPO} ${CHATBOT_BRANCH} ${chatbot_ref}"; else fail "cannot read ${CHATBOT_REPO} ${CHATBOT_BRANCH}"; fi
+
+section "Main promotion gate"
+if [[ "${MAIN_BRANCH}" == "${MAIN_PRODUCTION_BRANCH}" ]]; then
+  pass "main development branch is already the production branch: ${MAIN_BRANCH}"
+else
+  main_owner="${MAIN_REPO%%/*}"
+  promotion_head="${main_owner}:${MAIN_BRANCH}"
+  promotion_prs="$(gh pr list --repo "${MAIN_REPO}" --state open --base "${MAIN_PRODUCTION_BRANCH}" --head "${promotion_head}" --json number,title,url --jq '.[] | "#" + (.number|tostring) + " " + .title + " " + .url' 2>"${TMP_DIR}/main_promotion_prs.err" || true)"
+  if [[ -n "${promotion_prs}" ]]; then
+    printf '%s
+' "${promotion_prs}"
+    pass "open ${MAIN_BRANCH} -> ${MAIN_PRODUCTION_BRANCH} promotion PR exists"
+  else
+    fail "no open ${MAIN_BRANCH} -> ${MAIN_PRODUCTION_BRANCH} promotion PR is visible: $(tr '
+' ' ' <"${TMP_DIR}/main_promotion_prs.err")"
+  fi
+
+  compare_json="${TMP_DIR}/main_promotion_compare.json"
+  compare_api="repos/${MAIN_REPO}/compare/${MAIN_PRODUCTION_BRANCH}...${MAIN_BRANCH}"
+  if gh_api_retry_to_file "${compare_api}" "${compare_json}" "${TMP_DIR}/main_promotion_compare.err" 3; then
+    compare_line="$(python3 - "${compare_json}" <<'PY_COMPARE'
+import json
+import sys
+from pathlib import Path
+payload = json.loads(Path(sys.argv[1]).read_text())
+print(f"status={payload.get('status')} ahead_by={payload.get('ahead_by')} behind_by={payload.get('behind_by')} url={payload.get('html_url')}")
+PY_COMPARE
+)"
+    info "${MAIN_PRODUCTION_BRANCH}...${MAIN_BRANCH} ${compare_line}"
+    behind_by="$(python3 - "${compare_json}" <<'PY_BEHIND'
+import json
+import sys
+from pathlib import Path
+print(json.loads(Path(sys.argv[1]).read_text()).get('behind_by', 0))
+PY_BEHIND
+)"
+    ahead_by="$(python3 - "${compare_json}" <<'PY_AHEAD'
+import json
+import sys
+from pathlib import Path
+print(json.loads(Path(sys.argv[1]).read_text()).get('ahead_by', 0))
+PY_AHEAD
+)"
+    if [[ "${behind_by}" -gt 0 ]]; then
+      fail "${MAIN_BRANCH} is behind ${MAIN_PRODUCTION_BRANCH} by ${behind_by} commits; reconcile before production promotion"
+    else
+      pass "${MAIN_BRANCH} is not behind ${MAIN_PRODUCTION_BRANCH}"
+    fi
+    if [[ "${ahead_by}" -gt 0 ]]; then
+      warn "${MAIN_BRANCH} is ahead of ${MAIN_PRODUCTION_BRANCH} by ${ahead_by} commits; dev success is not production evidence until promotion completes"
+    else
+      pass "${MAIN_BRANCH} has no unpromoted commits relative to ${MAIN_PRODUCTION_BRANCH}"
+    fi
+  else
+    fail "cannot compare ${MAIN_PRODUCTION_BRANCH}...${MAIN_BRANCH} after retries: $(tr '
+' ' ' <"${TMP_DIR}/main_promotion_compare.err")"
+  fi
+fi
 
 section "GitHub credential scope"
 headers="$(gh api -i user 2>/dev/null || true)"
