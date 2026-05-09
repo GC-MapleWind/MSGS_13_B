@@ -75,6 +75,41 @@ else
   failures=$((failures + 1))
 fi
 
+printf '\n== Commit message hygiene advisory ==\n'
+commit_hygiene_output="$(python3 - <<'PY_COMMIT_HYGIENE'
+import subprocess
+import sys
+
+try:
+    commits = subprocess.check_output(
+        ['git', 'rev-list', '--max-count=30', 'HEAD'],
+        text=True,
+        stderr=subprocess.DEVNULL,
+    ).splitlines()
+except (subprocess.CalledProcessError, FileNotFoundError):
+    print('WARN unable to inspect recent commit messages')
+    sys.exit(0)
+
+offenders = []
+for sha in commits:
+    raw = subprocess.check_output(['git', 'log', '-1', '--format=%B', sha], text=True)
+    if '\\n' in raw:
+        subject = raw.splitlines()[0] if raw.splitlines() else '<empty subject>'
+        offenders.append((sha, subject))
+
+if offenders:
+    print(f'WARN literal backslash-n found in {len(offenders)} of last {len(commits)} commit messages')
+    for sha, subject in offenders[:5]:
+        print(f'WARN commit-message-literal-newline {sha[:12]} {subject}')
+    if len(offenders) > 5:
+        print(f'WARN additional literal-newline commit messages omitted: {len(offenders) - 5}')
+    print('INFO advisory only; repairing pushed commit objects requires explicit history rewrite')
+else:
+    print(f'PASS no literal backslash-n in last {len(commits)} commit messages')
+PY_COMMIT_HYGIENE
+)"
+printf '%s\n' "${commit_hygiene_output}"
+
 printf '\n== Live external gate diagnostics ==\n'
 if bash specs/001-split-chatbot-postgres/check-external-gates.sh; then
   printf 'PASS live external gate diagnostics returned zero observable failures\n'
